@@ -1,13 +1,23 @@
 # Bruxism Detector
-This small suite helps you detect night bruxism and interrupt it.</br>This issue is waking my up anyways, so why not wake up before damage is done.
+This small suite helps you detect night bruxism and interrupt it.</br>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.
+
+In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
 
 ## **What to expect**
 - Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps
-- Raw data: all SVM results are logged with timestamps in a `<date>_RAW.csv` file so you can run through them and make a better detection algorithm
-- A really bad graph if you wish to have one, use `RECORDINGS/generator.jar`
+- Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm
+- A really bad graph if you wish to see one. Use `RECORDINGS/generator.jar`
+- Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings)
+
+## What **NOT** to expect
+- Magic
+- Miracles
+- Permanent fixes
+- Everything to work flawlessly without a drop of `know-how`
+- Holding the author accountable for this work. This software is distributed as-is with no guarantees.
 
 ## **How it works**
-- Detects jaw clenching / activity through an SVM. (You must train it before usage)
+- Detects jaw clenching / activity through a Machine Learning algorithm. (SVM. You must train it before usage)
 - After clenching is detected, arduino or the processing sketch will beep a number of times, then activate an alarm and wake you up.
 - The beep count will reset with time, but if the alarm is fired then you need to press the button to turn it off. After pressing the button you get a grace time to reposition yourself in bed.
 - The processing sketch (`processing_fft_spectrum_sketch`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `RECORDINGS/` Folder
@@ -20,11 +30,23 @@ This small suite helps you detect night bruxism and interrupt it.</br>This issue
 - A Push Button
 - A way to fix everything in place, I designed a 3D printed model to do so
 - Conductive gel. Ultrasound gel usually works too, alternatively saliva should work.
+- An elastic band to hold the electrodes together and make it reusable
 
 ## **Software you need**
 - Arduino IDE with libraries "debounce" by Aaron Kimball, CMSIS-DSP
 - Processing with "Sound" Library
 - Python with numpy, pandas, sklearn libraries. Use pip to install these.
+
+## **Electrode Placement**
+You must place 3 electrodes in total. One is ground and should be placed away from the muscle you want to monitor, the two others should be placed on the muscle.
+
+In this case we want to monitor the masseter activity, so the most practical placement is probably across the forehead. 
+
+Place:
+- The ground electrode around the center of your forehead (away from the masseter)
+- The other electrodes can be placed symmetrically near the temples. To find the exact spot: place a finger on your temples, clench your jaw slightly. The perfect position is where you feel the muscles contracting with your fingers. In some cases the muscle can even be seen contracting in that spot.
+- **NOTE:** move hair out of the way when placing the electrodes.
+- **NOTE:** do not use the electrodes without conductive gel or replacement. It's not going to work well if at all.
 
 ## **How to use**
 - Mount the shield, electrodes, buttons, buzzer and everything
@@ -45,6 +67,9 @@ static const float bias = -0.2237529517562951;```
   - You're seeing the evaluation scores for the FFT. In the sketch, edit the `classify` function, specifically `return sum >= 55 <--- Edit this number ? 1 : 0;`. Replace 55 with the lowest score you see when clenching, and above the highest you see when not clenching. Use plotter or whatever to get the idea.
   - You're good to go, upload the sketch one last time. Verify everything works as intended.
   - **IMPORTANT** if anything about the FFT is changed, you obviously should to re-train your model
+- Run `processing_fft_spectrum_sketch` on your computer to start logging, ensure it doesn't go to sleep.
+- Wear the electrodes, power the Arduino and you got a minute to get in bed without beeps.
+- Find the best position that wears your electrodes and cables the least: the Arduino can be mounted on the wall above your head, or move the bedside table behind your head. This way the electrode cables are straight from your head to the arduino and you can turn in the bed freely enough
 
 ## **Changing detection settings**
 
@@ -61,6 +86,16 @@ Edit the variables:
 |  `campioniFiltraggio`  |  How many samples to take before evaluating if the jaw is clenched. Positive results if more than 2/3 of the samples are positive  |
 
 Then upload your new code.
+
+## **Changing alarm melody**
+Edit these lines in your sketch
+```
+int tone_num = 4;                                   // Size of the tones array (change accordingly)
+int tone_sel = tone_num - 1;                        // Do not touch this
+unsigned int tones[] = { 1567, 1760, 1975, 2093 };  // Frequency of each note (all arrays here must have the same size)
+unsigned int durations[] = { 200, 200, 200, 500 };  // Duration of each note
+unsigned int waits[] = { 170, 170, 170, 4500 };     // Wait after each note
+```
 
 ## **Other files**
 | File    | Description |
