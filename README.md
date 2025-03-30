@@ -3,6 +3,16 @@ This small suite helps you detect night bruxism and interrupt it.</br>Night brux
 
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
 
+---------------
+
+# **SAFETY NOTICE**
+
+To reduce risk of electrocution, __NEVER__ connect electrodes to your body when the circuit is also attached to the wall in some way. Through the charger, a laptop, your desktop, etc.
+
+In simple terms, you should only wear electrodes when your circuit is attached to a battery and not to the wall.</br></br>No, attaching to your power bank while it's charging from the wall also isn't okay.
+
+---------------
+
 ## **What to expect**
 - Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps
 - Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm
