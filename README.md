@@ -43,7 +43,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - An elastic band to hold the electrodes together and make it reusable
 
 ## **Software you need**
-- Arduino IDE with libraries "debounce" by Aaron Kimball, CMSIS-DSP
+- Arduino IDE with libraries "debounce" by Aaron Kimball, "CMSIS-DSP"
 - Processing with "Sound" Library
 - Python with numpy, pandas, sklearn libraries. Use pip to install these.
 
