@@ -38,7 +38,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - Some way to read EMG. I am using [OLIMEX-EKG-EMG-SHIELD](https://www.olimex.com/Products/Duino/Shields/SHIELD-EKG-EMG/open-source-hardware) and the electrodes + pads
 - A Passive Buzzer
 - A Push Button
-- A way to fix everything in place, I designed a 3D printed model to do so
+- [A way to fix everything in place, I designed a 3D printed model to do so](https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure)
 - Conductive gel. Ultrasound gel usually works too, alternatively saliva should work.
 - An elastic band to hold the electrodes together and make it reusable
 
