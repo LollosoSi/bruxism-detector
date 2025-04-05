@@ -59,9 +59,10 @@ Place:
 - **NOTE:** do not use the electrodes without conductive gel or replacement. It's not going to work well if at all.
 
 ## **How to use**
+The following will reference `Arduino/main/main.ino` as the main program.
 - Mount the shield, electrodes, buttons, buzzer and everything
-- Edit `uno_r4_wifi_main_program` with your WiFi SSID and password (look for `ssid`, `password` variables)
-- Load `uno_r4_wifi_main_program` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
+- Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
+- Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
 - Train and tune your SVM model:
   - Long press the button on your arduino until you hear confirmation beeps. The arduino is now streaming the FFT data
   - Run `fft_recorder_for_training`. read console for keys (c, n, s, any other key to suspend recording)
@@ -72,9 +73,10 @@ Place:
   - CMD to that folder, run `python data_classification_training.py`.
   - You will get the C++ code to be pasted in the arduino sketch. Will look like this:```static const float weights[] = { 0.00000000, . . . , 0.00517570, };
 static const float bias = -0.2237529517562951;```
-  - Edit `uno_r4_wifi_main_program` with your weights and bias (look for `weights`, `bias` variables) and load it
-  - Long press the button after the new sketch is loaded. Now look at the console (`500000 baud rate`).
-  - You're seeing the evaluation scores for the FFT. In the sketch, edit the `classify` function, specifically `return sum >= 55 <--- Edit this number ? 1 : 0;`. Replace 55 with the lowest score you see when clenching, and above the highest you see when not clenching. Use plotter or whatever to get the idea.
+  - Edit `Settings.h` with your weights and bias (look for `weights`, `bias` variables) and load it.
+    </br>Keep this file open you're going to edit it again.
+  - Long press the button after the new sketch is loaded, you'll hear confirmation beeps. Now look at the console (`500000 baud rate`).
+  - You're seeing the evaluation scores for the FFT. Edit `Settings.h` and replace classification_threshold with the lowest score you see when clenching, and above the highest you see when not clenching. Use plotter or whatever to get the idea.
   - You're good to go, upload the sketch one last time. Verify everything works as intended.
   - **IMPORTANT** if anything about the FFT is changed, you obviously should to re-train your model
 - Run `processing_fft_spectrum_sketch` on your computer to start logging, ensure it doesn't go to sleep.
@@ -83,7 +85,7 @@ static const float bias = -0.2237529517562951;```
 
 ## **Changing detection settings**
 
-Edit the variables:
+Edit the variables under `Settings.h`:
 | Variable    | Description |
 | -------- | ------- |
 |  `attesaFiltraggio`  |  Wait milliseconds before marking the start of a clenching event  |
@@ -98,18 +100,41 @@ Edit the variables:
 Then upload your new code.
 
 ## **Changing alarm melody**
-Edit these lines in your sketch
-```
-int tone_num = 4;                                   // Size of the tones array (change accordingly)
-int tone_sel = tone_num - 1;                        // Do not touch this
-unsigned int tones[] = { 1567, 1760, 1975, 2093 };  // Frequency of each note (all arrays here must have the same size)
-unsigned int durations[] = { 200, 200, 200, 500 };  // Duration of each note
-unsigned int waits[] = { 170, 170, 170, 4500 };     // Wait after each note
+A full notes and duration definitions is included for convenience. There is a whole `Notes` section in `Settings.h` and it's pretty much self explanatory.
+</br>Look into `Notes.h` for the definitions.
+</br>Everything is in the `Notes` namespace, tunes included.
+</br>To sum up:
+```Cpp
+
+// Select the index of the tune to be played (0 is Other_tune, n-1 is drier) (see tunes[] array)
+uint8_t playtune = 0;
+
+struct tune {
+  int tone_num = 1;            // How many notes in the array?
+  unsigned int tones[];      // Frequencies in Hz
+  unsigned int durations[];  // Duration of each note in milliseconds
+  unsigned int waits[];      // Delay between notes in milliseconds
+};
+
+// Example tune:
+namespace Notes{
+  tune drier{
+    4,
+    { G6, A6, B6, C7 },
+    { Quarter, Quarter, Quarter, Half },
+    { Eighth, Eighth, Eighth, Whole*4 }
+  };
+}
+
+// Register your tune into the array
+tune* tunes[] = {  &Notes::Other_tune, . . . , &Notes::drier };
+
 ```
 
 ## **Other files**
 | File    | Description |
 | -------- | ------- |
+|  `uno_r4_wifi_main_program`  |  Older version of the program  |
 |  `processing_fft_udp_sender_TESTING`  |  Sends random FFT data via UDP and a button press event through the GUI  |
 | `simulation_sendserial` |  Sends the `RAW.csv` data contained in the `input.csv` file (bring one from your `RECORDINGS/` to this folder) through Serial to your Arduino in simulation mode. Appends the Arduino output to `output.csv`, create one if not present. Useful for testing new detection and interruption strategies. Currently the simulation is supported only in `fft_signal_serial_or_udp_output` sketch  |
 
