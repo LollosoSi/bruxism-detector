@@ -4,6 +4,9 @@ This small suite helps you detect night bruxism and interrupt it.</br>Night brux
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
 
 ---------------
+Recently a huge clean up took place in the main program.</br>Contributing and navigating should be substantially easier now.</br>**Feel free to [provide feedback here](https://github.com/LollosoSi/bruxism-detector/discussions/1)**
+
+---------------
 
 # **SAFETY NOTICE**
 
