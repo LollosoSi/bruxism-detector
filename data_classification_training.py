@@ -20,7 +20,7 @@ X = scaler.fit_transform(X)
 kernels = ['linear', 'poly', 'rbf', 'sigmoid']
 best_kernel = None
 best_score = 0
-
+print("\n")
 for k in kernels:
     model = SVC(kernel=k)
     scores = cross_val_score(model, X, y, cv=5)
@@ -31,9 +31,9 @@ for k in kernels:
         best_score = mean_score
         best_kernel = k
 
-print(f"Miglior kernel: {best_kernel} con accuracy {best_score:.3f}")
+print(f"Best kernel: {best_kernel} with accuracy {best_score:.3f}")
 
-print("Uso comunque linear perche si")
+print("\nUsing linear because that one is implemented in the arduino sketch.")
 best_kernel="linear"
 
 # Addestra il modello con il miglior kernel
@@ -45,15 +45,57 @@ if best_kernel == 'linear':
     weights = model.coef_[0]  # I pesi sono in model.coef_
     bias = model.intercept_[0]  # Il bias è in model.intercept_
 
+    # Salva pesi + bias su file, senza virgola finale
+    with open("svm_weights.txt", "w") as f:
+        f.write(", ".join(f"{w:.8f}" for w in np.append(weights, bias)))
+
+    # Calcolo dei punteggi di classificazione
+    def compute_classification_scores(X, weights, bias):
+        return np.dot(X, weights) + bias
+
+    # Calcola i punteggi per entrambe le classi
+    clenching_scores = compute_classification_scores(clenching, weights, bias)
+    non_clenching_scores = compute_classification_scores(non_clenching, weights, bias)
+
+    # Calcola statistiche
+    mean_clenching = np.mean(clenching_scores)
+    min_clenching = np.min(clenching_scores)
+    max_clenching = np.max(clenching_scores)
+
+    mean_non_clenching = np.mean(non_clenching_scores)
+    min_non_clenching = np.min(non_clenching_scores)
+    max_non_clenching = np.max(non_clenching_scores)
+        
+    # Calcola deviazione standard per entrambe le classi
+    std_clenching = np.std(clenching_scores)
+    std_non_clenching = np.std(non_clenching_scores)
+    
+    # Calcola threshold suggerito spostato verso clenching
+    suggested_threshold = mean_clenching - abs(mean_non_clenching - mean_clenching) * 0.3
+    
+    # Stampa riepilogo completo
+    print("\n// Classification score stats:")
+    print(f"// Clenching     -> min: {min_clenching:.6f}, max: {max_clenching:.6f}, mean: {mean_clenching:.6f}, deviation: {std_clenching:.6f}")
+    print(f"// Non-Clenching -> min: {min_non_clenching:.6f}, max: {max_non_clenching:.6f}, mean: {mean_non_clenching:.6f}, deviation: {std_non_clenching:.6f}")
+    
+    print(f"\n// Halfway threshold:")
+    print(f"classification_threshold = {(max_non_clenching + min_clenching) / 2:.0f};")
+    
+    print("\n// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
+    print("\n\n// Copy this and replace in your sketch\n")
+    
     # Stampa i pesi nel formato per Arduino
     print("static const float weights[] = {", end=" ")
-    for weight in weights:
-        print(f"{weight:.8f},", end=" ")
+    print(", ".join(f"{w:.8f}" for w in weights), end=" ")
     print("};")
 
     # Stampa il bias nel formato per Arduino
     print(f"static const float bias = {bias:.16f};")
-    np.savetxt("svm_weights.txt", np.append(weights, bias), delimiter=",")
+    
+    print(f"\n// Suggested threshold:")
+    print(f"static const int classification_threshold = {suggested_threshold:.0f};")
+    print("\n// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
+
 else:
     support_vectors = model.support_vectors_
     dual_coefs = model.dual_coef_
