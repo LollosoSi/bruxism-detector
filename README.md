@@ -7,6 +7,20 @@ In case I missed any information, check this [Instructable](https://www.instruct
 Recently a huge clean up took place in the main program.</br>Contributing and navigating should be substantially easier now.</br>**Feel free to [provide feedback here](https://github.com/LollosoSi/bruxism-detector/discussions/1)**
 
 ---------------
+# Contents
+- [What to expect](#what-to-expect)
+- [What not to expect](#what-not-to-expect)
+- [How it works](#how-it-works)
+- [Bill of materials](#items-you-need)
+- [Software prerequisites](#software-you-need)
+- [Placing electrodes](#electrode-placement)
+- [How to use](#how-to-use)
+- [Train your SVM Model](#train-your-svm-model)
+- [Tune your SVM Model](#tune-your-svm-model)
+- [Changing detection settings](#changing-detection-settings)
+- [Changing alarm tunes](#changing-alarm-melody)
+- [Other files](#other-files)
+---------------
 
 # **SAFETY NOTICE**
 
@@ -67,7 +81,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
 - Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
 - Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
     </br>
-- **Train your SVM model:**
+### **Train your SVM model:**
   - Long press the button on your arduino until you hear confirmation beeps. The arduino is now streaming the FFT data
   - Run `fft_recorder_for_training`. read console for keys (c, n, s, any other key to suspend recording)
   - (n) Record data in the non clenching state (do not clench, stay still, move, cough, swallow, etc)
@@ -83,7 +97,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
   - Edit `Settings.h` with your weights and bias (look for `weights`, `bias` variables) and load it.
     </br>Keep this file open you're going to edit it again.
     </br>
-- **Tune your SVM model:**
+### **Tune your SVM model:**
   - After the new sketch is loaded, you have two options:
     - **Manual calibration:**
       - Long press until you hear confirmation beeps. Now look at the console (`500000 baud rate`).
