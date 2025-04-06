@@ -66,7 +66,8 @@ The following will reference `Arduino/main/main.ino` as the main program.
 - Mount the shield, electrodes, buttons, buzzer and everything
 - Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
 - Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
-- Train and tune your SVM model:
+    </br>
+- **Train your SVM model:**
   - Long press the button on your arduino until you hear confirmation beeps. The arduino is now streaming the FFT data
   - Run `fft_recorder_for_training`. read console for keys (c, n, s, any other key to suspend recording)
   - (n) Record data in the non clenching state (do not clench, stay still, move, cough, swallow, etc)
@@ -74,17 +75,36 @@ The following will reference `Arduino/main/main.ino` as the main program.
   - Save (s)
   - Move your `clenching.csv` and `non-clenching.csv` in the same folder of `data_classification_training.py`. Make sure the content of the files is formatted correctly, it surely isn't. Remove `,` at the end of each line.
   - CMD to that folder, run `python data_classification_training.py`.
-  - You will get the C++ code to be pasted in the arduino sketch. Will look like this:```static const float weights[] = { 0.00000000, . . . , 0.00517570, };
-static const float bias = -0.2237529517562951;```
+  - You will get the C++ code to be pasted in the arduino sketch.</br>It will look like this:
+  ```Cpp
+  static const float weights[] = { 0.00000000, . . . , 0.00517570, };
+  static const float bias = -0.2237529517562951;
+  ```
   - Edit `Settings.h` with your weights and bias (look for `weights`, `bias` variables) and load it.
     </br>Keep this file open you're going to edit it again.
-  - Long press the button after the new sketch is loaded, you'll hear confirmation beeps. Now look at the console (`500000 baud rate`).
-  - You're seeing the evaluation scores for the FFT. Edit `Settings.h` and replace classification_threshold with the lowest score you see when clenching, and above the highest you see when not clenching. Use plotter or whatever to get the idea.
+    </br>
+- **Tune your SVM model:**
+  - After the new sketch is loaded, you have two options:
+    - **Manual calibration:**
+      - Long press until you hear confirmation beeps. Now look at the console (`500000 baud rate`).
+      - You're seeing the evaluation scores for the FFT. Edit `Settings.h` and replace classification_threshold with the lowest score you see when clenching, and above the highest you see when not clenching.</br>Use plotter or whatever to get the idea.
+    - **Assisted Calibration**
+       - Long press for 4 seconds until you hear the confirmation beeps (ignore the first beep, you will toggle fft output if released here).
+       - Follow the instructions given in the console:
+         - Relax jaw, press to record. Do some movements except clenching. Press to stop recording
+         - Clench jaw (not too hard!) before starting the recording. Press to start recording, press again to stop recording.
+       - You'll see in output the average values, the minimum and a suggested threshold.
+       - If the non clenching values are higher or too near the clenching values (thus the recommended threshold is below or inside the non clenching result) there is a problem.</br>Reposition your electrodes, use conductive gel, stay away from electromagnetic interference etc. (Phone charging nearby could cause this effect)
+       - Edit `Settings.h` and replace classification_threshold with the suggested threshold.
+</br>**It is recommended to try both procedures in order to fine tune your model.</br>What you want to achieve here is a value that doesn't trigger easily, but doesn't let you clench very hard before triggering either.</br> Too many false positives are going to be annoying, some false positives don't trigger the alarm, see the next section: `Changing detection settings`**
+  
   - You're good to go, upload the sketch one last time. Verify everything works as intended.
   - **IMPORTANT** if anything about the FFT is changed, you obviously should to re-train your model
 - Run `processing_fft_spectrum_sketch` on your computer to start logging, ensure it doesn't go to sleep.
 - Wear the electrodes, power the Arduino and you got a minute to get in bed without beeps.
 - Find the best position that wears your electrodes and cables the least: the Arduino can be mounted on the wall above your head, or move the bedside table behind your head. This way the electrode cables are straight from your head to the arduino and you can turn in the bed freely enough
+- Short press the button three times to stop logging.</br>You'll hear a special beep sequence and the processing sketch on your computer will save and close.</br>Unless the packet is lost, in that case try again:</br>UDP can fail. Usually not a big deal for this application, critical signals like alarm triggers have ACK packets to avoid this inconvenience.
+- This application is working in multicast at address `239.255.0.1` with ports `4000` (**arduino** sends events here) and `4001` (**arduino** is listening for control codes here).</br>That means you can receive and send control codes from any device in your network, provided that your networks has multicast enabled (standard home networks are okay, android hotspots might not support this).
 
 ## **Changing detection settings**
 
