@@ -9,13 +9,23 @@
 // Uses debounce by Aaron Kimball
 #include <debounce.h>
 
-
+static void button_longer_press(uint8_t btnId, uint8_t btnState);
 static void button_long_press(uint8_t btnId, uint8_t btnState);
 static void button_short_press(uint8_t btnId, uint8_t btnState);
 
 static Button button_input_short(0, button_short_press);
 static Button button_input_long(1, button_long_press);
+static Button button_input_longer(2, button_longer_press);
 
+bool is_ema_procedure = false;
+bool is_calc_ema = false;
+bool is_calc_b = true;
+float EMA_A = 0, EMA_B = 0;
+float min_b = 0;
+const float alpha = 0.1f;
+static void emacalc(float &EMA, float x) {
+  EMA = (alpha * x) + ((1 - alpha) * EMA);
+}
 
 // Variabili di stato
 bool eventoInCorso = false;
@@ -166,27 +176,112 @@ void trigger_system(int classificazione, unsigned long tempoAttuale) {
   }
 }
 
+unsigned long last_button_press = 0;
+uint8_t press_count = 0;
+
 void setup_logic() {
   pinMode(BUTTON, INPUT_PULLUP);
 
   button_input_short.setPushDebounceInterval(10);
   button_input_long.setPushDebounceInterval(800);
+  button_input_longer.setPushDebounceInterval(4000);
 }
 
 inline void loop_logic() {
-  trigger_system(classify(vReal), millis());
+  float result = 0;
+  if (!is_calc_ema)
+    trigger_system(classify(vReal, result), millis());
+  else {
+    classify(vReal, result);
+
+    emacalc(is_calc_b ? EMA_B : EMA_A, result);
+
+    if (is_calc_b) {
+      if (result < min_b || min_b == 0)
+        min_b = result;
+    }
+  }
 
   if (stream_FFT)
     send_to_udp();
 
   loop_alarm();
   bool btread = digitalRead(BUTTON);
-  button_input_long.update(btread);
+
   button_input_short.update(btread);
+  button_input_long.update(btread);
+  button_input_longer.update(btread);
 }
 
 static void button_short_press(uint8_t btnId, uint8_t btnState) {
   if (btnState == BTN_PRESSED) {
+
+    if (is_ema_procedure) {
+      tone(BUZZER, 1000, 100);
+
+      if (is_calc_ema) {
+        is_calc_ema = false;
+
+        tone(BUZZER, Notes::As5, 250);
+        delay(100);
+        tone(BUZZER, Notes::Gs5, 250);
+
+        if (is_calc_b && (EMA_A != 0 && EMA_B != 0)) {
+          // Time for results:
+          Serial.print("Calibration results:\nAverage NON CLENCHING: ");
+          Serial.print(EMA_A);
+          Serial.print("\tAverage CLENCHING: ");
+          Serial.print(EMA_B);
+          Serial.print("\tmin: ");
+          Serial.println(min_b);
+
+          float suggested_threshold = EMA_B - (abs(EMA_A - EMA_B) * 0.3f);
+          Serial.print("Suggested threshold: ");
+          Serial.println(suggested_threshold);
+          EMA_A = 0;
+          EMA_B = 0;
+          min_b = 0;
+          is_ema_procedure = false;
+          return;
+        }
+
+        is_calc_b = !is_calc_b;
+
+        if (is_calc_b) {
+          Serial.print("Clench and press button once: ");
+        }
+
+        return;
+      }
+
+
+      if (is_calc_b) {
+
+        Serial.println("RECORDING NOW, PRESS TO STOP");
+        tone(BUZZER, Notes::G5, 50);
+        delay(150);
+        tone(BUZZER, Notes::G5, 50);
+        delay(50);
+        tone(BUZZER, Notes::C6, 50);
+
+        is_calc_ema = true;
+
+      } else {
+        Serial.println("RECORDING NOW, PRESS TO STOP");
+
+        tone(BUZZER, Notes::G5, 50);
+        delay(150);
+        tone(BUZZER, Notes::G5, 50);
+        delay(50);
+        tone(BUZZER, Notes::C6, 50);
+
+        is_calc_ema = true;
+      }
+
+
+
+      return;
+    }
 
 #ifdef TESTING_TONES
     alarm_running = !alarm_running;
@@ -203,14 +298,49 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
     started_sent = false;
 
     send_event(BUTTON_PRESS);
+
+    if (millis() - last_button_press > 3000) {
+      press_count = 0;
+      last_button_press = millis();
+    } else if (++press_count == 2) {
+      press_count = 0;
+      // STOP TRACKING SEQUENCE
+      tone(BUZZER, Notes::Gs6, Notes::DottedEighth);
+      delay(Notes::DottedEighth);
+      tone(BUZZER, Notes::F6, Notes::DottedEighth);
+      delay(Notes::DottedEighth);
+      tone(BUZZER, Notes::Cs6, Notes::DottedEighth);
+      delay(Notes::DottedEighth);
+      tone(BUZZER, Notes::Ds6, Notes::DottedEighth);
+
+      send_event(TRACKING_STOP);
+    }
   }
 }
 
-static void button_long_press(uint8_t btnId, uint8_t btnState) {
+static void button_longer_press(uint8_t btnId, uint8_t btnState) {
   if (btnState == BTN_PRESSED) {
+    tone(BUZZER, Notes::Ds6, 250);
+    delay(100);
+    tone(BUZZER, Notes::Gs6, 250);
+    is_ema_procedure = true;
+    is_calc_ema = false;
+    last_button_press = 0;
+    is_calc_b = false;
+    EMA_A = 0;
+    EMA_B = 0;
+    min_b = 0;
+    Serial.print("Relax and press button once: ");
+  }
+}
+static void button_long_press(uint8_t btnId, uint8_t btnState) {
+  if (btnState == BTN_OPEN && !is_ema_procedure) {
     stream_FFT = !stream_FFT;
     tone(BUZZER, stream_FFT ? 2000 : 2400, 50);
     delay(100);
     tone(BUZZER, !stream_FFT ? 2000 : 2400, 50);
+  } else if (btnState == BTN_PRESSED) {
+    tone(BUZZER, Notes::Ds6, 150);
+    delay(100);
   }
 }

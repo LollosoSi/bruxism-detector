@@ -15,8 +15,8 @@ static constexpr int BUZZER = 5;
 // Uncomment if you want to start/stop a tune by pressing the button once
 //#define TESTING_TONES
 
-uint8_t playtune = 0;            // Which tune you want to start with? (see tunes[] array)
-bool rotate_tunes = true;       // Randomly pick a tune (will rotate anyway after max_replays loops, the tune failed at waking you up!)
+uint8_t playtune = 2;            // Which tune you want to start with? (see tunes[] array)
+bool rotate_tunes = false;       // Randomly pick a tune (will rotate anyway after max_replays loops, the tune failed at waking you up!)
 const uint8_t max_replays = 10;  // How many loops of the same tune before rotating
 
 struct tune {
@@ -52,7 +52,7 @@ tune apple{
 
 tune zerb{
   20,
-  { F6, Gd6, F6, Gd6, F6, Ad6, Cd7, Ad6, Cd7, Ad6, F6, Gd6, F6, Gd6, F6, F6, Gd6, Ad6, C7, F6 }, // F6, G#6, F6, G#6, F6, A#6, C#7, A#6, C#7, A#6
+  { F6, Gs6, F6, Gs6, F6, As6, Cs7, As6, Cs7, As6, F6, Gs6, F6, Gs6, F6, F6, Gs6, As6, C7, F6 }, // F6, G#6, F6, G#6, F6, A#6, C#7, A#6, C#7, A#6
   { Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter, Quarter },
   { Quarter, Quarter, Quarter, Quarter, Half, Quarter, Quarter, Quarter, Quarter, Half, Quarter, Quarter, Quarter, Quarter, Half, Quarter, Quarter, Quarter, Quarter, Whole }
 };

@@ -28,6 +28,7 @@ const uint8_t UDP_ALARM_CONFIRMED = 5;
 const uint8_t DETECTED = 6;
 const uint8_t CONTINUED = 7;
 const uint8_t ALARM_STOP = 8;
+const uint8_t TRACKING_STOP = 9;
 
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

@@ -9,8 +9,8 @@
 
 arm_rfft_fast_instance_f32 fftInstance;
 
-int classify(float input[]) {
-  float sum;
+int classify(float input[], float& sum) {
+  sum = 0;
   arm_dot_prod_f32(input, weights, weight_length, &sum);  // SIMD-optimized dot product
   sum += bias;
 
