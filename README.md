@@ -33,7 +33,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - Detects jaw clenching / activity through a Machine Learning algorithm. (SVM. You must train it before usage)
 - After clenching is detected, arduino or the processing sketch will beep a number of times, then activate an alarm and wake you up.
 - The beep count will reset with time, but if the alarm is fired then you need to press the button to turn it off. After pressing the button you get a grace time to reposition yourself in bed.
-- The processing sketch (`processing_fft_spectrum_sketch`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `RECORDINGS/` Folder
+- The processing sketch (`main_logger`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `RECORDINGS/` Folder
 - Inside the `RECORDINGS/` folder you will find an utility `generator.jar`. Run it to convert your files to graphs, really dirty graphs but you get the idea.
 
 ## **Items you need**
@@ -100,7 +100,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
   
   - You're good to go, upload the sketch one last time. Verify everything works as intended.
   - **IMPORTANT** if anything about the FFT is changed, you obviously should to re-train your model
-- Run `processing_fft_spectrum_sketch` on your computer to start logging, ensure it doesn't go to sleep.
+- Run `main_logger` on your computer to start logging, ensure it doesn't go to sleep.
 - Wear the electrodes, power the Arduino and you got a minute to get in bed without beeps.
 - Find the best position that wears your electrodes and cables the least: the Arduino can be mounted on the wall above your head, or move the bedside table behind your head. This way the electrode cables are straight from your head to the arduino and you can turn in the bed freely enough
 - Short press the button three times to stop logging.</br>You'll hear a special beep sequence and the processing sketch on your computer will save and close.</br>Unless the packet is lost, in that case try again:</br>UDP can fail. Usually not a big deal for this application, critical signals like alarm triggers have ACK packets to avoid this inconvenience.
@@ -157,7 +157,8 @@ tune* tunes[] = {  &Notes::Other_tune, . . . , &Notes::drier };
 ## **Other files**
 | File    | Description |
 | -------- | ------- |
-|  `uno_r4_wifi_main_program`  |  Older version of the program  |
+|  `uno_r4_wifi_main_program`  |  Older version of the Arduino program  |
+|  `processing_fft_spectrum_sketch`  |  Older version of the processing logger program  |
 |  `processing_fft_udp_sender_TESTING`  |  Sends random FFT data via UDP and a button press event through the GUI  |
 | `simulation_sendserial` |  Sends the `RAW.csv` data contained in the `input.csv` file (bring one from your `RECORDINGS/` to this folder) through Serial to your Arduino in simulation mode. Appends the Arduino output to `output.csv`, create one if not present. Useful for testing new detection and interruption strategies. Currently the simulation is supported only in `fft_signal_serial_or_udp_output` sketch  |
 
