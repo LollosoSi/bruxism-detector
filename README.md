@@ -98,7 +98,10 @@ The following will reference `Arduino/main/main.ino` as the main program.
     </br>Keep this file open you're going to edit it again.
     </br>
 ### **Tune your SVM model:**
-  - After the new sketch is loaded, you have two options:
+  - After the new sketch is loaded, you have three options:
+    - **Automatic calibration**
+      - The python script will suggest a `classification_threshold` value along with your weights.
+      - This value is calculated from your training data, as such you're supposed to test it before actual usage.
     - **Manual calibration:**
       - Long press until you hear confirmation beeps. Now look at the console (`500000 baud rate`).
       - You're seeing the evaluation scores for the FFT. Edit `Settings.h` and replace classification_threshold with the lowest score you see when clenching, and above the highest you see when not clenching.</br>Use plotter or whatever to get the idea.
@@ -110,7 +113,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
        - You'll see in output the average values, the minimum and a suggested threshold.
        - If the non clenching values are higher or too near the clenching values (thus the recommended threshold is below or inside the non clenching result) there is a problem.</br>Reposition your electrodes, use conductive gel, stay away from electromagnetic interference etc. (Phone charging nearby could cause this effect)
        - Edit `Settings.h` and replace classification_threshold with the suggested threshold.
-</br>**It is recommended to try both procedures in order to fine tune your model.</br>What you want to achieve here is a value that doesn't trigger easily, but doesn't let you clench very hard before triggering either.</br> Too many false positives are going to be annoying, some false positives don't trigger the alarm, see the next section: `Changing detection settings`**
+</br>**It is recommended to check all procedures in order to fine tune your model.</br>What you want to achieve here is a value that doesn't trigger easily, but doesn't let you clench very hard before triggering either.</br> Too many false positives are going to be annoying, some false positives don't trigger the alarm, see the next section: `Changing detection settings`**
   
   - You're good to go, upload the sketch one last time. Verify everything works as intended.
   - **IMPORTANT** if anything about the FFT is changed, you obviously should to re-train your model
