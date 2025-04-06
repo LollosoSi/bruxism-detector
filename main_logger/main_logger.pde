@@ -1,44 +1,19 @@
-// Requires Library "Sound"
-
 import processing.serial.*;
 import java.net.*;
 import java.awt.Toolkit;
 
-import processing.sound.*;
-
-
-String csv_folder_path = "RECORDINGS\\";
-
-// Use only UDP | or use serial if available
-boolean override_use_UDP = true;
+String csv_folder_path = "RECORDINGS/";
 
 boolean remote_button_pressed = false;
+boolean confirmed_udp_alarm = false;
 
-PrintWriter file_out;
-PrintWriter file_raw_out;
+// Muscle contraction frequency range (in Hz)
+int muscleMinFreq = 80;
+int muscleMaxFreq = 230;
 
-SinOsc osc;
-float osc_freq = 2600, osc_amp = 0.5, osc_pos = 0.5;
-int clench_start = -10000;
-boolean is_clenching = false;
-float clench_amp = 0.2;
-float clench_amp_start=0.2;
-
-
-int warning_beep_wait = 4000;
-int warning_beep_duration = 100;
-
-int clench_wait_before_alarm_ms = (warning_beep_wait+warning_beep_duration) * 3;
-
-boolean running_thread = false;
-
-void async_play(float a, float b, int c, int d) {
-  running_thread = true;
-  play_osc(a, b, c);
-  delay(d);
-  running_thread = false;
-}
-
+// Use only UDP | or use serial if available. DEPRECATED, KEEP THIS TRUE.
+// Serial is going to be supported for SIMULATIONS
+boolean override_use_UDP = true;
 
 Serial myPort;
 double[] fftData; // This will store the FFT data
@@ -46,12 +21,6 @@ int sampleCount = 128;
 long samplingFrequency = 2000;
 float maxHeight = 600; // Maximum visible height for the bars
 double maxMagnitude = 5000; // To track the maximum magnitude for normalization
-
-// Muscle contraction frequency range (in Hz)
-int muscleMinFreq = 80;
-int muscleMaxFreq = 230;
-float contractionThreshold = 1.4; // Threshold for muscle contraction detection (based on energy comparison)
-int minimum_energy = 3000;
 
 // UDP socket for receiving data
 MulticastSocket udpSocket;
@@ -66,6 +35,9 @@ int sendserverPort = 4001;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+PrintWriter file_out;
+PrintWriter file_raw_out;
 
 String formatted_now() {
   // Get the current hour and second
@@ -124,6 +96,25 @@ void send_udp_code(byte c) {
   }
 }
 
+String get_new_filename(String baseName, String extension, String folder_path) {
+
+ if (!folder_path.endsWith("/")) {
+    folder_path += "/";
+  }
+
+  String relativePath = folder_path + baseName + extension;
+  File file = new File(dataPath(relativePath)); // <<< THIS is the key fix
+
+  int count = 1;
+  while (file.exists()) {
+    relativePath = folder_path + baseName + " (" + count + ")" + extension;
+    file = new File(dataPath(relativePath));  // <<< Fix applied here too
+    count++;
+  }
+
+  return dataPath(relativePath); // Return full resolved path
+}
+
 void setup() {
 
   dh = new DisposeHandler(this);
@@ -135,12 +126,19 @@ void setup() {
   SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
   String formattedDate = formatter.format(currentDate);
 
-  file_out = createWriter(csv_folder_path+formattedDate+".csv");
+String filename1 = get_new_filename(formattedDate, ".csv", csv_folder_path);
+String filename2 = get_new_filename(formattedDate, "_RAW.csv", csv_folder_path);
+  file_out = createWriter(filename1);
   append_csv(new String[]{"Millis", "Time", "Event", "Notes", "Duration (seconds)"}, file_out);
   append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started"}, file_out);
 
-  file_raw_out = createWriter(csv_folder_path+formattedDate+"_RAW.csv");
+  file_raw_out = createWriter(filename2);
   append_csv(new String[]{"Millis", "Classification"}, file_raw_out);
+  
+  println("Creating files: " + filename1 + " " + filename2);
+  
+  file_out.flush();
+  file_raw_out.flush();
 
   // Check if the second serial port is available
   if (Serial.list().length > 1 && !override_use_UDP) {
@@ -173,99 +171,7 @@ void setup() {
 
   // Clear the screen initially
   background(255);
-
-  osc = new SinOsc(this);
-  osc.set(osc_freq, osc_amp, osc_pos);
 }
-
-
-int tone_sel = 0;
-int tone_num = 4;
-int[] tones = {1567, 1760, 1975, 2093};
-int[] durations = {200, 200, 200, 500};
-int[] waits = {50, 50, 50, 400};
-
-boolean confirmed_udp_alarm = false;
-
-float amp = 0.0;
-boolean alarm_triggered = false, alarm_triggered_loop = false;
-
-void trigger_alarm() {
-  if (!alarm_triggered_loop)
-    alarm_triggered=true;
-}
-void alarm_loop() {
-  if (alarm_triggered) {
-    tone_sel = 0;
-    confirmed_udp_alarm = false;
-
-    println("Alarm triggered");
-    append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STARTED"}, file_out);
-    alarm_triggered=false;
-    alarm_triggered_loop = true;
-  } else if (alarm_triggered_loop) {
-    if (!remote_button_pressed) {
-
-      if (!running_thread) {
-
-        if (!confirmed_udp_alarm) {
-          send_udp_code(ALARM_START);
-        }
-
-
-        if (amp != 1)
-          amp+=0.1;
-
-        Thread t = new Thread(() -> async_play(amp, tones[tone_sel], durations[tone_sel], waits[tone_sel]));
-
-        if (++tone_sel >= tone_num)
-          tone_sel=0;
-
-        t.start();
-      }
-    } else {
-      amp = 0;
-      remote_button_pressed = false;
-      println("Alarm stopped");
-      append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STOPPED"}, file_out);
-      alarm_triggered=false;
-      alarm_triggered_loop=false;
-      confirmed_udp_alarm=false;
-    }
-  }
-}
-
-void play_osc(float amp, float tone, int wait) {
-  osc.amp(amp);
-  osc.freq(tone);
-
-  osc.play();
-  delay(wait);
-  osc.stop();
-}
-
-void draw() {
-  
-  alarm_loop();
-
-  // Draw the scale first, then the bars
-  drawScale();
-  drawFFTBars();
-
-  text(String.format("Sampling Frequency: %d Hz, Samples: %d", samplingFrequency, sampleCount), width/2, 45);
-
-  // Display the top 3 highest frequencies and their magnitudes
-  displayTopFrequencies();
-
-  // Check and display if muscle is contracted
-  checkMuscleContraction();
-
-  // Listen for UDP packets if using UDP
-  if (udpSocket != null) {
-    listenForUDP();
-  }
-}
-
 
 // Function to draw the scale on the sides (including decibel scale)
 void drawScale() {
@@ -361,97 +267,23 @@ void displayTopFrequencies() {
   text(String.format("Avg high freq: %d Hz", avg), width/2, 60 + 75);
 }
 
-long last_contraption = -10000;
-boolean muscle_contracted = false;
+void draw() {
 
-// Function to check muscle contraction based on energy comparison
-void checkMuscleContraction() {
-  float muscleEnergy = 0;
-  float totalEnergy = 0;
+  // Draw the scale first, then the bars
+  drawScale();
+  drawFFTBars();
 
-  // Calculate energy in the 50-150 Hz range (muscle contraction range)
-  for (int i = 0; i < sampleCount / 2; i++) {
-    float frequency = i * (samplingFrequency / sampleCount);
-    float magnitude = (float)fftData[i];
-    if (frequency >= muscleMinFreq && frequency <= muscleMaxFreq) {
-      muscleEnergy += magnitude * magnitude; // Energy is magnitude squared
-    }
-    totalEnergy += magnitude * magnitude; // Total energy of the spectrum
+  text(String.format("Sampling Frequency: %d Hz, Samples: %d", samplingFrequency, sampleCount), width/2, 45);
+
+  // Display the top 3 highest frequencies and their magnitudes
+  displayTopFrequencies();
+
+  // Listen for UDP packets if using UDP
+  if (udpSocket != null) {
+    listenForUDP();
   }
-
-  boolean temp_muscle_contracted = ((muscleEnergy > (totalEnergy - muscleEnergy) * contractionThreshold) && (muscleEnergy>minimum_energy));
-  if (temp_muscle_contracted)
-    last_contraption = millis();
-
-
-
-  if (temp_muscle_contracted && !muscle_contracted) {
-  } else if (!temp_muscle_contracted && muscle_contracted) {
-  } else {
-  }
-
-  /*
-  if(is_clenching){
-   
-   }else{
-   fill(0);
-   textSize(20);
-   textAlign(CENTER, CENTER);
-   text("Muscle Relaxed", width / 2, 20);
-   
-   if(muscle_contracted){
-   
-   }
-   }*/
-
-  // If the energy in the 50-150 Hz range is greater than the rest of the spectrum, muscle is contracted
-  if (((muscleEnergy > (totalEnergy - muscleEnergy) * contractionThreshold) && (muscleEnergy>minimum_energy))) {
-    fill(255, 0, 0);
-    textSize(20);
-    textAlign(CENTER, CENTER);
-    text("Muscle Contracted!", width / 2, 20);
-
-
-    if (is_clenching) {
-      if ((millis()-clench_start > clench_wait_before_alarm_ms) && !alarm_triggered_loop)
-        trigger_alarm();
-      else if (!running_thread) {
-        append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Beep", "WARNING BEEP"}, file_out);
-
-        send_udp_code(BEEP);
-
-        if (clench_amp < 1)
-          clench_amp+=0.5;
-        if (clench_amp > 1)
-          clench_amp=1;
-        Thread t = new Thread(() -> async_play(clench_amp, osc_freq, warning_beep_duration, warning_beep_wait));
-        t.start();
-        //play_osc(clench_amp, osc_freq, 300);
-        //delay(500);
-      }
-    } else if (millis()-clench_start < 10000) {
-      is_clenching=true;
-    } else {
-      clench_amp = clench_amp_start;
-      is_clenching=true;
-      clench_start = millis();
-      append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STARTED"}, file_out);
-    }
-  } else {
-    fill(0);
-    textSize(20);
-    textAlign(CENTER, CENTER);
-    text("Muscle Relaxed", width / 2, 20);
-
-
-    if (is_clenching && (millis()-clench_start) > 5000) {
-      is_clenching=false;
-
-      append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STOPPED", String.valueOf((millis()-clench_start)/1000.0)}, file_out);
-    }
-  }
-  text("Muscle Energy: "+ muscleEnergy + " Ratio: " + ((muscleEnergy/(totalEnergy - muscleEnergy))*100.0) + "%\nTotal Energy: " + totalEnergy + "\nDifference"+ (totalEnergy - muscleEnergy), 3*(width / 4), 60);
 }
+
 
 // Handle UDP data
 void listenForUDP() {
@@ -471,7 +303,7 @@ void listenForUDP() {
 
 boolean firstread=true;
 
-// Handle incoming serial event (with 4-byte packet for parameters)
+// Handle incoming serial event (unmaintained, sorry)
 void serialEvent(Serial myPort) {
   int availableBytes = myPort.available();
   println("Available bytes: " + availableBytes);
@@ -566,7 +398,7 @@ void processData(byte[] data, int length) {
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STARTED"}, file_out);
         alarmed=true;
         break;
-        case ALARM_STOP:
+      case ALARM_STOP:
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STOPPED"}, file_out);
         alarmed=true;
         break;
@@ -586,8 +418,8 @@ void processData(byte[] data, int length) {
       case CONTINUED:
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "CLENCHING", "CONTINUED"}, file_out);
         break;
-        
-        case TRACKING_STOP:
+
+      case TRACKING_STOP:
         exit();
         break;
       }
