@@ -33,7 +33,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 ## **What to expect**
 - Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps
 - Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm
-- A really bad graph if you wish to see one. Use `RECORDINGS/generator.jar`
+- A really bad graph if you wish to see one. Use `data/RECORDINGS/generator.jar`
 - Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings)
 
 ## What **NOT** to expect
@@ -47,8 +47,8 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - Detects jaw clenching / activity through a Machine Learning algorithm. (SVM. You must train it before usage)
 - After clenching is detected, arduino or the processing sketch will beep a number of times, then activate an alarm and wake you up.
 - The beep count will reset with time, but if the alarm is fired then you need to press the button to turn it off. After pressing the button you get a grace time to reposition yourself in bed.
-- The processing sketch (`main_logger`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `RECORDINGS/` Folder
-- Inside the `RECORDINGS/` folder you will find an utility `generator.jar`. Run it to convert your files to graphs, really dirty graphs but you get the idea.
+- The processing sketch (`main_logger`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `data/RECORDINGS/` Folder
+- Inside the `data/RECORDINGS/` folder you will find an utility `generator.jar`. Run it to convert your files to graphs, really dirty graphs but you get the idea.
 
 ## **Items you need**
 - Arduino Uno R4 WiFi
