@@ -3,7 +3,7 @@ import java.awt.Toolkit;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import java.io.*;  
+import java.io.*;
 PrintWriter clenchingFile, nonClenchingFile;
 boolean recordingClenching = false;
 boolean recordingNonClenching = false;
@@ -19,34 +19,34 @@ void setup() {
   size(400, 200);
   clenchingFile = createWriter("clenching.csv");
   nonClenchingFile = createWriter("non_clenching.csv");
-  
-  
+
+
   try {
-      udpSocket = new MulticastSocket(serverPort); // Same port as the sender
-      serverAddress = InetAddress.getByName("239.255.0.1");
-      NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // Use the same network interface as the sender
-      udpSocket.joinGroup(new InetSocketAddress(serverAddress, 12345), netIf);
+    udpSocket = new MulticastSocket(serverPort); // Same port as the sender
+    serverAddress = InetAddress.getByName("239.255.0.1");
+    NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // Use the same network interface as the sender
+    udpSocket.joinGroup(new InetSocketAddress(serverAddress, 12345), netIf);
 
-      println(String.format("Listening for UDP packets on port %d...", serverPort));
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-    }
+    println(String.format("Listening for UDP packets on port %d...", serverPort));
+  }
+  catch (Exception e) {
+    e.printStackTrace();
+  }
 
-println("Recording stopped, press c,n,s for actions");
+  println("Recording stopped, press c,n,s for actions");
 }
 
 float[] fftData;
 
 void draw() {
   listenForUDP();
-  
+
   if (recordingClenching) {
     saveData(clenchingFile, fftData);
   } else if (recordingNonClenching) {
     saveData(nonClenchingFile, fftData);
   }
-  
+
   text("Recording: " + (recordingClenching ? "Clenching": recordingNonClenching ? "Non Clenching" : "Nothing" ), width/2, height/2);
 }
 
@@ -74,8 +74,10 @@ void keyPressed() {
 }
 
 void saveData(PrintWriter file, float[] data) {
+  boolean first = true;
   for (float val : data) {
-    file.print(val + ",");
+    file.print((first ? "" : ",") + val);
+    if (first)first = false;
   }
   file.println();
 }
@@ -111,10 +113,8 @@ void processData(byte[] data, int length) {
 
       // Redraw visualization with new parameters
       background(255);
-     
     } else if (length==1 ||(length % 5 == 0) ) {
-      
-    }else {
+    } else {
       // Processing FFT data (raw bytes)
       int numBins = min((length)/4, fftData.length);  // Ensure no out-of-bounds errors
 
