@@ -150,7 +150,7 @@ A full notes and duration definitions is included for convenience. There is a wh
 uint8_t playtune = 0;
 
 struct tune {
-  int tone_num = 1;            // How many notes in the array?
+  int tone_num = 1;          // How many notes in the array?
   unsigned int tones[];      // Frequencies in Hz
   unsigned int durations[];  // Duration of each note in milliseconds
   unsigned int waits[];      // Delay between notes in milliseconds
