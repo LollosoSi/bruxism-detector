@@ -106,7 +106,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
       - Long press until you hear confirmation beeps. Now look at the console (`500000 baud rate`).
       - You're seeing the evaluation scores for the FFT. Edit `Settings.h` and replace classification_threshold with the lowest score you see when clenching, and above the highest you see when not clenching.</br>Use plotter or whatever to get the idea.
     - **Assisted Calibration**
-       - Long press for 4 seconds until you hear the confirmation beeps (ignore the first beep, you will toggle fft output if released here).
+       - Long press for 10 seconds, until the device stops beeping (ignore the first beep after long pressing, you will toggle fft output if released here).
        - Follow the instructions given in the console:
          - Relax jaw, press to record. Do some movements except clenching. Press to stop recording
          - Clench jaw (not too hard!) before starting the recording. Press to start recording, press again to stop recording.
