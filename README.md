@@ -84,9 +84,11 @@ The following will reference `Arduino/main/main.ino` as the main program.
 ### **Train your SVM model:**
   - Long press the button on your arduino until you hear confirmation beeps. The arduino is now streaming the FFT data
   - Run `fft_recorder_for_training`. read console for keys (c, n, s, any other key to suspend recording)
-  - (n) Record data in the non clenching state (do not clench, stay still, move, cough, swallow, etc)
-  - (c) Record data in the clenching state (begin the recording when you are already clenching. Don't go too hard, but do not let go. Add some variability)
-  - Save (s)
+  - (n) Record data in the non clenching state: do not clench, stay still, move, cough, swallow, etc.
+  - (any other key) Suspend recording
+  - (c) Record data in the clenching state: begin the recording when you are already clenching. Don't go too hard, but do not let go. Add some variability.
+  - (any other key) Suspend recording
+  - (s) Save
   - Move your `clenching.csv` and `non-clenching.csv` in the same folder of `data_classification_training.py`. Make sure the content of the files is formatted correctly, it surely isn't. Remove `,` at the end of each line.
   - CMD to that folder, run `python data_classification_training.py`.
   - You will get the C++ code to be pasted in the arduino sketch.</br>It will look like this:
