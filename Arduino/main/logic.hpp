@@ -178,13 +178,14 @@ void trigger_system(int classificazione, unsigned long tempoAttuale) {
 
 unsigned long last_button_press = 0;
 uint8_t press_count = 0;
+bool beep_incremental = false;
 
 void setup_logic() {
   pinMode(BUTTON, INPUT_PULLUP);
 
   button_input_short.setPushDebounceInterval(10);
   button_input_long.setPushDebounceInterval(800);
-  button_input_longer.setPushDebounceInterval(4000);
+  button_input_longer.setPushDebounceInterval(9000);
 }
 
 inline void loop_logic() {
@@ -211,6 +212,11 @@ inline void loop_logic() {
   button_input_short.update(btread);
   button_input_long.update(btread);
   button_input_longer.update(btread);
+
+  if (beep_incremental && millis() - last_button_press > 3000) {
+    tone(BUZZER, map(millis() - last_button_press, 3000, 10000, 1500, 1700), 30);
+    delay(100);
+  }
 }
 
 static void button_short_press(uint8_t btnId, uint8_t btnState) {
@@ -222,11 +228,17 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
       if (is_calc_ema) {
         is_calc_ema = false;
 
-        tone(BUZZER, Notes::As5, 250);
-        delay(100);
-        tone(BUZZER, Notes::Gs5, 250);
+
+
 
         if (is_calc_b && (EMA_A != 0 && EMA_B != 0)) {
+          tone(BUZZER, Notes::E5, 100);
+          delay(200);
+          tone(BUZZER, Notes::E5, 100);
+          delay(150);
+          tone(BUZZER, Notes::B6, 250);
+          delay(200);
+
           // Time for results:
           Serial.print("Calibration results:\nAverage NON CLENCHING: ");
           Serial.print(EMA_A);
@@ -243,6 +255,10 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
           min_b = 0;
           is_ema_procedure = false;
           return;
+        } else {
+          tone(BUZZER, Notes::As5, 250);
+          delay(100);
+          tone(BUZZER, Notes::Gs5, 250);
         }
 
         is_calc_b = !is_calc_b;
@@ -331,6 +347,7 @@ static void button_longer_press(uint8_t btnId, uint8_t btnState) {
     EMA_B = 0;
     min_b = 0;
     Serial.print("Relax and press button once: ");
+    beep_incremental = false;
   }
 }
 static void button_long_press(uint8_t btnId, uint8_t btnState) {
@@ -339,7 +356,9 @@ static void button_long_press(uint8_t btnId, uint8_t btnState) {
     tone(BUZZER, stream_FFT ? 2000 : 2400, 50);
     delay(100);
     tone(BUZZER, !stream_FFT ? 2000 : 2400, 50);
+    beep_incremental = false;
   } else if (btnState == BTN_PRESSED) {
+    beep_incremental = true;
     tone(BUZZER, Notes::Ds6, 150);
     delay(100);
   }
