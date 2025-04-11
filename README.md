@@ -31,10 +31,11 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 ---------------
 
 ## **What to expect**
-- Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps
-- Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm
-- A really bad graph if you wish to see one. Use `data/RECORDINGS/generator.jar`
-- Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings)
+- Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps in csv files.
+- Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm.
+- A graph if you wish to see one. Use `data/RECORDINGS/generator.jar`.
+- A csv summary of your collected data. Use `data/RECORDINGS/generator.jar`.
+- Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings).
 
 ## What **NOT** to expect
 - Magic
