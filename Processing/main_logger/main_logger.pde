@@ -98,7 +98,7 @@ void send_udp_code(byte c) {
 
 String get_new_filename(String baseName, String extension, String folder_path) {
 
- if (!folder_path.endsWith("/")) {
+  if (!folder_path.endsWith("/")) {
     folder_path += "/";
   }
 
@@ -126,17 +126,17 @@ void setup() {
   SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
   String formattedDate = formatter.format(currentDate);
 
-String filename1 = get_new_filename(formattedDate, ".csv", csv_folder_path);
-String filename2 = get_new_filename(formattedDate, "_RAW.csv", csv_folder_path);
+  String filename1 = get_new_filename(formattedDate, ".csv", csv_folder_path);
+  String filename2 = get_new_filename(formattedDate, "_RAW.csv", csv_folder_path+"RAW/");
   file_out = createWriter(filename1);
   append_csv(new String[]{"Millis", "Time", "Event", "Notes", "Duration (seconds)"}, file_out);
-  append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started"}, file_out);
+  append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started. Date: "+formattedDate}, file_out);
 
   file_raw_out = createWriter(filename2);
   append_csv(new String[]{"Millis", "Classification"}, file_raw_out);
-  
+
   println("Creating files: " + filename1 + " " + filename2);
-  
+
   file_out.flush();
   file_raw_out.flush();
 
@@ -322,6 +322,8 @@ void serialEvent(Serial myPort) {
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+boolean did_print_sync = false;
+
 long cstart = 0;
 boolean alarmed = false;
 boolean clenching=false;
@@ -355,18 +357,25 @@ void processData(byte[] data, int length) {
       // Redraw visualization with new parameters
       background(255);
     } else if (length % 5 == 0) {  // Ensure it's a multiple of 5
+      long millisforsync = millis();
+
       int count = length / 5;   // Number of elements in the packet
 
       for (int i = 0; i < count; i++) {
         int offset = i * 5;
 
-        long timestamp = ByteBuffer.wrap(data, offset, 4)
-          .order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
+        long timestamp = ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
         boolean value = (data[offset + 4] != 0);
 
         append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value)}, file_raw_out);
         println("Received RAW: " + timestamp + ", " + value);
       }
+
+      if (!did_print_sync) {
+        did_print_sync = true;
+        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(ByteBuffer.wrap(data, (count-1) * 5, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL)}, file_out);
+      }
+      
     } else if (length==1) {
       int val = (data[0] & 0xFF);
 
