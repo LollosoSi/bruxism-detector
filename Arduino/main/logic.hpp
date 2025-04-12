@@ -1,3 +1,5 @@
+#include <EEPROM.h>
+
 #pragma once
 
 #include "user/WifiSettings.h"
@@ -54,11 +56,14 @@ void add_to_elements(bool b) {
     elements_cursor = 0;
   }
 }
-
+unsigned long alarm_start = 0;
 void trigger_alarm() {
   alarm_running = true;
   beepCounter = numeroMaxBeep;
   eventoInCorso = false;
+  alarm_start = millis();
+  if (is_using_android)
+    need_alarm_confirmation = true;
 }
 
 void warning_beep() {
@@ -68,7 +73,7 @@ void warning_beep() {
 }
 
 inline void loop_alarm() {
-  if (alarm_running) {
+  if (alarm_running && !is_using_android) {
     if (millis() - last_tone_ms >= tunes[playtune]->waits[tone_sel]) {
       if (++tone_sel >= tunes[playtune]->tone_num) {
         tone_sel = 0;
@@ -81,6 +86,14 @@ inline void loop_alarm() {
       tone(BUZZER, tunes[playtune]->tones[tone_sel], tunes[playtune]->durations[tone_sel]);
       last_tone_ms = millis();
     }
+  } else if (need_alarm_confirmation) {
+    send_event(ALARM_START);
+  }
+
+
+  if (is_using_android && ((millis() - alarm_start) > 10000)) {
+    // Android failed, fallback to device only alarm
+    is_using_android = false;
   }
 }
 
@@ -155,9 +168,9 @@ void trigger_system(int classificazione, unsigned long tempoAttuale) {
           beepCounter++;
         } else if (!alarm_running) {
           Serial.println("Allarme attivato!");
-          send_event(ALARM_START);
 
           trigger_alarm();
+          send_event(ALARM_START);
         }
       }
     }
@@ -207,16 +220,20 @@ inline void loop_logic() {
     send_to_udp();
 
   loop_alarm();
+
   bool btread = digitalRead(BUTTON);
+  do {
+    button_input_short.update(btread);
+    if (millis() < 120000) {
+      button_input_long.update(btread);
+      button_input_longer.update(btread);
 
-  button_input_short.update(btread);
-  button_input_long.update(btread);
-  button_input_longer.update(btread);
-
-  if (beep_incremental && millis() - last_button_press > 3000) {
-    tone(BUZZER, map(millis() - last_button_press, 3000, 10000, 1500, 1700), 30);
-    delay(100);
-  }
+      if (beep_incremental && millis() - last_button_press > 3000) {
+        tone(BUZZER, map(millis() - last_button_press, 3000, 10000, 1500, 1700), 30);
+        delay(100);
+      }
+    }
+  } while (!(btread = digitalRead(BUTTON)));
 }
 
 static void button_short_press(uint8_t btnId, uint8_t btnState) {
@@ -227,9 +244,6 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
 
       if (is_calc_ema) {
         is_calc_ema = false;
-
-
-
 
         if (is_calc_b && (EMA_A != 0 && EMA_B != 0)) {
           tone(BUZZER, Notes::E5, 100);
@@ -293,9 +307,6 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
 
         is_calc_ema = true;
       }
-
-
-
       return;
     }
 
@@ -303,6 +314,9 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
     alarm_running = !alarm_running;
 #else
     tone(BUZZER, 1000, 100);
+    if(alarm_running){
+      alarm_start = millis();
+    }
     alarm_running = false;
 #endif
 
@@ -312,24 +326,27 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
     beepCounter = 0;
     ultimoBottone = millis();
     started_sent = false;
+    need_alarm_confirmation = false;
 
     send_event(BUTTON_PRESS);
 
-    if (millis() - last_button_press > 3000) {
-      press_count = 0;
-      last_button_press = millis();
-    } else if (++press_count == 2) {
-      press_count = 0;
-      // STOP TRACKING SEQUENCE
-      tone(BUZZER, Notes::Gs6, Notes::DottedEighth);
-      delay(Notes::DottedEighth);
-      tone(BUZZER, Notes::F6, Notes::DottedEighth);
-      delay(Notes::DottedEighth);
-      tone(BUZZER, Notes::Cs6, Notes::DottedEighth);
-      delay(Notes::DottedEighth);
-      tone(BUZZER, Notes::Ds6, Notes::DottedEighth);
+    if ((millis() - alarm_start) > 15000) {
+      if (millis() - last_button_press > 3000) {
+        press_count = 0;
+        last_button_press = millis();
+      } else if (++press_count == 2) {
+        press_count = 0;
+        // STOP TRACKING SEQUENCE
+        tone(BUZZER, Notes::Gs6, Notes::DottedEighth);
+        delay(Notes::DottedEighth);
+        tone(BUZZER, Notes::F6, Notes::DottedEighth);
+        delay(Notes::DottedEighth);
+        tone(BUZZER, Notes::Cs6, Notes::DottedEighth);
+        delay(Notes::DottedEighth);
+        tone(BUZZER, Notes::Ds6, Notes::DottedEighth);
 
-      send_event(TRACKING_STOP);
+        send_event(TRACKING_STOP);
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 #pragma once
-
+// Uses debounce by Aaron Kimball
+#include <debounce.h>
 #include "user/WifiSettings.h"
 #include "user/Settings.h"
 #include "runtime_variables.hpp"
@@ -9,6 +10,7 @@
 
 extern void trigger_alarm();
 extern void warning_beep();
+static void button_short_press(uint8_t btnId, uint8_t btnState);
 
 WiFiUDP udp;                                 // Define UDP object
 WiFiUDP read_udp;                            // Define UDP object
@@ -90,6 +92,20 @@ void read_from_udp() {
           // Confirm alarm action received via UDP by responding with 1 byte of value 2
           send_event(UDP_ALARM_CONFIRMED);
           break;
+
+        case USING_ANDROID:
+          is_using_android = true;
+          tone(BUZZER, Notes::E6, Notes::DottedEighth / 2);
+          send_event(USING_ANDROID);
+          break;
+
+        case UDP_ALARM_CONFIRMED:
+          need_alarm_confirmation = false;
+          break;
+
+        case BUTTON_PRESS:
+          button_short_press(0, BTN_PRESSED);
+          break;
       }
     }
   }
@@ -100,8 +116,13 @@ void setup_wifi() {
   // Wi-Fi code for Arduino Uno R4 WiFi
   WiFi.begin(ssid, password);
 
+  uint8_t count = 1;
+
   while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
+    delay(30);
+    if (count++ == 0) {
+      NVIC_SystemReset();
+    }
   }
 
   udp.beginMulticast(multicastAddress, multicastPort);

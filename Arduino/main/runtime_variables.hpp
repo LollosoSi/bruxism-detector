@@ -29,6 +29,10 @@ const uint8_t DETECTED = 6;
 const uint8_t CONTINUED = 7;
 const uint8_t ALARM_STOP = 8;
 const uint8_t TRACKING_STOP = 9;
+const uint8_t USING_ANDROID = 10;
+
+bool is_using_android = false;
+bool need_alarm_confirmation = false;
 
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

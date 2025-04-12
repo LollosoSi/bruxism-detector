@@ -13,11 +13,11 @@ void setup() {
 
   Serial.begin(500000);
 
-  tone(BUZZER, Notes::C6, Notes::DottedEighth/2);
+  tone(BUZZER, Notes::C6, Notes::DottedEighth / 2);
   delay(Notes::DottedEighth);
-  tone(BUZZER, Notes::E6, Notes::DottedEighth/2);
+  tone(BUZZER, Notes::E6, Notes::DottedEighth / 2);
   delay(Notes::DottedEighth);
-  tone(BUZZER, Notes::G6, Notes::DottedEighth/2);
+  tone(BUZZER, Notes::G6, Notes::DottedEighth / 2);
   delay(Notes::Half);
 
   setup_logic();
@@ -26,7 +26,7 @@ void setup() {
 
   reset_tune();
 
-  tone(BUZZER, Notes::C7, Notes::DottedEighth/2);
+  tone(BUZZER, Notes::C7, Notes::DottedEighth / 2);
 }
 
 void loop() {
