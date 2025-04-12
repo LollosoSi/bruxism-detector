@@ -14,6 +14,7 @@ Recently a huge clean up took place in the main program.</br>Contributing and na
 - [Bill of materials](#items-you-need)
 - [Software prerequisites](#software-you-need)
 - [Placing electrodes](#electrode-placement)
+- [Android integration](#android-integration)
 - [How to use](#how-to-use)
 - [Train your SVM Model](#train-your-svm-model)
 - [Tune your SVM Model](#tune-your-svm-model)
@@ -31,7 +32,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 ---------------
 
 ## **What to expect**
-- Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps in csv files.
+- Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps in csv files. Via Processing or the experimental Android App
 - Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm.
 - A graph if you wish to see one. Use `data/RECORDINGS/generator.jar`.
 - A csv summary of your collected data. Use `data/RECORDINGS/generator.jar`.
@@ -76,6 +77,30 @@ Place:
 - **NOTE:** move hair out of the way when placing the electrodes.
 - **NOTE:** do not use the electrodes without conductive gel or replacement. It's not going to work well if at all.
 
+## **Graph and summary utility**
+An experimental graphing application is available for download and the source can be found at the Grapher branch.
+</br>Run it in your `RECORDINGS` folder to:
+ - Convert all your tracked data into graphs. Outputs at `Graphs/` folder.
+    - Use the command line to generate graphs with a light theme: `java -jar generator.jar light`
+    - Use the command line to generate data only for specific files (and `light` can also be inserted here): `java -jar generator.jar light 2025-03-30.csv`
+        - The summary will only be generated from the files you feed in.
+
+<img src="https://github.com/user-attachments/assets/3c9a1d9e-484c-43cd-a518-b54ade8fc5b7" width="500">
+<img src="https://github.com/user-attachments/assets/8dd3e7a2-c39b-4aa9-8f2d-7b40d9c20076" width="500">
+ </br> </br>
+ 
+ - Collect all stats from your tracked data into a summary. Will generate in `Summary` folder.
+ 
+ <img src="https://github.com/user-attachments/assets/f42cf81d-608b-49da-8114-d7a90c672f4b" width="1000">
+ Provided data is only for demonstrative purposes.
+
+## **Android integration**
+An experimental Android App is available for download and source can be found at the Android branch.
+</br>It currently listens for the data from Arduino and starts a tracking service to register all events.
+</br>The app also catches alarms from Arduino and tries to wake you up using the phone.
+</br>In case that fails (you still don't respond stop the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
+</br>Your tracked data will be available under `Documents/RECORDINGS`. Compatible with the grapher application.
+
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
 - Mount the shield, electrodes, buttons, buzzer and everything
@@ -83,6 +108,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
 - Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
     </br>
 ### **Train your SVM model:**
+  **Note:** This action is disabled after the first 2 minutes of runtime.
   - Long press the button on your arduino until you hear confirmation beeps. The arduino is now streaming the FFT data
   - Run `fft_recorder_for_training`. read console for keys (c, n, s, any other key to suspend recording)
   - (n) Record data in the non clenching state: do not clench, stay still, move, cough, swallow, etc.
@@ -108,7 +134,8 @@ The following will reference `Arduino/main/main.ino` as the main program.
     - **Manual calibration:**
       - Long press until you hear confirmation beeps. Now look at the console (`500000 baud rate`).
       - You're seeing the evaluation scores for the FFT. Edit `Settings.h` and replace classification_threshold with the lowest score you see when clenching, and above the highest you see when not clenching.</br>Use plotter or whatever to get the idea.
-    - **Assisted Calibration**
+    - **Assisted Calibration**</br>
+       **Note:** This action is disabled after the first 2 minutes of runtime.
        - Long press for 10 seconds, until the device stops beeping (ignore the first beep after long pressing, you will toggle fft output if released here).
        - Follow the instructions given in the console:
          - Relax jaw, press to record. Do some movements except clenching. Press to stop recording
@@ -123,7 +150,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
 - Run `main_logger` on your computer to start logging, ensure it doesn't go to sleep.
 - Wear the electrodes, power the Arduino and you got a minute to get in bed without beeps.
 - Find the best position that wears your electrodes and cables the least: the Arduino can be mounted on the wall above your head, or move the bedside table behind your head. This way the electrode cables are straight from your head to the arduino and you can turn in the bed freely enough
-- Short press the button three times to stop logging.</br>You'll hear a special beep sequence and the processing sketch on your computer will save and close.</br>Unless the packet is lost, in that case try again:</br>UDP can fail. Usually not a big deal for this application, critical signals like alarm triggers have ACK packets to avoid this inconvenience.
+- Short press the button three times to stop logging.</br>**Important: to prevent accidental end of tracking, this action is disabled for 15 seconds after dismissing the alarm.**</br>You'll hear a special beep sequence and the processing sketch on your computer will save and close.</br>Unless the packet is lost, in that case try again:</br>UDP can fail. Usually not a big deal for this application, critical signals like alarm triggers have ACK packets to avoid this inconvenience.
 - This application is working in multicast at address `239.255.0.1` with ports `4000` (**arduino** sends events here) and `4001` (**arduino** is listening for control codes here).</br>That means you can receive and send control codes from any device in your network, provided that your networks has multicast enabled (standard home networks are okay, android hotspots might not support this).
 
 ## **Changing detection settings**
