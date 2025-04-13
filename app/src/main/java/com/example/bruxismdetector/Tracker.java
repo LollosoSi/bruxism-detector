@@ -169,10 +169,7 @@ public class Tracker extends Service {
         filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
 
-
-
         registerReceiver(stopReceiver, filter, Context.RECEIVER_EXPORTED);
-
 
         //notificationManager.notify( NOTIFICATION_ID, buildNotification());
 
@@ -229,7 +226,7 @@ public class Tracker extends Service {
         file_raw_out.flush();
         file_raw_out.close();
 
-        UDPCheckJob.scheduleJob(context);
+        //UDPCheckJob.scheduleJob(context);
 
         if (wifiLock != null && wifiLock.isHeld()) {
             wifiLock.release();

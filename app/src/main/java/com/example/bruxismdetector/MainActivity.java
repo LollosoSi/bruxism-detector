@@ -64,6 +64,10 @@ private static final String TAG = "Main activity";
        // } else {
 
         //}
+
+        ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
+
+        finish();
     }
 
     @Override
@@ -71,7 +75,7 @@ private static final String TAG = "Main activity";
 
         Log.d(TAG, "The activity is destroyed");
         //reOpenApp();
-        //if(isServiceRunning(Tracker.class))
+        //if(isServiceRunning(Tracker2.class))
         //    Toast.makeText(this, "You closed the Bruxism app, the alarm will NOT fire!", Toast.LENGTH_LONG).show();
         super.onDestroy();
     }
@@ -93,6 +97,6 @@ private static final String TAG = "Main activity";
     }
 
     public void startService(View v){
-        ContextCompat.startForegroundService(this, new Intent(this, Tracker.class));
+        ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
     }
 }
