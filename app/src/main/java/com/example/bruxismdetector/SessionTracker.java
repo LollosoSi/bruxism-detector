@@ -243,7 +243,7 @@ public class SessionTracker {
                             append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STOPPED", String.valueOf((millis()-cstart)/1000.0)}, file_out);
                         }
                         alarmed=false;
-                        servicereference.runAlarm();
+                        //servicereference.runAlarm();
                         break;
                     case ALARM_START:
                         if (!alarmed) {
