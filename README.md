@@ -14,6 +14,7 @@ Recently a huge clean up took place in the main program.</br>Contributing and na
 - [Bill of materials](#items-you-need)
 - [Software prerequisites](#software-you-need)
 - [Placing electrodes](#electrode-placement)
+- [Graph and Summary Utility](#graph-and-summary-utility)
 - [Android integration](#android-integration)
 - [How to use](#how-to-use)
 - [Train your SVM Model](#train-your-svm-model)
