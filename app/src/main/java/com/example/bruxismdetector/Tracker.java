@@ -531,6 +531,8 @@ try {
             out.print(data[i]);
         }
         out.println();
+
+        out.flush();
     }
 
     double[] fftData; // This will store the FFT data

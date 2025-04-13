@@ -31,7 +31,12 @@ public class UDPCheckJob extends JobService {
     private MulticastSocket receiveSocket;
     private boolean jobCancelled = false;
 
+    private static boolean job_disabled = true;
     public static void scheduleJob(Context context) {
+
+        if(job_disabled)
+            return;
+
         ComponentName componentName = new ComponentName(context, UDPCheckJob.class);
         JobInfo jobInfo = new JobInfo.Builder(JOB_ID, componentName)
                 .setPersisted(true) // Persist across reboots
@@ -48,8 +53,8 @@ public class UDPCheckJob extends JobService {
 
     @Override
     public boolean onStartJob(JobParameters params) {
-        Log.d(TAG, "Job started");
-        doBackgroundWork(params);
+        //Log.d(TAG, "Job started");
+        //doBackgroundWork(params);
         return true; // Indicates that work is being done asynchronously
     }
 

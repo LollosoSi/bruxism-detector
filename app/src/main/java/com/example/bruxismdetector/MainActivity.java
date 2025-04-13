@@ -71,8 +71,8 @@ private static final String TAG = "Main activity";
 
         Log.d(TAG, "The activity is destroyed");
         //reOpenApp();
-        if(isServiceRunning(Tracker.class))
-            Toast.makeText(this, "You closed the Bruxism app, the alarm will NOT fire!", Toast.LENGTH_LONG).show();
+        //if(isServiceRunning(Tracker.class))
+        //    Toast.makeText(this, "You closed the Bruxism app, the alarm will NOT fire!", Toast.LENGTH_LONG).show();
         super.onDestroy();
     }
 
