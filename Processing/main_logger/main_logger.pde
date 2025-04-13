@@ -56,6 +56,8 @@ void append_csv(String[] data, PrintWriter out) {
     out.print(data[i]);
   }
   out.println();
+  
+  out.flush();
 }
 
 DisposeHandler dh;
@@ -338,6 +340,7 @@ final byte DETECTED = 6;
 final byte CONTINUED = 7;
 final byte ALARM_STOP = 8;
 final byte TRACKING_STOP = 9;
+final byte USING_ANDROID = 10;
 
 // Central function to process data from both UDP and Serial sources
 void processData(byte[] data, int length) {
@@ -375,7 +378,6 @@ void processData(byte[] data, int length) {
         did_print_sync = true;
         append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(ByteBuffer.wrap(data, (count-1) * 5, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL)}, file_out);
       }
-      
     } else if (length==1) {
       int val = (data[0] & 0xFF);
 
@@ -426,6 +428,10 @@ void processData(byte[] data, int length) {
 
       case CONTINUED:
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "CLENCHING", "CONTINUED"}, file_out);
+        break;
+
+      case USING_ANDROID:
+        append_csv(new String[]{String.valueOf(millis()), formatted_now(), "ANDROID", "Using android from here"}, file_out);
         break;
 
       case TRACKING_STOP:
