@@ -79,12 +79,13 @@ Place:
 - **NOTE:** do not use the electrodes without conductive gel or replacement. It's not going to work well if at all.
 
 ## **Graph and summary utility**
-An experimental graphing application is available for download and the source can be found at the Grapher branch.
+An experimental graphing application is available for download and the source can be found at the [Grapher branch](https://github.com/LollosoSi/bruxism-detector/tree/Grapher).
 </br>Run it in your `RECORDINGS` folder to:
  - Convert all your tracked data into graphs. Outputs at `Graphs/` folder.
     - Use the command line to generate graphs with a light theme: `java -jar generator.jar light`
     - Use the command line to generate data only for specific files (and `light` can also be inserted here): `java -jar generator.jar light 2025-03-30.csv`
         - The summary will only be generated from the files you feed in.
+    - If available, the data from the RAW folder will be included in your final graph.
 
 <img src="https://github.com/user-attachments/assets/3c9a1d9e-484c-43cd-a518-b54ade8fc5b7" width="500">
 <img src="https://github.com/user-attachments/assets/8dd3e7a2-c39b-4aa9-8f2d-7b40d9c20076" width="500">
@@ -96,11 +97,11 @@ An experimental graphing application is available for download and the source ca
  Provided data is only for demonstrative purposes.
 
 ## **Android integration**
-An experimental Android App is available for download and source can be found at the Android branch.
-</br>It currently listens for the data from Arduino and starts a tracking service to register all events.
-</br>The app also catches alarms from Arduino and tries to wake you up using the phone.
-</br>In case that fails (you still don't respond stop the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
-</br>Your tracked data will be available under `Documents/RECORDINGS`. Compatible with the grapher application.
+An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
+1. Open it and start the tracking service to register all events from Arduino.
+2. The app also catches alarms from Arduino and tries to wake you up using the phone. Turn the screen on to dismiss the alarm.
+3. In case that fails (you still don't stop the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
+4. Your tracked data will be available under `Documents/RECORDINGS`. Compatible with the grapher application.
 
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
