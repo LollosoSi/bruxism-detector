@@ -12,11 +12,14 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -42,6 +45,33 @@ import java.util.Date;
 
 
 public class Tracker extends Service {
+
+
+    private Vibrator vibrator;
+    boolean vibrating = false;
+    private void vibrate() {
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator.hasVibrator()) {
+            vibrating = true;
+            long[] pattern = {0, 500, 500}; // Vibrate for 500ms, pause for 500ms, repeat
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                VibrationEffect effect = VibrationEffect.createWaveform(pattern, 0); // 0: repeat indefinitely
+                vibrator.vibrate(effect);
+            } else {
+                vibrator.vibrate(pattern, 0); // 0: repeat indefinitely
+            }
+        }
+    }
+
+    private void dismissVibrator() {
+        if (vibrator != null) {
+            vibrator.cancel();
+            if(vibrating){
+                vibrating=false;
+                sendUDP(new byte[]{BUTTON_PRESS});
+            }
+        }
+    }
 
     private NotificationManager notificationManager;
 
@@ -91,11 +121,25 @@ public class Tracker extends Service {
         return System.currentTimeMillis() - startmillis;
     }
 
+    private PowerManager.WakeLock wakeLock;
+    private WifiManager.WifiLock wifiLock;
+
     @Override
     public void onCreate() {
         super.onCreate();
 
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "UDPService:WakeLock");
+        wakeLock.acquire();
 
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "UDPService:WifiLock");
+        wifiLock.acquire();
+
+
+        if (!BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
+            BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(this);
+        }
 
         Log.d(TAG, "Service created");
         context = this;
@@ -115,13 +159,17 @@ public class Tracker extends Service {
                 PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        scheduleAlarm();
+        //scheduleAlarm();
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_STOP_SERVICE);
         filter.addAction(ACTION_BUTTON_SERVICE);
         filter.addAction(BEEP_BUTTON_SERVICE);
         filter.addAction(ALARMOFF_BUTTON_SERVICE);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+
+
 
         registerReceiver(stopReceiver, filter, Context.RECEIVER_EXPORTED);
 
@@ -165,6 +213,8 @@ public class Tracker extends Service {
     public void onDestroy() {
         //unregisterReceiver(networkChangeReceiver); // Unregister the receiver
 
+        dismissVibrator();
+
         unregisterReceiver(stopReceiver);
         closeSockets();
         if (executor != null) {
@@ -180,6 +230,14 @@ public class Tracker extends Service {
         file_raw_out.close();
 
         UDPCheckJob.scheduleJob(context);
+
+        if (wifiLock != null && wifiLock.isHeld()) {
+            wifiLock.release();
+        }
+
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
 
         super.onDestroy();
         Log.d(TAG, "Service destroyed");
@@ -254,6 +312,10 @@ public class Tracker extends Service {
                 Log.d(TAG, "Beep button received");
                 sendUDP(new byte[]{BEEP});
             }
+            if(Intent.ACTION_SCREEN_ON.equals(intent.getAction()) || Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){
+                Log.d(TAG, "Screen on/off received");
+                dismissVibrator();
+            }
         }
     };
 
@@ -286,6 +348,20 @@ public class Tracker extends Service {
     public void receiveUDP() {
         byte[] buffer = new byte[10000];
 
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        PowerManager.WakeLock wakeLock2 = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "UDPService:WakeLock");
+        wakeLock2.acquire(60000*60*10);
+
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+        WifiManager.MulticastLock multicastLock = wifiManager.createMulticastLock("multicastLock");
+        multicastLock.setReferenceCounted(true);
+        multicastLock.acquire();
+
+
+        WifiManager.WifiLock wifiLock2 = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "UDPService:WifiLock");
+        wifiLock2.acquire();
+
         while (running) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -303,6 +379,19 @@ public class Tracker extends Service {
                 }
             }
         }
+
+        if(multicastLock.isHeld())
+            multicastLock.release();
+
+        if (wifiLock2.isHeld()) {
+            wifiLock2.release();
+        }
+try {
+    if (wakeLock2.isHeld()) wakeLock2.release();
+} catch (Exception e) {
+    throw new RuntimeException(e);
+}
+
     }
     public void sendUDP(byte[] data) {
 
@@ -531,7 +620,7 @@ public class Tracker extends Service {
                             append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STOPPED", String.valueOf((millis()-cstart)/1000.0)}, file_out);
                         }
                         alarmed=false;
-                        //runAlarm();
+                        runAlarm();
                         break;
                     case ALARM_START:
                         if (!alarmed) {
@@ -617,33 +706,14 @@ public class Tracker extends Service {
       //  Log.d(TAG, "Alarm scheduled to trigger in " + CHECK_INTERVAL + " ms");
     }
 
-    private void cancelAlarm() {
-        if (alarmManager != null) {
-            alarmManager.cancel(alarmPendingIntent);
-            Log.d(TAG, "Alarm cancelled");
-        }
-    }
 
     private void runAlarm() {
-        // Acquire a wake lock
-        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
-                PowerManager.PARTIAL_WAKE_LOCK, "MyApp:AlarmWakeLock");
-        wakeLock.acquire();
-
         // Launch the app
-        Intent launchIntent2 = new Intent(context, AlarmActivity.class);
+/*      Intent launchIntent2 = new Intent(context, AlarmActivity.class);
         if (launchIntent2 != null) {
             launchIntent2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             context.startActivity(launchIntent2);
-        }
-
-
-
-        //scheduleAlarm();
-
-        // Release the wake lock (after starting the activity)
-        wakeLock.release();
-
+        }*/
+        vibrate();
     }
 }

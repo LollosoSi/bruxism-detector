@@ -9,6 +9,7 @@ import android.app.job.JobService;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.SystemClock;
 import android.util.Log;
@@ -54,13 +55,16 @@ public class UDPCheckJob extends JobService {
 
     private void doBackgroundWork(final JobParameters params) {
         new Thread(() -> {
+            WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            WifiManager.WifiLock wifiLock2 = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "UDPService:WifiLock");
+            wifiLock2.acquire();
             try {
                 receiveSocket = new MulticastSocket(RECEIVE_PORT);
                 receiveSocket.joinGroup(InetAddress.getByName("239.255.0.1"));
                 receiveSocket.setReuseAddress(true);
                 byte[] buffer = new byte[10000];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                receiveSocket.setSoTimeout(60000); // Timeout after 60 seconds
+                receiveSocket.setSoTimeout(10000); // Timeout after 10 seconds
 
                 try {
                     receiveSocket.receive(packet);
@@ -84,6 +88,8 @@ public class UDPCheckJob extends JobService {
                     receiveSocket.close();
                 }
             }
+            if(wifiLock2.isHeld())
+                wifiLock2.release();
         }).start();
     }
 
@@ -100,6 +106,6 @@ public class UDPCheckJob extends JobService {
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 101, alarmIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_CANCEL_CURRENT);
         long triggerAtMillis = SystemClock.elapsedRealtime() + CHECK_INTERVAL;
 
-        alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAtMillis, pendingIntent);
+        //alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAtMillis, pendingIntent);
     }
 }
