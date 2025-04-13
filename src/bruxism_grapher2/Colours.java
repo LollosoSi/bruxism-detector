@@ -5,7 +5,7 @@ import java.awt.Color;
 public class Colours {
 
 	static enum Color_element {
-		Background, Text, Button, Clenching, Alarm, Warning, Clenchfill;
+		Background, Text, Button, Clenching, Alarm, Warning, Clenchfill, Clenchline, Clenchline_guide;
 	};
 
 	static Color light_mode[] = {
@@ -15,7 +15,9 @@ public class Colours {
 			Color.RED,
 			Color.CYAN,
 			Color.MAGENTA,
-			Color.BLUE
+			Color.BLUE,
+			Color.GREEN,
+			Color.GRAY
 	};
 
 	static Color dark_mode[] = {
@@ -25,7 +27,9 @@ public class Colours {
 			Color.RED,
 			Color.CYAN,
 			Color.MAGENTA,
-			Color.BLUE
+			Color.BLUE,
+			Color.GREEN,
+			Color.GRAY
 	};
 
 	static Color getColor(Color_element element, boolean use_dark_mode) {

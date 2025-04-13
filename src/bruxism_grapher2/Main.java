@@ -52,6 +52,13 @@ public class Main {
 			if (!events.isEmpty()) {
 				Grapher gg = new Grapher(events, file.getName());
 				
+				File rawfile = new File("RAW/"+file.getName().replace(".csv","_RAW.csv"));
+				if(rawfile.exists()) {
+					gg.addRawData(FileRawEventReader.readCSV(rawfile.getAbsolutePath()));
+				} else {
+					System.out.println(rawfile.getPath() + " was not found, consider including your raw files.");
+				}
+				
 				
 				Grapher.writeImage(gg.generateGraph(dark_theme), "./Graphs/"+file.getName());
 				sda.add(gg.getStats());

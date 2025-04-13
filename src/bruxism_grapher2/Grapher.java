@@ -27,9 +27,12 @@ public class Grapher {
 
 	int tick_length, tick_slot_length, xcharsize;
 
+	int clenchline_height_low, clenchline_height_high;
+	
 	String file_name;
 
 	ArrayList<Event> events;
+	ArrayList<RawEvent> raw_events = null;
 
 	public Grapher(ArrayList<Event> event_list, String file_name) {
 		events = event_list;
@@ -50,6 +53,9 @@ public class Grapher {
 		first_slot_height = graph_height - 180;
 		slot_height = 50;
 		slot_spacing = 50;
+		
+		clenchline_height_low = legend_height - 25;
+		clenchline_height_high = clenchline_height_low - 20;
 
 		min_time = events.get(0).millis;
 		max_time = events.get(events.size() - 1).millis;
@@ -129,6 +135,60 @@ public class Grapher {
 				getBaseYslot(slot) - slot_height - (16 * text_slot));
 	}
 
+	void drawRaw(Graphics2D g, boolean use_dark_mode) {
+		
+		if(raw_events == null)
+			return;
+		
+		long syncmillis = -1;
+		
+		for(Event e : events) {
+			if(e.type.equals("Sync")) {
+				syncmillis = Long.valueOf(e.notes)-e.millis;
+				break;
+			}
+		}
+		
+		if(syncmillis == -1) {
+			System.out.println("Could not find the Sync tag, can't synchronize RAW data");
+			return;
+		}
+		
+		g.setColor(Colours.getColor(Color_element.Clenchline_guide, use_dark_mode));
+		g.drawLine(xtimescale(min_time), clenchline_height_high, xtimescale(max_time), clenchline_height_high);
+		g.drawLine(xtimescale(min_time), clenchline_height_low, xtimescale(max_time), clenchline_height_low);
+		
+		g.drawString("Undetected", xtimescale(min_time) - 9*10, clenchline_height_low+5);
+		g.drawString("Detected", xtimescale(min_time) - 9*10, clenchline_height_high+5);
+		
+		g.setColor(Colours.getColor(Color_element.Clenchline, use_dark_mode));
+		RawEvent last_event = null;
+		for(RawEvent re : raw_events) {
+			if(last_event == null) {
+				last_event = re;
+				continue;
+			}
+			
+			boolean stop_drawing = (re.millis-syncmillis) > max_time;
+			
+			if((re.millis-syncmillis) > max_time)
+				re.millis = max_time;
+			
+			if((re.millis-syncmillis) < min_time) {
+				last_event = re;
+				continue;
+			}
+			
+			g.drawLine(xtimescale(last_event.millis-syncmillis), (last_event.value ? clenchline_height_high : clenchline_height_low), xtimescale(re.millis-syncmillis), (re.value ? clenchline_height_high : clenchline_height_low));
+			
+			if(stop_drawing)
+				break;
+			
+			last_event = re;
+		}
+		
+	}
+	
 	public BufferedImage generateGraph(boolean use_dark_mode) {
 		// Create image
 		BufferedImage img = new BufferedImage(graph_width, graph_height, BufferedImage.TYPE_INT_ARGB);
@@ -142,6 +202,8 @@ public class Grapher {
 		g.setFont(new Font("Arial", Font.BOLD, 16));
 
 		g.drawLine(xtimescale(min_time), timeline_height, xtimescale(max_time), timeline_height);
+		
+		drawRaw(g, use_dark_mode);
 
 		drawTimeTick(g, events.get(0).millis, events.get(0).time, 0, false,
 				Colours.getColor(Color_element.Text, use_dark_mode),
@@ -267,6 +329,9 @@ public class Grapher {
 		g.drawString("Clenching events which lasted less than 1s are only drawn as red lines.", side_info_margin,
 				graph_height - 16);
 
+		
+		
+		
 		return img;
 	}
 	
@@ -280,6 +345,10 @@ public class Grapher {
 			e.printStackTrace();
 			return false;
 		}
+	}
+
+	public void addRawData(ArrayList<RawEvent> raw_events) {
+		this.raw_events = raw_events;		
 	}
 
 }
