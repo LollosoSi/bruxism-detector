@@ -1,5 +1,6 @@
 package bruxism_grapher2;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -34,6 +35,8 @@ public class Grapher {
 	ArrayList<Event> events;
 	ArrayList<RawEvent> raw_events = null;
 
+	BufferedImage android_icon;
+	
 	public Grapher(ArrayList<Event> event_list, String file_name) {
 		events = event_list;
 		this.file_name = file_name;
@@ -62,7 +65,35 @@ public class Grapher {
 		time_scale = (graph_width - 2 * side_margin) / (double) (max_time - min_time);
 		xhour = time_scale * (6000 * 60);
 		xcharsize = 9;
+		
+		
+		try {
+			android_icon = recolorPng(ImageIO.read(new File("icons/android.png")), Color.GREEN);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
+	}
+	
+	public BufferedImage recolorPng(BufferedImage originalImage, Color tintColor) {
+	    BufferedImage tintedImage = new BufferedImage(
+	        originalImage.getWidth(),
+	        originalImage.getHeight(),
+	        BufferedImage.TYPE_INT_ARGB
+	    );
+
+	    Graphics2D g2d = tintedImage.createGraphics();
+
+	    // Draw the original image's alpha (transparency)
+	    g2d.drawImage(originalImage, 0, 0, null);
+
+	    // Apply the tint color using SRC_ATOP to color only non-transparent pixels
+	    g2d.setComposite(AlphaComposite.SrcAtop);
+	    g2d.setColor(tintColor);
+	    g2d.fillRect(0, 0, originalImage.getWidth(), originalImage.getHeight());
+
+	    g2d.dispose();
+	    return tintedImage;
 	}
 
 	long findmsfromchars(int chars) {
@@ -267,6 +298,10 @@ public class Grapher {
 		int c = 0;
 		long last_beep = 0, last_button = 0, last_alarm = 0, last_clench = 0, last_alarm_stop = 0;
 		for (Event e : events) {
+			if(e.type.equals("ANDROID")) {
+				g.drawImage(android_icon, graph_width-60, 20, 40, 40, null);
+			}
+			
 			switch (e.type) {
 
 			case "Beep":
