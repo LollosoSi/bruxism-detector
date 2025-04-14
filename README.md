@@ -87,8 +87,8 @@ An experimental graphing application is available for download and the source ca
         - The summary will only be generated from the files you feed in.
     - If available, the data from the RAW folder will be included in your final graph.
 
-<img src="https://github.com/user-attachments/assets/3c9a1d9e-484c-43cd-a518-b54ade8fc5b7" width="500">
-<img src="https://github.com/user-attachments/assets/8dd3e7a2-c39b-4aa9-8f2d-7b40d9c20076" width="500">
+<img src="https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769" width="500">
+<img src="https://github.com/user-attachments/assets/fda5c161-26d9-4dd8-a8e8-e60518cfff88" width="500">
  </br> </br>
  
  - Collect all stats from your tracked data into a summary. Will generate in `Summary` folder.
