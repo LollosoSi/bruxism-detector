@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.function.BiConsumer;
 
 public class SessionTracker {
 
@@ -65,7 +66,113 @@ public class SessionTracker {
 
     }
 
-    void close(){
+    public void writeDailyLog(DailyLogData dld){
+
+        long ms = millis();
+        String time = formatted_now();
+
+            // Append mood - this will always be written regardless of value
+            String[] moodLabels = {"Sick", "Tired", "Bad", "Neutral", "Good"};
+            if (dld.mood >= 0 && dld.mood < moodLabels.length) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "MOOD",
+                        moodLabels[dld.mood]
+                }, file_out);
+            } else {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "MOOD",
+                        "Unknown"
+                }, file_out);
+            }
+
+            // Boolean elements (write only if true)
+            if (dld.workout) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Workout"
+                }, file_out);
+            }
+            if (dld.hydrated) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Hydrated"
+                }, file_out);
+            }
+            if (dld.stressed) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Stressed"
+                }, file_out);
+            }
+            if (dld.caffeine) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Caffeine"
+                }, file_out);
+            }
+            if (dld.anxious) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Anxious"
+                }, file_out);
+            }
+            if (dld.alcohol) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Alcohol"
+                }, file_out);
+            }
+            if (dld.lateDinner) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "LateDinner"
+                }, file_out);
+            }
+            if (dld.medications) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Medications"
+                }, file_out);
+            }
+            if (dld.pain) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "Pain"
+                }, file_out);
+            }
+            if (dld.lifeEvent) {
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "INFO",
+                        "LifeEvent"
+                }, file_out);
+            }
+        }
+
+    public void close(){
         // Place here the code you want to execute on exit
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "End", "Tracking ended"}, file_out);
         file_out.flush(); // Writes the remaining data to the file
