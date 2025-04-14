@@ -68,7 +68,7 @@ public class Grapher {
 		
 		
 		try {
-			android_icon = recolorPng(ImageIO.read(new File("icons/android.png")), Color.GREEN);
+			android_icon = recolorPng(ImageIO.read(getClass().getResource("/android.png")), Color.GREEN);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
