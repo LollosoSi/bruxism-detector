@@ -65,7 +65,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 ## **Software you need**
 - Arduino IDE with libraries "debounce" by Aaron Kimball, "CMSIS-DSP"
 - Processing with "Sound" Library
-- Python with numpy, pandas, sklearn libraries. Use pip to install these.
+- Python with numpy, pandas, sklearn, openpyxl libraries. Use pip to install these.
 
 ## **Electrode Placement**
 You must place 3 electrodes in total. One is ground and should be placed away from the muscle you want to monitor, the two others should be placed on the muscle.
