@@ -9,12 +9,14 @@ import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
 public class SessionTracker {
 
+    String filename1, filename2;
     public Tracker2 servicereference;
     public static final byte CLENCH_START = 0;
     public static final byte CLENCH_STOP = 1;
@@ -32,13 +34,13 @@ public class SessionTracker {
     private static final String TAG = "BruxismTracker:SessionTracker";
     String csv_folder_path = "RECORDINGS/";
 
-    long startmillis = 0;
+    static long startmillis = 0;
     long millis(){
         return System.currentTimeMillis() - startmillis;
     }
     void setup(){
 
-        startmillis = millis();
+        startmillis = System.currentTimeMillis();
 
         createRecordingsDirectory();
 
@@ -46,10 +48,9 @@ public class SessionTracker {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         String formattedDate = formatter.format(currentDate);
 
-        startmillis = millis();
 
-        String filename1 = getNewFilename(formattedDate, ".csv", csv_folder_path);
-        String filename2 = getNewFilename(formattedDate, "_RAW.csv", csv_folder_path+"RAW/");
+        filename1 = getNewFilename(formattedDate, ".csv", csv_folder_path);
+        filename2 = getNewFilename(formattedDate, "_RAW.csv", csv_folder_path+"RAW/");
         file_out = createWriter(filename1);
         append_csv(new String[]{"Millis", "Time", "Event", "Notes", "Duration (seconds)"}, file_out);
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started. Date: "+formattedDate}, file_out);
@@ -290,6 +291,10 @@ public class SessionTracker {
         catch (Exception e) {
             Log.d(TAG, "Error processing data: " + e.getMessage());
         }
+    }
+
+    public void makeGraph(){
+
     }
 
 }

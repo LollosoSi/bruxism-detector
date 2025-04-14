@@ -5,8 +5,11 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
@@ -19,6 +22,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.io.File;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -65,9 +69,18 @@ private static final String TAG = "Main activity";
 
         //}
 
-        ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            }
+        }
 
-        finish();
+
+        //ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
+
+        //finish();
     }
 
     @Override
@@ -98,5 +111,21 @@ private static final String TAG = "Main activity";
 
     public void startService(View v){
         ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
+        finish();
     }
+
+    public void sendMyFolder(View v) {
+        new Thread(() -> {
+            String serverIp = ServerDiscovery.discoverServerIP();
+            if (serverIp == null) {
+                Log.e("Send", "Server not found.");
+                return;
+            }
+
+            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+            File recordingsDir = new File(documentsDir, "RECORDINGS");
+            FileSenderClient.sendFolder(recordingsDir, recordingsDir, serverIp, 5000, this);
+        }).start();
+    }
+
 }
