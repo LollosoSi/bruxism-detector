@@ -24,7 +24,7 @@ public class Main {
 	
 	public static void main(String[] args) {
 		
-        JFrame frame = new JFrame("Android File Receiver");
+        JFrame frame = new JFrame("Bruxism Grapher");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(300, 150);
         frame.setLocationRelativeTo(null); // Center on screen
