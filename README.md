@@ -81,6 +81,7 @@ Place:
 ## **Graph and summary utility**
 An experimental graphing application is available for download and the source can be found at the [Grapher branch](https://github.com/LollosoSi/bruxism-detector/tree/Grapher).
 </br>Run it in your `RECORDINGS` folder to:
+ - Download all your tracked data from Android (Click "Receive from android" and in the Android app tap "send to pc")
  - Convert all your tracked data into graphs. Outputs at `Graphs/` folder.
     - Use the command line to generate graphs with a light theme: `java -jar generator.jar light`
     - Use the command line to generate data only for specific files (and `light` can also be inserted here): `java -jar generator.jar light 2025-03-30.csv`
@@ -100,8 +101,9 @@ An experimental graphing application is available for download and the source ca
 An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
 1. Open it and start the tracking service to register all events from Arduino.
 2. The app also catches alarms from Arduino and tries to wake you up using the phone. Turn the screen on to dismiss the alarm.
-3. In case that fails (you still don't stop the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
-4. Your tracked data will be available under `Documents/RECORDINGS`. Compatible with the grapher application.
+3. In case that fails (you don't dismiss the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
+4. Your tracked data will be available under `Documents/RECORDINGS`.
+5. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
 
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
