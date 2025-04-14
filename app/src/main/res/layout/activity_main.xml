@@ -1,20 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
     android:layout_gravity="center_vertical"
-    android:gravity="center"
-    android:orientation="vertical"
+    android:gravity="center_vertical"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/button"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:onClick="startService"
-        android:text="Start service" />
+        android:orientation="vertical"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:padding="16dp">
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Compile this before starting the service"
+            android:textAlignment="center"
+            android:textSize="20sp"
+            android:typeface="monospace" />
+
+        <!-- Mood SeekBar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="32dp">
+
+            <TextView
+                android:id="@+id/mood_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="How are you feeling today?"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="8dp" />
+
+            <SeekBar
+                android:id="@+id/seekBar_mood"
+                style="@style/Widget.AppCompat.SeekBar.Discrete"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="4"
+                android:progress="3"
+                android:layout_marginHorizontal="50dp" />
+
+            <TextView
+                android:id="@+id/mood_selected_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Selected: Neutral"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:textStyle="italic" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="15dp" />
+
+        <!-- Switches in two columns -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <!-- Left Column -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <!-- Switch Rows -->
+                <include layout="@layout/switch_row" android:id="@+id/row_workout" />
+                <include layout="@layout/switch_row" android:id="@+id/row_hydrated"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_stressed"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_caffeine"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_anxious"/>
+            </LinearLayout>
+
+            <!-- Right Column -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <include layout="@layout/switch_row" android:id="@+id/row_alcohol"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_late_dinner"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_medications"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_pain"/>
+                <include layout="@layout/switch_row" android:id="@+id/row_life_event"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="15dp" />
+
+        <!-- Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="24dp">
+
+            <Button
+                android:id="@+id/button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="startService"
+                android:text="Start service" />
+
+            <Space
+                android:layout_width="16dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/button2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="sendMyFolder"
+                android:text="Send to pc" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

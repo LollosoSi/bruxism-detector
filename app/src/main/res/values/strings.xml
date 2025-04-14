@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">BruxismDetector</string>
+    <string name="compile_warning">Compile this before starting the service</string>
+
+    <string name="mood_label">How are you feeling today?</string>
+    <string name="mood_selected">Selected: Neutral</string>
+
+    <string name="switch_workout">Done workout today</string>
+    <string name="switch_hydrated">Well hydrated</string>
+    <string name="switch_stressed">Felt stressed today</string>
+    <string name="switch_caffeine">Had caffeine</string>
+    <string name="switch_anxious">Felt anxious</string>
+    <string name="switch_alcohol">Had alcohol</string>
+    <string name="switch_late_dinner">Late dinner or skipped meals</string>
+    <string name="switch_medications">Took medications</string>
+    <string name="switch_pain">Felt pain today</string>
+    <string name="switch_life_event">Significant life event</string>
+
+    <string name="start_service">Start service</string>
+    <string name="send_to_pc">Send to PC</string>
 </resources>
