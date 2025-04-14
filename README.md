@@ -1,5 +1,5 @@
 # Bruxism Detector
-This small suite helps you detect night bruxism and interrupt it.</br>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.
+This small suite helps you detect night bruxism and interrupt it, while trying to track down its triggers.</br>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.
 
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
 
@@ -99,7 +99,7 @@ An experimental graphing application is available for download and the source ca
 
 ## **Android integration**
 An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
-1. Open it and start the tracking service to register all events from Arduino.
+1. Open it, set the pertinent switches about your day and start the tracking service to register all events from Arduino.
 2. The app also catches alarms from Arduino and tries to wake you up using the phone. Turn the screen on to dismiss the alarm.
 3. In case that fails (you don't dismiss the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
 4. Your tracked data will be available under `Documents/RECORDINGS`.
