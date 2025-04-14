@@ -62,8 +62,9 @@ void trigger_alarm() {
   beepCounter = numeroMaxBeep;
   eventoInCorso = false;
   alarm_start = millis();
-  if (is_using_android)
+  if (is_using_android){
     need_alarm_confirmation = true;
+  }
 }
 
 void warning_beep() {
@@ -91,7 +92,7 @@ inline void loop_alarm() {
   }
 
 
-  if (is_using_android && ((millis() - alarm_start) > 10000)) {
+  if (is_using_android && (millis() > (alarm_start + android_alarm_timeout))) {
     // Android failed, fallback to device only alarm
     is_using_android = false;
   }
