@@ -295,17 +295,36 @@ public class Grapher {
 		g.fillRect(startx_legend + (spacing * 3), y_legend, 20, 20);
 		g.drawString("Alarm", startx_legend + (spacing * 3) + 30, y_legend + 15);
 
-		int c = 0;
+		int c = 0, cc = 1;
 		long last_beep = 0, last_button = 0, last_alarm = 0, last_clench = 0, last_alarm_stop = 0;
+		int countbeeps = 0;
+		long lastbeepwrite = 0;
+		Event le = null;
 		for (Event e : events) {
 			if(e.type.equals("ANDROID")) {
 				g.drawImage(android_icon, graph_width-60, 20, 40, 40, null);
+			}
+			if(countbeeps != 0 && !e.type.equals("Beep")) {
+				
+				if(le.millis-lastbeepwrite < findmsfromchars(2))
+					cc++;
+				else {
+					cc=1;
+					lastbeepwrite = le.millis;
+				}
+				
+				g.setFont(new Font("Arial", Font.PLAIN, 14));
+				g.setColor(Colours.getColor(Color_element.Warning, use_dark_mode));
+				g.drawString(String.valueOf(countbeeps), xtimescale(le.millis), timeline_height + (14 * cc));
+				
+				g.setFont(new Font("Arial", Font.BOLD, 16));
+				countbeeps = 0;
 			}
 			
 			switch (e.type) {
 
 			case "Beep":
-
+				countbeeps++;
 				drawEventLine(g, e.millis, (e.millis - last_beep > findmsfromchars(5) ? e.time : ""), 0, 0, false,
 						Colours.getColor(Color_element.Warning, use_dark_mode),
 						Colours.getColor(Color_element.Text, use_dark_mode));
@@ -355,6 +374,8 @@ public class Grapher {
 			default:
 				continue;
 			}
+			
+			le = e;
 		}
 
 		g.setColor(Colours.getColor(Color_element.Text, use_dark_mode));

@@ -1,5 +1,7 @@
 package bruxism_grapher2;
 
+import java.awt.Desktop;
+import java.awt.GridLayout;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -7,10 +9,69 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+
 
 public class Main {
-
+	
+	static JLabel messages;
+	
 	public static void main(String[] args) {
+		
+        JFrame frame = new JFrame("Android File Receiver");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(300, 150);
+        frame.setLocationRelativeTo(null); // Center on screen
+
+        messages = new JLabel("Select an option");
+        messages.setHorizontalAlignment(SwingConstants.CENTER);
+        JButton receiveButton = new JButton("Receive from Android");
+        JButton graphButton = new JButton("Create Graphs");
+
+        receiveButton.addActionListener(e -> {
+            new Thread(() -> {
+                messages.setText("Server is running.\nWaiting for Android...");
+                FileReceiverServer fsr = new FileReceiverServer();
+        		fsr.main(args);
+        		messages.setText("Creating graphs");
+        		createGraphs(args);
+        		openGraphFolder();
+        		System.exit(0);
+            }).start();
+        });
+
+        graphButton.addActionListener(e -> {
+            // Placeholder: Add your graph logic here
+        	messages.setText("Creating graphs");
+            createGraphs(args);
+            openGraphFolder();
+            System.exit(0);
+        });
+
+        JPanel panel = new JPanel(new GridLayout(3, 1, 10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.add(messages);
+        panel.add(receiveButton);
+        panel.add(graphButton);
+
+        frame.setContentPane(panel);
+        frame.setVisible(true);
+		
+		
+		
+		
+		
+		
+		
+	}
+	
+	public static void createGraphs(String [] args) {
 		File dir = new File(".");
 		File[] files = null;
 
@@ -83,8 +144,23 @@ public class Main {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	
+	static void openGraphFolder() {
 		
-		
+		try {
+		    String graphFolderPath = "Graphs";
+		    File graphFolder = new File(graphFolderPath);
+
+		    if (!graphFolder.exists()) {
+		    	messages.setText("Graph folder does not exist.");
+		    } else {
+		        Desktop.getDesktop().open(graphFolder);
+		    }
+		} catch (Exception ex) {
+		    ex.printStackTrace();
+		    messages.setText("Failed to open graph folder: " + ex.getMessage());
+		}
 		
 	}
 
