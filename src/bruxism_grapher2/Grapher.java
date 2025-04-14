@@ -295,6 +295,7 @@ public class Grapher {
 		g.fillRect(startx_legend + (spacing * 3), y_legend, 20, 20);
 		g.drawString("Alarm", startx_legend + (spacing * 3) + 30, y_legend + 15);
 
+		boolean draw_android = false;
 		int c = 0, cc = 1;
 		long last_beep = 0, last_button = 0, last_alarm = 0, last_clench = 0, last_alarm_stop = 0;
 		int countbeeps = 0;
@@ -302,8 +303,9 @@ public class Grapher {
 		Event le = null;
 		for (Event e : events) {
 			if(e.type.equals("ANDROID")) {
-				g.drawImage(android_icon, graph_width-60, 20, 40, 40, null);
+				draw_android = true;
 			}
+			
 			if(countbeeps != 0 && !e.type.equals("Beep")) {
 				
 				if(le.millis-lastbeepwrite < findmsfromchars(2))
@@ -385,7 +387,8 @@ public class Grapher {
 		g.drawString("Clenching events which lasted less than 1s are only drawn as red lines.", side_info_margin,
 				graph_height - 16);
 
-		
+	
+		g.drawImage(android_icon, graph_width-60, 20, 40, 40, null);
 		
 		
 		return img;
