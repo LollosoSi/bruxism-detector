@@ -1,5 +1,5 @@
 # Bruxism Detector
-This small suite helps you detect night bruxism and interrupt it, while trying to track down its triggers.</br>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.
+This small suite helps you detect night (and day) bruxism and interrupt it, while trying to track down its triggers.</br>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.
 
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
 
@@ -11,6 +11,7 @@ Recently a huge clean up took place in the main program.</br>Contributing and na
 - [What to expect](#what-to-expect)
 - [What not to expect](#what-not-to-expect)
 - [How it works](#how-it-works)
+- [Daytime training](#daytime-training)
 - [Bill of materials](#items-you-need)
 - [Software prerequisites](#software-you-need)
 - [Placing electrodes](#electrode-placement)
@@ -52,6 +53,19 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - The beep count will reset with time, but if the alarm is fired then you need to press the button to turn it off. After pressing the button you get a grace time to reposition yourself in bed.
 - The processing sketch (`main_logger`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `data/RECORDINGS/` Folder
 - Inside the `data/RECORDINGS/` folder you will find an utility `generator.jar`. Run it to convert your files to graphs, really dirty graphs but you get the idea.
+
+## **Daytime Training**
+Using the Android app, you can enable the "trainer", which works as follows:
+ - You will randomly hear the `warning beep` once every 30 minutes to 2 hours until 19:00, the same tone will be played at night when clenching is detected.
+ - During the day, relax your jaw when you hear the tone.
+ - Have the app start this trainer automatically once tracking ends, so you don't need to remember to launch it every day.
+ - When you start relaxing the jaw without thinking about the beep, conditioning should start to show its effects.
+For more information, [see here](https://en.wikipedia.org/wiki/Classical_conditioning)
+
+### **Alternative daytime usage**
+[A belt adapter is available.](https://www.printables.com/model/1259715-belt-addon-for-modular-bruxism-detector-enclosure)
+</br>The tracking device can be worn on your belt, so it can help you become more aware of daytime clenching.
+</br>Mostly for home usage.
 
 ## **Items you need**
 - Arduino Uno R4 WiFi
