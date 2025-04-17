@@ -2,6 +2,8 @@ package bruxism_grapher2;
 
 import java.awt.Desktop;
 import java.awt.GridLayout;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -16,23 +18,67 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
+import javax.swing.border.Border;
 
 
 public class Main {
 	
 	static JLabel messages;
 	
+	static boolean dark_theme = true;
+	
 	public static void main(String[] args) {
 		
         JFrame frame = new JFrame("Bruxism Grapher");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(300, 150);
+        frame.setSize(400,400);
         frame.setLocationRelativeTo(null); // Center on screen
 
         messages = new JLabel("Select an option");
         messages.setHorizontalAlignment(SwingConstants.CENTER);
         JButton receiveButton = new JButton("Receive from Android");
         JButton graphButton = new JButton("Create Graphs");
+        
+        ToggleSwitch ts = new ToggleSwitch();
+        JLabel switchstate = new JLabel();
+        
+
+        ts.setActivated(dark_theme);
+		switchstate.setText(ts.isActivated() ? "Dark mode" : "Light mode");
+
+        ts.addMouseListener(new MouseListener() {
+			
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				switchstate.setText(ts.isActivated() ? "Dark mode" : "Light mode");
+				dark_theme = ts.isActivated();
+			}
+			
+			@Override
+			public void mousePressed(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void mouseExited(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+        
 
         receiveButton.addActionListener(e -> {
             new Thread(() -> {
@@ -54,9 +100,14 @@ public class Main {
             System.exit(0);
         });
 
-        JPanel panel = new JPanel(new GridLayout(3, 1, 10, 10));
+        JPanel jp = new JPanel(new GridLayout(1,2,50,50));
+        jp.add(ts);
+        jp.add(switchstate);
+        
+        JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.add(messages);
+        panel.add(jp);
         panel.add(receiveButton);
         panel.add(graphButton);
 
@@ -75,7 +126,7 @@ public class Main {
 		File dir = new File(".");
 		File[] files = null;
 
-		boolean dark_theme = true;
+		
 		
 		if (args.length != 0) {
 			ArrayList<String> argss = new ArrayList<String>();

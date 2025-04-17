@@ -384,6 +384,10 @@ public class Grapher {
 				info_text_height + (proceedy * ++st));
 		g.drawString("Average clench duration: " + sd.average_clench_duration + "s", side_info_margin,
 				info_text_height + (proceedy * ++st));
+		g.drawString("Total clenching time: " + sd.total_clench_duration + "s", side_info_margin,
+				info_text_height + (proceedy * ++st));
+		g.drawString("Active time: " + sd.active_time_percentage + "‰", side_info_margin,
+				info_text_height + (proceedy * ++st));
 
 		int startx_legend = graph_width / 8;
 		int y_legend = legend_height;

@@ -80,12 +80,13 @@ public class Statistics {
 			alarm_percentage = 0;
 		}
 
-		double avg_clench_duration = 0;
+		double avg_clench_duration = 0, total_clench_duration = 0;
 		int duration_samples = 0;
 
 		int collected_pauses = 0;
 		long last_clench_end = 0;
 		double avg_clench_pauses = 0;
+		double active_time_percentage = 0;
 		for (int i = 0; i < events.size(); i++) {
 			Event e = events.get(i);
 			if (e.type.equals("Clenching")) {
@@ -105,6 +106,8 @@ public class Statistics {
 
 					// Apply correction to duration if not ending with the alarm
 					double dd = (e.duration - ((events.get(i - 1).type.equals("Alarm") && events.get(i - 1).notes.equals("STOPPED")) ? 0 : 8));
+					if(dd>0)
+						total_clench_duration += dd;
 					if(dd > 1) {
 						avg_clench_duration += (int) dd;
 						duration_samples++;
@@ -115,13 +118,22 @@ public class Statistics {
 				}
 			}
 		}
+		
 
 		if (collected_pauses > 0)
 			avg_clench_pauses = avg_clench_pauses / (double) collected_pauses;
 		else
 			avg_clench_pauses = 0;
 
-		if (duration_samples > 0)
+		if(total_clench_duration > 0) {
+			active_time_percentage = (total_clench_duration / ((events.get(events.size() - 1).millis - events.get(0).millis)/1000.0)) * 1000.0;
+			active_time_percentage = ((int) ((active_time_percentage) * 1000.0)) / 1000.0;
+			total_clench_duration = ((int) ((total_clench_duration) * 100.0)) / 100.0;
+
+
+		}
+		
+		if (duration_samples > 0) 
 			avg_clench_duration = avg_clench_duration / (double) duration_samples;
 		else
 			avg_clench_duration = 0;
@@ -155,7 +167,7 @@ public class Statistics {
 
 		StatData sd = new StatData(session_name, sessionDuration, clenchingRate, clenchCount, alarmCount, beepCount,
 				buttonCount, stopAfterBeeps, notStopAfterBeeps, beeps_per_event, alarm_percentage, avg_clench_pauses,
-				avg_clench_duration, mood, workout, hydrated, stressed, caffeine, anxious, alcohol, bad_meal, medications, day_pain, life_event);
+				avg_clench_duration, mood, workout, hydrated, stressed, caffeine, anxious, alcohol, bad_meal, medications, day_pain, life_event, active_time_percentage, total_clench_duration);
 		return sd;
 	}
 
