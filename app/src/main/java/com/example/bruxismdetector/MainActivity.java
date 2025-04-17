@@ -4,16 +4,20 @@ import android.Manifest;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.PorterDuff;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -116,6 +120,20 @@ private static final String TAG = "Main activity";
 
         setupSwitchLabels();
 
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+
+        SwitchMaterial swsh = (SwitchMaterial)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
+        swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
+
+        swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
+
+            }
+        });
+
         //ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
 
         //finish();
@@ -138,17 +156,18 @@ private static final String TAG = "Main activity";
     private void setupSwitchLabels() {
         Map<Integer, String> switchLabelMap = new HashMap<>();
 
-        switchLabelMap.put(R.id.row_workout, "Done workout today");
+        switchLabelMap.put(R.id.row_workout, "Done workout");
         switchLabelMap.put(R.id.row_hydrated, "Well hydrated");
-        switchLabelMap.put(R.id.row_stressed, "Felt stressed today");
+        switchLabelMap.put(R.id.row_stressed, "Felt stressed");
         switchLabelMap.put(R.id.row_caffeine, "Had caffeine");
         switchLabelMap.put(R.id.row_anxious, "Felt anxious");
 
         switchLabelMap.put(R.id.row_alcohol, "Had alcohol");
         switchLabelMap.put(R.id.row_late_dinner, "Late dinner or skipped meals");
         switchLabelMap.put(R.id.row_medications, "Took medications");
-        switchLabelMap.put(R.id.row_pain, "Felt pain today");
+        switchLabelMap.put(R.id.row_pain, "Felt pain");
         switchLabelMap.put(R.id.row_life_event, "Significant life event");
+        switchLabelMap.put(R.id.switch_sharedpref, "Start trainer after tracker ends");
 
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
             View row = findViewById(entry.getKey());
@@ -238,6 +257,19 @@ private static final String TAG = "Main activity";
             File recordingsDir = new File(documentsDir, "RECORDINGS");
             FileSenderClient.sendFolder(recordingsDir, recordingsDir, serverIp, 5000, this);
         }).start();
+    }
+
+    public void startTrainer(View v) {
+        Intent intent = new Intent(this, RingReceiver.class);
+        sendBroadcast(intent);
+        //RingReceiver.schedule(this);
+        Toast.makeText(this, "The phone will beep randomly every 30 minutes to 2 hours", Toast.LENGTH_LONG).show();
+    }
+
+    public void stopTrainer(View v) {
+        RingReceiver.cancel(this);
+        Toast.makeText(this, "Trainer canceled", Toast.LENGTH_SHORT).show();
+
     }
 
 }

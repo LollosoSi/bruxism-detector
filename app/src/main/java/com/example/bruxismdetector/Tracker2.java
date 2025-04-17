@@ -9,12 +9,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -89,7 +91,9 @@ public class Tracker2 extends Service {
 
         sendUDP(new byte[]{SessionTracker.USING_ANDROID});
 
-        startForeground(NOTIFICATION_ID, buildNotification());
+        Notification n = buildNotification();
+        n.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
+        startForeground(NOTIFICATION_ID, n);
     }
 
     @Override
@@ -124,6 +128,13 @@ public class Tracker2 extends Service {
 
         sessionTracker.close();
 
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("start_trainer_after_tracker_ends", false)){
+            Intent intent = new Intent(this, RingReceiver.class);
+            sendBroadcast(intent);
+        }
+
+        super.onDestroy();
     }
 
     private void createNotificationChannel() {
@@ -175,6 +186,7 @@ public class Tracker2 extends Service {
                         beepPendingIntent
                 ))
                 .setOngoing(true)
+
                 .build();
     }
 
