@@ -22,6 +22,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -263,7 +264,8 @@ private static final String TAG = "Main activity";
         Intent intent = new Intent(this, RingReceiver.class);
         sendBroadcast(intent);
         //RingReceiver.schedule(this);
-        Toast.makeText(this, "The phone will beep randomly every 30 minutes to 2 hours", Toast.LENGTH_LONG).show();
+        //Toast.makeText(this, "The phone will beep randomly every 30 minutes to 2 hours", Toast.LENGTH_LONG).show();
+        showAdviceDialogIfNeeded(this);
     }
 
     public void stopTrainer(View v) {
@@ -271,5 +273,23 @@ private static final String TAG = "Main activity";
         Toast.makeText(this, "Trainer canceled", Toast.LENGTH_SHORT).show();
 
     }
+
+    private void showAdviceDialogIfNeeded(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean shouldShow = prefs.getBoolean("show_advice", true);
+
+        if (!shouldShow) return;
+
+        new AlertDialog.Builder(context)
+                .setTitle("About this trainer")
+                .setMessage("Your phone will beep randomly every 30 minutes to 2 hours.\n - When you hear the beep, relax your jaw.\n - To temporarily mute beeping, turn down notifications volume.\n - Beeps end at 19\n\nThis is required for better chances of conditioning night bruxism without waking up.\n - When you eventually relax without thinking about the beep, that's around the time you should see an improvement.")
+                .setPositiveButton("Awesome", null)
+                .setNegativeButton("Don't show again", (dialog, which) -> {
+                    prefs.edit().putBoolean("show_advice", false).apply();
+                })
+                .setCancelable(false)
+                .show();
+    }
+
 
 }
