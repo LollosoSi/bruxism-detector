@@ -104,13 +104,13 @@ public class Tracker2 extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        DailyLogData logData = new DailyLogData(intent);
-
-        // Now you can easily pass this object around:
-        Log.d("Tracker2", logData.toString());
-
-        // Example: pass to a logger, writer, or processor
-        sessionTracker.writeDailyLog(logData);
+        if(intent!=null){
+            DailyLogData logData = new DailyLogData(intent);
+            // Now you can easily pass this object around:
+            Log.d("Tracker2", logData.toString());
+            // Example: pass to a logger, writer, or processor
+            sessionTracker.writeDailyLog(logData);
+        }
 
 
         return START_STICKY;
