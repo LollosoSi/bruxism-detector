@@ -38,6 +38,28 @@ void send_parameters_udp() {
   udp.endPacket();
 }
 
+// Does not conflict as it's not multiple of 5 bytes and does not have reserved sizes (1, 4, n%5) bytes (total 11 bytes)
+void send_evaluation_result(float result, bool classification){
+  udp.beginPacket(multicastAddress, multicastPort);
+  udp.write(EVALUATION_RESULT);
+  // Send result as float (Little-Endian)
+  byte* floatBytes = (byte*) &result;
+  for (int i = 0; i < 4; i++) {
+     udp.write(floatBytes[i]);
+  }
+
+  udp.write(classification);
+
+  byte* intBytes = (byte*) &classification_threshold;
+  for (int i = 0; i < 4; i++) {
+      udp.write(intBytes[i]); // sends in little-endian order
+  }
+
+  udp.write(classification);
+
+  udp.endPacket();
+}
+
 void send_element(data_element* d) {
   // Send data
   udp.beginPacket(multicastAddress, multicastPort);
@@ -108,6 +130,12 @@ void read_from_udp() {
           break;
       }
     }
+    if(len==3){
+      if(packetBuffer[0]==SET_EVALUATION_THRESHOLD){
+        classification_threshold = (uint8_t)packetBuffer[1] | ((uint8_t)packetBuffer[2] << 8);
+      }
+    }
+
   }
 }
 

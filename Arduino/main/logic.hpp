@@ -62,7 +62,7 @@ void trigger_alarm() {
   beepCounter = numeroMaxBeep;
   eventoInCorso = false;
   alarm_start = millis();
-  if (is_using_android){
+  if (is_using_android) {
     need_alarm_confirmation = true;
   }
 }
@@ -74,27 +74,30 @@ void warning_beep() {
 }
 
 inline void loop_alarm() {
-  if (alarm_running && !is_using_android) {
-    if (millis() - last_tone_ms >= tunes[playtune]->waits[tone_sel]) {
-      if (++tone_sel >= tunes[playtune]->tone_num) {
-        tone_sel = 0;
+  if (alarm_running) {
 
-        if ((++replays) % max_replays == 0) {
-          replays = 0;
-          reset_tune(true);
+    if (!is_using_android) {
+      if (millis() - last_tone_ms >= tunes[playtune]->waits[tone_sel]) {
+        if (++tone_sel >= tunes[playtune]->tone_num) {
+          tone_sel = 0;
+
+          if ((++replays) % max_replays == 0) {
+            replays = 0;
+            reset_tune(true);
+          }
         }
+        tone(BUZZER, tunes[playtune]->tones[tone_sel], tunes[playtune]->durations[tone_sel]);
+        last_tone_ms = millis();
       }
-      tone(BUZZER, tunes[playtune]->tones[tone_sel], tunes[playtune]->durations[tone_sel]);
-      last_tone_ms = millis();
+    } else {
+      if (need_alarm_confirmation)
+        send_event(ALARM_START);
+
+      if ((millis() > (alarm_start + android_alarm_timeout))) {
+        // Android failed, fallback to device only alarm
+        is_using_android = false;
+      }
     }
-  } else if (need_alarm_confirmation) {
-    send_event(ALARM_START);
-  }
-
-
-  if (is_using_android && (millis() > (alarm_start + android_alarm_timeout))) {
-    // Android failed, fallback to device only alarm
-    is_using_android = false;
   }
 }
 
@@ -315,7 +318,7 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
     alarm_running = !alarm_running;
 #else
     tone(BUZZER, 1000, 100);
-    if(alarm_running){
+    if (alarm_running) {
       alarm_start = millis();
     }
     alarm_running = false;

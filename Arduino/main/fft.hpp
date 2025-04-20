@@ -14,8 +14,10 @@ int classify(float input[], float& sum) {
   arm_dot_prod_f32(input, weights, weight_length, &sum);  // SIMD-optimized dot product
   sum += bias;
 
-  if (stream_FFT)
+  if (stream_FFT){
     Serial.println(sum);
+    send_evaluation_result(sum, sum >= classification_threshold ? 1 : 0);
+  }
 
   return sum >= classification_threshold ? 1 : 0;  // Classification threshold
 }
