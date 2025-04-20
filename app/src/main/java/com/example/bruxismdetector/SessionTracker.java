@@ -31,6 +31,9 @@ public class SessionTracker {
     public static final byte TRACKING_STOP = 9;
     public static final byte USING_ANDROID = 10;
 
+    public static final byte EVALUATION_RESULT = 11;
+    public static final byte SET_EVALUATION_THRESHOLD = 12;
+
 
     private static final String TAG = "BruxismTracker:SessionTracker";
     String csv_folder_path = "RECORDINGS/";

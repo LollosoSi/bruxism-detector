@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background bar (dynamic fill like volume) -->
+    <item android:id="@android:id/background">
+        <clip android:drawable="@drawable/volume_bar_fill" android:clipOrientation="horizontal" android:gravity="left"/>
+    </item>
+
+    <!-- Progress bar (user-set threshold) -->
+    <item android:id="@android:id/progress">
+        <clip android:drawable="@android:color/transparent" android:clipOrientation="horizontal" android:gravity="left"/>
+    </item>
+</layer-list>

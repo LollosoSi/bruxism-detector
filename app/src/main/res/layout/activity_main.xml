@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
@@ -8,9 +8,12 @@
     android:fillViewport="true"
     android:layout_gravity="center_vertical"
     android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:animateLayoutChanges="true"
     tools:context=".MainActivity">
 
     <LinearLayout
+        android:id="@+id/main_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -104,9 +107,8 @@
             </LinearLayout>
         </LinearLayout>
 
-        <Space
-            android:layout_width="wrap_content"
-            android:layout_height="15dp" />
+
+        <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_use_threshold"/>
 
         <!-- Buttons -->
         <LinearLayout
@@ -136,5 +138,105 @@
                 android:text="Send to pc" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/button_start_trainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="startTrainer"
+                android:text="Start trainer" />
+
+            <Space
+                android:layout_width="16dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/button_stop_trainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="stopTrainer"
+                android:text="Stop trainer" />
+        </LinearLayout>
+        <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref"/>
+
+
     </LinearLayout>
-</ScrollView>
+
+    <LinearLayout
+        android:id="@+id/reception_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:layout_marginRight="20dp"
+        android:layout_marginLeft="20dp"
+
+        android:visibility="gone">
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="10dp" />
+
+        <TextView
+            android:id="@+id/infotext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Classification data:"
+            android:textAlignment="center" />
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="10dp"/>
+        <SeekBar
+            android:id="@+id/reception"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:progressDrawable="@drawable/custom_seekbar" />
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="fill_horizontal"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/mintext"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="min"
+                android:textAlignment="viewStart" />
+
+            <TextView
+                android:id="@+id/curval_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="value"
+                android:textAlignment="center" />
+
+            <TextView
+                android:id="@+id/maxtext"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="max"
+                android:textAlignment="viewEnd" />
+        </LinearLayout>
+        <Space
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"/>
+        <Button
+            android:id="@+id/button_awesome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="hideReception"
+            android:text="Awesome!" />
+
+    </LinearLayout>
+</LinearLayout>

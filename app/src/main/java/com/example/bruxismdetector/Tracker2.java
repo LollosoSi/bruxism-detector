@@ -90,6 +90,15 @@ public class Tracker2 extends Service {
         setupUDP(4001, 4000);
 
         sendUDP(new byte[]{SessionTracker.USING_ANDROID});
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("use_threshold", false)) {
+            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+
+        }
+
 
         Notification n = buildNotification();
         n.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
@@ -281,6 +290,7 @@ public void exit(){
         }
     }
 
+    long last_system_broadcast_info = 0;
     public void receiveUDP() {
         byte[] buffer = new byte[10000];
 
@@ -292,6 +302,15 @@ public void exit(){
 
 
         while (running) {
+            if(sessionTracker.millis()-last_system_broadcast_info > (1000*60*30)){
+                last_system_broadcast_info = sessionTracker.millis();
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                if(prefs.getBoolean("use_threshold", false)) {
+                    sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+                    sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+                }
+            }
+
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 receiveSocket.receive(packet);
@@ -313,6 +332,7 @@ public void exit(){
             multicastLock.release();
 
     }
+
     public void sendUDP(byte[] data) {
 
         Thread thread = new Thread(new Runnable() {

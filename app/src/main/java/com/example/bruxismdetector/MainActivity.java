@@ -6,8 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -33,11 +35,28 @@ import androidx.core.view.WindowInsetsCompat;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
+    private MulticastSocket receiveSocket;
+    private DatagramSocket sendSocket;
+    private InetAddress multicastAddress;
+    boolean running = false;
+    private int sendPort;
+    private int receivePort;
+
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 private static final String TAG = "Main activity";
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1;
 
@@ -76,6 +95,8 @@ private static final String TAG = "Main activity";
         }
     }
 
+    boolean is_user_editing_classification_thumb = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -113,10 +134,10 @@ private static final String TAG = "Main activity";
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar seekBar) { }
+            public void onStartTrackingTouch(SeekBar seekBar) {  }
 
             @Override
-            public void onStopTrackingTouch(SeekBar seekBar) { }
+            public void onStopTrackingTouch(SeekBar seekBar) {  }
         });
 
         setupSwitchLabels();
@@ -135,9 +156,48 @@ private static final String TAG = "Main activity";
             }
         });
 
-        //ContextCompat.startForegroundService(this, new Intent(this, Tracker2.class));
+        SwitchMaterial swthr = (SwitchMaterial)findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
+        swthr.setChecked(prefs.getBoolean("use_threshold", false));
 
-        //finish();
+        swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("use_threshold", swthr.isChecked()).apply();  // or false when unchecked
+
+            }
+        });
+
+        
+        SeekBar sbar = (SeekBar)findViewById(R.id.reception);
+        sbar.setMax(100);
+        sbar.setMin(0);
+        sbar.setProgress(50);      // User cursor
+        sbar.setSecondaryProgress(30);    // Dynamic underlying bar
+
+        sbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                // Called when progress is changed
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                is_user_editing_classification_thumb=true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                is_user_editing_classification_thumb=false;
+                prefs.edit().putInt("classification_threshold", sbar.getProgress()).apply();
+                setSwitchThreshold_sharedpref_text();
+                sendUDP(new byte[]{12, (byte)(sbar.getProgress() & 0xFF), (byte)((sbar.getProgress() >> 8) & 0xFF)});
+            }
+        });
+
+
+        setSwitchThreshold_sharedpref_text();
+        setupUDP(4001, 4000);
     }
 
     private void updateMoodDisplay(int index) {
@@ -181,11 +241,27 @@ private static final String TAG = "Main activity";
         }
     }
 
+    void setSwitchThreshold_sharedpref_text(){
+        View row = findViewById(R.id.switch_sharedpref_use_threshold);
+        if (row != null) {
+            TextView switchMaterial = row.findViewById(R.id.switch_label);
+            if (switchMaterial != null) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                switchMaterial.setText("Use threshold for tracking: " + prefs.getInt("classification_threshold", 0));
+            }
+        }
+    }
 
     @Override
     protected void onDestroy() {
 
         Log.d(TAG, "The activity is destroyed");
+
+        closeSockets();
+        if (executor != null) {
+            executor.shutdownNow(); // Shutdown the executor
+        }
+
         //reOpenApp();
         //if(isServiceRunning(Tracker2.class))
         //    Toast.makeText(this, "You closed the Bruxism app, the alarm will NOT fire!", Toast.LENGTH_LONG).show();
@@ -292,4 +368,154 @@ private static final String TAG = "Main activity";
     }
 
 
+    public void hideReception(View v){
+        running=false;
+        closeSockets();
+        if (executor != null) {
+            executor.shutdownNow(); // Shutdown the executor
+        }
+
+        findViewById(R.id.main_container).setVisibility(View.VISIBLE);
+        findViewById(R.id.reception_layout).setVisibility(View.GONE);
+
+
+    }
+
+    public void setupUDP(int sendPort, int receivePort) {
+        try {
+            this.sendPort = sendPort;
+            this.receivePort = receivePort;
+            multicastAddress = InetAddress.getByName("239.255.0.1");
+
+            // Set up receiving socket
+            receiveSocket = new MulticastSocket(receivePort);
+            receiveSocket.joinGroup(multicastAddress);
+            receiveSocket.setReuseAddress(true);
+
+            // Set up sending socket
+            sendSocket = new DatagramSocket();
+            sendSocket.setReuseAddress(true);
+
+            running = true;
+            executor.execute(this::receiveUDP);
+            Log.d(TAG, "UDP setup complete. Receiving on port " + receivePort + ", sending on port " + sendPort);
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error setting up UDP", e);
+        }
+    }
+    private void closeSockets() {
+        running = false;
+        if (receiveSocket != null && !receiveSocket.isClosed()) {
+            try {
+                receiveSocket.leaveGroup(multicastAddress);
+                receiveSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing receive socket", e);
+            }
+        }
+        if (sendSocket != null && !sendSocket.isClosed()) {
+            sendSocket.close();
+        }
+    }
+
+    int min_result = 0, max_result = 0;
+
+    public void receiveUDP() {
+        byte[] buffer = new byte[10000];
+
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+        WifiManager.MulticastLock multicastLock = wifiManager.createMulticastLock("multicastLock");
+        multicastLock.setReferenceCounted(true);
+        multicastLock.acquire();
+
+
+        while (running) {
+            try {
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                receiveSocket.receive(packet);
+                byte[] data = packet.getData();
+                int length = packet.getLength();
+                //String message = new String(packet.getData(), 0, packet.getLength());
+                Log.d(TAG, "Received bytes: " + packet.getLength());
+
+                if(length == 11) {
+                    if (data[0] == 11 && data[5]==data[10]) {
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                findViewById(R.id.main_container).setVisibility(View.GONE);
+                                findViewById(R.id.reception_layout).setVisibility(View.VISIBLE);
+
+                                ByteBuffer bb = ByteBuffer.wrap(new byte[]{data[1], data[2], data[3], data[4]});
+                                bb.order(ByteOrder.LITTLE_ENDIAN); // match Arduino's byte order!
+                                int classification_result = (int) bb.getFloat();
+
+                                boolean classification = data[5] != 0;
+
+
+                                ByteBuffer bbb = ByteBuffer.wrap(new byte[]{data[6], data[7], data[8], data[9]});
+                                bbb.order(ByteOrder.LITTLE_ENDIAN);
+                                int classification_threshold = bbb.getInt();
+
+
+                                if (classification_result < min_result) min_result = classification_result;
+                                if (classification_result > max_result) max_result = classification_result;
+
+                                ((SeekBar) findViewById(R.id.reception)).setMin((int) min_result);
+                                ((SeekBar) findViewById(R.id.reception)).setMax((int) max_result);
+
+                                ((SeekBar) findViewById(R.id.reception)).setSecondaryProgress((int) classification_result);
+
+                                if (!is_user_editing_classification_thumb) {
+                                    ((SeekBar) findViewById(R.id.reception)).setProgress(classification_threshold);
+                                }
+
+                                ((TextView) findViewById(R.id.infotext)).setText("We are receiving data!\nDo you want to set a threshold?\n\nClassification result:\t" + classification_result + "\nValue:\t" + (classification ? "YES" : "NO"));
+                                ((TextView) findViewById(R.id.infotext)).setTextColor(classification ? Color.RED : Color.GREEN);
+                                ((TextView) findViewById(R.id.mintext)).setText("Min:\n" + min_result);
+                                ((TextView) findViewById(R.id.maxtext)).setText("Max:\n" + max_result);
+                                ((TextView) findViewById(R.id.curval_text)).setText("Current Threshold:\n" + classification_threshold);
+
+                            }
+                        });
+
+                    }
+                }
+            } catch (IOException e) {
+                if (running) {
+                    Log.e(TAG, "Error receiving UDP packet", e);
+                }
+            }
+        }
+
+        if(multicastLock.isHeld())
+            multicastLock.release();
+
+    }
+    public void sendUDP(byte[] data) {
+
+        Thread thread = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    try {
+                        DatagramPacket packet = new DatagramPacket(data, data.length, multicastAddress, sendPort);
+                        sendSocket.send(packet);
+                        Log.d(TAG, "Sent data to port " + sendPort);
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error sending UDP packet", e);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        thread.start();
+
+    }
 }

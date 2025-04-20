@@ -9,4 +9,12 @@
     <color name="material_yellow_500">#FFEB3B</color>
     <color name="material_red_500">#F44336</color>
 
+
+    <!-- Custom colors -->
+    <color name="threshold_fill_color">#FF4081</color>   <!-- pinkish -->
+    <color name="volume_fill_color">#FFEB3B</color>
+    <color name="seekbar_track_background">#CCCCCC</color> <!-- light gray -->
+
+
+
 </resources>
