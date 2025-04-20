@@ -153,9 +153,9 @@ The following will reference `Arduino/main/main.ino` as the main program.
       - You will see the classification data in realtime
       - Tune the slider to the perfect value
       - Press "Awesome" button
-      - Check "Use threshold for tracking: *<your value>*"
+      - Check "Use threshold for tracking: *your value*"
       - The app will set the threshold periodically
-      - (UNTESTED) If using the Arduino program without your self trained model, it might stil detect correctly if you set your custom threshold.
+      - (UNTESTED) You might still detect clenching without training the model if you set your custom threshold.
     - **Automatic calibration**
       - The python script will suggest a `classification_threshold` value along with your weights.
       - This value is calculated from your training data, as such you're supposed to test it before actual usage.
