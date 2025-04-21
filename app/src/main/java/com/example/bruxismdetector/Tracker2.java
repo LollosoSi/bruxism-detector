@@ -85,7 +85,7 @@ public class Tracker2 extends Service {
 
         registerReceiver(notification_and_screen_receiver, filter, Context.RECEIVER_EXPORTED);
 
-        sessionTracker.setup();
+        sessionTracker.setup(this);
 
         setupUDP(4001, 4000);
 
@@ -97,6 +97,13 @@ public class Tracker2 extends Service {
             sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
             sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
 
+        }
+
+        if(!prefs.getBoolean("arduino_beep", true)){
+            sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
+            Intent intent = new Intent(this, RingReceiver.class);
+            intent.setAction(RingReceiver.beep_once); // Use the constant here
+            sendBroadcast(intent);
         }
 
 
@@ -309,6 +316,13 @@ public void exit(){
                     sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
                     sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
                 }
+
+                sendUDP(new byte[]{SessionTracker.USING_ANDROID});
+
+                if(!prefs.getBoolean("arduino_beep", true)){
+                    sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
+                }
+
             }
 
             try {

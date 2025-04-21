@@ -16,6 +16,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
@@ -29,6 +30,8 @@ public class RingReceiver extends BroadcastReceiver {
     private static final int REQUEST_CODE = 1001;
     private static final String CHANNEL_ID = "tone_channel";
     private static final String cancel_action_notif = "cancel_action_notif";
+    public static final String beep_once = "beep_once";
+
 
 
     @Override
@@ -38,21 +41,31 @@ public class RingReceiver extends BroadcastReceiver {
                 cancel(context);
                 return;
             }
+
         }
 
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        int volume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION);
-
-        if (volume <= 1) {
-            // Show volume picker if volume too low
+        int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
+        Log.d("RingReceiver", "Volume: " + volume);
+        if (volume <= 1 || volume >= 20) {
+            // Show volume picker if volume too low or too high
             Intent volumeIntent = new Intent(Settings.ACTION_SOUND_SETTINGS);
             volumeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(volumeIntent);
-            Toast.makeText(context, "Raise notification volume to hear the next beeps", Toast.LENGTH_LONG).show();
-        } else {
+            if(volume <= 1)
+                Toast.makeText(context, "Raise alarm volume to hear the next beeps", Toast.LENGTH_LONG).show();
+            else
+                Toast.makeText(context, "Your alarm volume might be too high for the next beeps", Toast.LENGTH_LONG).show();
+
+        } //else {
             // Play the tone
             play2600Hz(context);
-        }
+           
+       // }
+        if(intent.getAction()!=null)
+            if(intent.getAction().equals(beep_once)){
+                return;
+            }
 
         // Show notification
         showNotification(context);
@@ -127,12 +140,12 @@ public class RingReceiver extends BroadcastReceiver {
 
         // Respect notification volume
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        int volume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION);
+        int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
         if (volume == 0) return;
 
         // Play sound
         AudioTrack audioTrack = new AudioTrack(
-                AudioManager.STREAM_NOTIFICATION,
+                AudioManager.STREAM_ALARM,
                 sampleRate,
                 AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,

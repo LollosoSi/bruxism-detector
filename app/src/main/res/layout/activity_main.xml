@@ -107,61 +107,103 @@
             </LinearLayout>
         </LinearLayout>
 
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Session settings"
+    android:gravity="center"
+    android:textAlignment="center"/>
 
-        <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_use_threshold"/>
 
-        <!-- Buttons -->
+        <!-- Switches in two columns -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
             android:orientation="horizontal"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp">
+            android:weightSum="2">
 
-            <Button
-                android:id="@+id/button"
-                android:layout_width="wrap_content"
+            <!-- Left Column -->
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:onClick="startService"
-                android:text="Start service" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <Space
-                android:layout_width="16dp"
-                android:layout_height="wrap_content" />
+                <!-- Switch Rows -->
+                <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_use_threshold"/>
 
-            <Button
-                android:id="@+id/button2"
-                android:layout_width="wrap_content"
+            </LinearLayout>
+
+            <!-- Right Column -->
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:onClick="sendMyFolder"
-                android:text="Send to pc" />
-        </LinearLayout>
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:orientation="horizontal">
-            <Button
-                android:id="@+id/button_start_trainer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:onClick="startTrainer"
-                android:text="Start trainer" />
-
-            <Space
-                android:layout_width="16dp"
-                android:layout_height="wrap_content" />
-
-            <Button
-                android:id="@+id/button_stop_trainer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:onClick="stopTrainer"
-                android:text="Stop trainer" />
+                <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_arduino_beep"/>
+            </LinearLayout>
         </LinearLayout>
         <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref"/>
+
+        <!-- Buttons -->
+        <TableLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:stretchColumns="0,1,2">
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="fill"
+                android:layout_gravity="fill">
+
+                <Button
+                    android:id="@+id/button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="startService"
+                    android:text="Start service" />
+
+                <Space
+                    android:layout_width="10dp"
+                    android:layout_height="wrap_content"
+                    />
+
+                <Button
+                    android:id="@+id/button2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="sendMyFolder"
+                    android:text="Send to pc" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" >
+
+                <Button
+                    android:id="@+id/button_start_trainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="startTrainer"
+                    android:text="Start trainer" />
+
+                <Space
+                    android:layout_width="10dp"
+                    android:layout_height="wrap_content"
+                    />
+
+                <Button
+                    android:id="@+id/button_stop_trainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="stopTrainer"
+                    android:text="Stop trainer" />
+            </TableRow>
+
+        </TableLayout>
 
 
     </LinearLayout>
@@ -181,7 +223,12 @@
         <Space
             android:layout_width="match_parent"
             android:layout_height="10dp" />
-
+        <TextView
+            android:id="@+id/titleinfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="We are receiving data\nDo you want to set a threshold?"
+            android:textAlignment="center" />
         <TextView
             android:id="@+id/infotext"
             android:layout_width="match_parent"

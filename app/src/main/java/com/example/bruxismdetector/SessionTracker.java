@@ -1,6 +1,10 @@
 package com.example.bruxismdetector;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import java.io.File;
@@ -33,17 +37,18 @@ public class SessionTracker {
 
     public static final byte EVALUATION_RESULT = 11;
     public static final byte SET_EVALUATION_THRESHOLD = 12;
+    public static final byte DO_NOT_BEEP_ARDUINO = 13;
 
 
     private static final String TAG = "BruxismTracker:SessionTracker";
     String csv_folder_path = "RECORDINGS/";
-
+    Context ctx;
     static long startmillis = 0;
     long millis(){
         return System.currentTimeMillis() - startmillis;
     }
-    void setup(){
-
+    void setup(Context ctx){
+        this.ctx=ctx;
         startmillis = System.currentTimeMillis();
 
         createRecordingsDirectory();
@@ -370,7 +375,14 @@ public class SessionTracker {
                         break;
                     case BEEP:
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Beep", "WARNING BEEP"}, file_out);
-                        break;
+                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
+                        if(!prefs.getBoolean("arduino_beep", true)){
+                            Intent intent = new Intent(ctx, RingReceiver.class);
+                            intent.setAction(RingReceiver.beep_once); // Use the constant here
+                            ctx.sendBroadcast(intent);
+                        }
+
+                            break;
 
                     case UDP_ALARM_CONFIRMED:
                         confirmed_udp_alarm = true;

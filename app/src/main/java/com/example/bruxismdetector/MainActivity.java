@@ -167,6 +167,17 @@ private static final String TAG = "Main activity";
             }
         });
 
+        SwitchMaterial swardubeep = (SwitchMaterial)findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
+        swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
+
+        swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("arduino_beep", swardubeep.isChecked()).apply();  // or false when unchecked
+
+            }
+        });
+
         
         SeekBar sbar = (SeekBar)findViewById(R.id.reception);
         sbar.setMax(100);
@@ -195,6 +206,13 @@ private static final String TAG = "Main activity";
             }
         });
 
+        View roww = findViewById(R.id.switch_sharedpref_arduino_beep);
+        if (roww != null) {
+            TextView switchMaterial = roww.findViewById(R.id.switch_label);
+            if (switchMaterial != null) {
+                switchMaterial.setText("Arduino beeps");
+            }
+        }
 
         setSwitchThreshold_sharedpref_text();
         setupUDP(4001, 4000);
@@ -247,7 +265,7 @@ private static final String TAG = "Main activity";
             TextView switchMaterial = row.findViewById(R.id.switch_label);
             if (switchMaterial != null) {
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-                switchMaterial.setText("Use threshold for tracking: " + prefs.getInt("classification_threshold", 0));
+                switchMaterial.setText("Threshold: " + prefs.getInt("classification_threshold", 0));
             }
         }
     }
@@ -473,7 +491,7 @@ private static final String TAG = "Main activity";
                                     ((SeekBar) findViewById(R.id.reception)).setProgress(classification_threshold);
                                 }
 
-                                ((TextView) findViewById(R.id.infotext)).setText("We are receiving data!\nDo you want to set a threshold?\n\nClassification result:\t" + classification_result + "\nValue:\t" + (classification ? "YES" : "NO"));
+                                ((TextView) findViewById(R.id.infotext)).setText("\nClassification result:\t" + classification_result + "\nValue:\t" + (classification ? "YES" : "NO"));
                                 ((TextView) findViewById(R.id.infotext)).setTextColor(classification ? Color.RED : Color.GREEN);
                                 ((TextView) findViewById(R.id.mintext)).setText("Min:\n" + min_result);
                                 ((TextView) findViewById(R.id.maxtext)).setText("Max:\n" + max_result);
