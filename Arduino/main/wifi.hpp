@@ -128,6 +128,10 @@ void read_from_udp() {
         case BUTTON_PRESS:
           button_short_press(0, BTN_PRESSED);
           break;
+
+        case DO_NOT_BEEP_ARDUINO:
+          do_not_beep_if_android=true;
+        break;
       }
     }
     if(len==3){

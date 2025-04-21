@@ -68,9 +68,13 @@ void trigger_alarm() {
 }
 
 void warning_beep() {
+  if(do_not_beep_if_android && is_using_android){
+    return;
+  }
+
   tone(BUZZER, 2600, warning_beep_duration);
   delay(warning_beep_wait);
-  tone(BUZZER, 2600, warning_beep_duration);
+ // tone(BUZZER, 2600, warning_beep_duration);
 }
 
 inline void loop_alarm() {
