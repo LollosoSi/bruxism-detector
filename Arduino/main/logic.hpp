@@ -68,6 +68,7 @@ void trigger_alarm() {
 }
 
 void warning_beep() {
+  send_event(BEEP);
   if(do_not_beep_if_android && is_using_android){
     return;
   }
@@ -171,7 +172,7 @@ void trigger_system(int classificazione, unsigned long tempoAttuale) {
           }
           warning_beep();
           Serial.println("Beep!");
-          send_event(BEEP);
+          
 
           beepCounter++;
         } else if (!alarm_running) {
