@@ -116,9 +116,11 @@ void read_from_udp() {
           break;
 
         case USING_ANDROID:
+          if(!is_using_android){
+            tone(BUZZER, Notes::E6, Notes::DottedEighth / 2);
+            send_event(USING_ANDROID);
+          }
           is_using_android = true;
-          tone(BUZZER, Notes::E6, Notes::DottedEighth / 2);
-          send_event(USING_ANDROID);
           break;
 
         case UDP_ALARM_CONFIRMED:
