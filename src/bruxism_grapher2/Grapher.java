@@ -15,7 +15,7 @@ import bruxism_grapher2.Colours.Color_element;
 
 public class Grapher {
 
-	StatData sd;
+	StatData sd = null;
 
 	int graph_width, graph_height;
 	long min_time, max_time;
@@ -41,6 +41,9 @@ public class Grapher {
 		events = event_list;
 		this.file_name = file_name;
 
+	}
+	
+	void calculateGraphParameters() {
 		graph_width = 1280;
 		graph_height = 720;
 
@@ -73,7 +76,9 @@ public class Grapher {
 		}
 
 		loadIcons();
+		
 	}
+	
 
 	BufferedImage medicationIcon, stressedIcon, alcoholIcon, badMealIcon, dayPainIcon;
 	BufferedImage workoutIcon, hydratedIcon, coffeeIcon, lifeEventIcon, anxietyIcon;
@@ -331,6 +336,9 @@ public class Grapher {
 	}
 
 	public BufferedImage generateGraph(boolean use_dark_mode) {
+		
+		calculateGraphParameters();
+		
 		// Create image
 		BufferedImage img = new BufferedImage(graph_width, graph_height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
@@ -361,7 +369,7 @@ public class Grapher {
 		// Session info table
 		int proceedy = 20;
 		int st = 0;
-		sd = Statistics.calcStats(session_name, events);
+		sd = getStats();
 		g.drawString("Date: " + session_name + " Filename: " + file_name, side_info_margin, info_text_height);
 		g.drawString("Duration: " + (int) sd.duration + "h " + (int) ((sd.duration % 1) * 60) + "m", side_info_margin,
 				info_text_height + (proceedy * ++st));
@@ -504,6 +512,14 @@ public class Grapher {
 	}
 
 	public StatData getStats() {
+		if(events == null) {
+			throw new NullPointerException("You did not provide events for this file!");
+		}
+		if(sd==null) {
+			String session_name = events.get(0).notes.substring(events.get(0).notes.indexOf("Date: ") + 6,
+					events.get(0).notes.length());
+			sd = Statistics.calcStats(session_name, events);
+		}
 		return sd;
 	}
 

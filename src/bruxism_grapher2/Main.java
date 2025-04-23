@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -21,11 +23,15 @@ import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
 
+
+import java.util.concurrent.*;
+import java.util.stream.IntStream;
+
 public class Main {
 	
 	static JLabel messages;
 	
-	static boolean dark_theme = true;
+	static boolean dark_theme = true, redraw_all = false;
 	
 	public static void main(String[] args) {
 		
@@ -41,17 +47,55 @@ public class Main {
         
         ToggleSwitch ts = new ToggleSwitch();
         JLabel switchstate = new JLabel();
-        
 
         ts.setActivated(dark_theme);
 		switchstate.setText(ts.isActivated() ? "Dark mode" : "Light mode");
-
+		
         ts.addMouseListener(new MouseListener() {
 			
 			@Override
 			public void mouseReleased(MouseEvent e) {
 				switchstate.setText(ts.isActivated() ? "Dark mode" : "Light mode");
 				dark_theme = ts.isActivated();
+			}
+			
+			@Override
+			public void mousePressed(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void mouseExited(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void mouseEntered(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+        
+        ToggleSwitch tss = new ToggleSwitch();
+        JLabel switchstate2 = new JLabel();
+
+        tss.setActivated(redraw_all);
+		switchstate2.setText(tss.isActivated() ? "Redraw all sessions" : "Only draw new sessions");
+		
+        tss.addMouseListener(new MouseListener() {
+			
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				switchstate2.setText(tss.isActivated() ? "Redraw all sessions" : "Only draw new sessions");
+				redraw_all = tss.isActivated();
 			}
 			
 			@Override
@@ -104,10 +148,15 @@ public class Main {
         jp.add(ts);
         jp.add(switchstate);
         
-        JPanel panel = new JPanel(new GridLayout(4, 1, 10, 10));
+        JPanel jpp = new JPanel(new GridLayout(1,2,50,50));
+        jpp.add(tss);
+        jpp.add(switchstate2);
+        
+        JPanel panel = new JPanel(new GridLayout(5, 1, 10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.add(messages);
         panel.add(jp);
+        panel.add(jpp);
         panel.add(receiveButton);
         panel.add(graphButton);
 
@@ -121,81 +170,92 @@ public class Main {
 		
 		
 	}
-	
-	public static void createGraphs(String [] args) {
-		File dir = new File(".");
-		File[] files = null;
 
-		
-		
-		if (args.length != 0) {
-			ArrayList<String> argss = new ArrayList<String>();
-			
-			for(String s : args) {
-				if(s.toLowerCase().equals("light")) {
-					dark_theme = false;
-					continue;
-				}
-				if(s.toLowerCase().equals("dark")) {
-					dark_theme = true;
-					continue;
-				}
-				argss.add(s);
-			}
 
-			files = argss.stream().map(File::new).toArray(File[]::new);
-		}
-		
-		if(files == null || files.length == 0) {
-			files = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".csv"));
-			if (files == null || files.length == 0) {
-				System.out.println("No CSV files found in the directory.");
-				return;
-			}
-		}
+	public static void createGraphs(String[] args) {
+	    File dir = new File(".");
+	    File[] files = null;
 
-		ArrayList<StatData> sda = new ArrayList<StatData>();
-		File f = new File("./Graphs/");
-		f.mkdirs();
-		
-		for (File file : files) {
-			
-			ArrayList<Event> events = FileEventReader.readCSV(file.getName());
-			if (!events.isEmpty()) {
-				Grapher gg = new Grapher(events, file.getName());
-				
-				File rawfile = new File("RAW/"+file.getName().replace(".csv","_RAW.csv"));
-				if(rawfile.exists()) {
-					gg.addRawData(FileRawEventReader.readCSV(rawfile.getAbsolutePath()));
-				} else {
-					System.out.println(rawfile.getPath() + " was not found, consider including your raw files.");
-				}
-				
-				
-				Grapher.writeImage(gg.generateGraph(dark_theme), "./Graphs/"+file.getName());
-				sda.add(gg.getStats());
-			}
-		}
-		
-		sda.sort( (a, b) -> { return a.compareTo(b); } );
-		
-		File ff = new File("./Summary/");
-		ff.mkdirs();
-		
-		try {
-			PrintWriter pw = new PrintWriter("./Summary/summary.csv");
-			pw.println(StatData.produce_csv_header());
-			for(StatData sd : sda) {
-				pw.println(sd.produce_csv_line());
-			}
-			pw.close();
-			
-			
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	    if (args.length != 0) {
+	        ArrayList<String> argss = new ArrayList<>();
+	        for (String s : args) {
+	            if (s.equalsIgnoreCase("light")) {
+	                dark_theme = false;
+	                continue;
+	            }
+	            if (s.equalsIgnoreCase("dark")) {
+	                dark_theme = true;
+	                continue;
+	            }
+	            argss.add(s);
+	        }
+	        files = argss.stream().map(File::new).toArray(File[]::new);
+	    }
+
+	    if (files == null || files.length == 0) {
+	        files = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".csv"));
+	        if (files == null || files.length == 0) {
+	            System.out.println("No CSV files found in the directory.");
+	            return;
+	        }
+	    }
+
+	    File graphDir = new File("./Graphs/");
+	    graphDir.mkdirs();
+
+	    ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+	    List<Future<StatData>> futures = new ArrayList<>();
+
+	    for (File file : files) {
+	        futures.add(executor.submit(() -> {
+	            ArrayList<Event> events = FileEventReader.readCSV(file.getName());
+	            if (events.isEmpty()) return null;
+
+	            Grapher gg = new Grapher(events, file.getName());
+
+	            File rawfile = new File("RAW/" + file.getName().replace(".csv", "_RAW.csv"));
+	            if (rawfile.exists()) {
+	                gg.addRawData(FileRawEventReader.readCSV(rawfile.getAbsolutePath()));
+	            } else {
+	                System.out.println(rawfile.getPath() + " was not found, consider including your raw files.");
+	            }
+
+	            File outputGraph = new File("./Graphs/" + file.getName().replace(".csv", ".png"));
+	            if (redraw_all || !outputGraph.exists()) {
+	                Grapher.writeImage(gg.generateGraph(dark_theme), "./Graphs/" + file.getName());
+	            }
+
+	            return gg.getStats();
+	        }));
+	    }
+
+	    executor.shutdown();
+
+	    ArrayList<StatData> sda = new ArrayList<>();
+	    for (Future<StatData> future : futures) {
+	        try {
+	            StatData sd = future.get(); // preserve order
+	            if (sd != null) sda.add(sd);
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+	    }
+
+	    sda.sort(Comparator.naturalOrder());
+
+	    File summaryDir = new File("./Summary/");
+	    summaryDir.mkdirs();
+
+	    try (PrintWriter pw = new PrintWriter("./Summary/summary.csv")) {
+	        pw.println(StatData.produce_csv_header());
+	        for (StatData sd : sda) {
+	            pw.println(sd.produce_csv_line());
+	        }
+	    } catch (FileNotFoundException e) {
+	        e.printStackTrace();
+	    }
 	}
+
 	
 	static void openGraphFolder() {
 		

@@ -1,6 +1,6 @@
 package bruxism_grapher2;
 
-public class StatData {
+public class StatData implements Comparable<StatData> {
 	String session_name;
 	double duration, clenching_rate, beeps_per_event, alarm_percentage, average_time_between_clenching, average_clench_duration, active_time_percentage, total_clench_duration;
 	int clench_count, alarm_count, beep_count, button_count, stop_after_beeps, not_stop_after_beeps;
@@ -44,9 +44,9 @@ public class StatData {
 				+ ";" + workout + ";" + hydrated + ";" + stressed + ";" + caffeine + ";" + anxious + ";" + alcohol + ";" + bad_meal + ";" + medications + ";" + day_pain + ";" + life_event;
 	}
 
-	public int compareTo(StatData b) {
-		// Sort by date
-		return this.session_name.compareTo(b.session_name);
-	}
-
+	@Override
+    public int compareTo(StatData other) {
+        return this.session_name.compareTo(other.session_name);
+    }
+	
 }
