@@ -114,10 +114,13 @@ An experimental graphing application is available for download and the source ca
 ## **Android integration**
 An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
 1. Open it, set the pertinent switches about your day and start the tracking service to register all events from Arduino.
-2. The app also catches alarms from Arduino and tries to wake you up using the phone. Turn the screen on to dismiss the alarm.
-3. In case that fails (you don't dismiss the alarm after 10 seconds) we consider tracking failed and the alarm on Arduino will ring.
-4. Your tracked data will be available under `Documents/RECORDINGS`.
-5. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
+2. The app will catch beeps from Arduino: you can configure your phone to beep with a certain volume or into headphones to avoid disturbing others' sleep
+3. The app will also catch alarms: it will try to wake you up more gently by vibrating.</br>Turning the screen on/off counts as button press and dismisses the alarm.
+   1. In case the vibration alarm fails to wake you up in 10 seconds, we consider something failed and the Arduino will ring instead.
+   2. Ensure a stable wifi connection.</br>If your phone disconnects you will miss events in the final logs.
+   3. Say the vibration alarm failed or there are network issues.</br>Arduino will operate without the smartphone until the app registers itself again. Happens once around every 15 minutes.
+6. Your tracked data will be available under `Documents/RECORDINGS`.
+7. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
 
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
