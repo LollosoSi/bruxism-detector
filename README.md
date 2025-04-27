@@ -1,12 +1,24 @@
 # Bruxism Detector
-This small suite helps you detect night (and day) bruxism and interrupt it, while trying to track down its triggers.</br>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.
+This small suite helps you detect night (and day) bruxism and interrupt it, while trying to track down its triggers.</br>
+#### Overview
+Following this readme, you will build an Arduino based device that is able to detect bruxism.</br><sub><sup>Basic knowledge about electronics is advisable.</sup></sub></br></br>
+Bruxism detection is done through a Machine Learning algorithm and 3 electrodes placed on the forehead.
+</br>Bruxing events are interrupted in two ways:
+1. A warning beep to interrupt it **without waking up** the user ([conditioning](https://en.wikipedia.org/wiki/Classical_conditioning))
+2. An alarm that is supposed to wake up the user.
+   The alarm can be:
+   - A melody played by the Arduino device
+   - A vibration if you are using the Android app
 
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
+</br>
+<sub>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.</sub>
 
----------------
-Recently a huge clean up took place in the main program.</br>Contributing and navigating should be substantially easier now.</br>**Feel free to [provide feedback here](https://github.com/LollosoSi/bruxism-detector/discussions/1)**
+## Let's keep in contact!
+Use [discussions](https://github.com/LollosoSi/bruxism-detector/discussions) for support and feature development
+</br>Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems within the code.
 
----------------
+
 # Contents
 - [What to expect](#what-to-expect)
 - [What not to expect](#what-not-to-expect)
