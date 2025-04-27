@@ -14,7 +14,7 @@ In case I missed any information, check this [Instructable](https://www.instruct
 </br>
 <sub>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.</sub>
 
-## Let's keep in contact!
+## Let's keep in touch!
 Use [discussions](https://github.com/LollosoSi/bruxism-detector/discussions) for support and feature development
 </br>Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems within the code.
 
