@@ -160,7 +160,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
     </br>Keep this file open you're going to edit it again.
     </br>
 ### **Tune your SVM model:**
-  - After the new sketch is loaded, you have three options:
+  - After the new sketch is loaded, you have four options:
     - **Android calibration**
       - Start your Arduino with the trained SVM model
       - Long press the button to enable FFT streaming
