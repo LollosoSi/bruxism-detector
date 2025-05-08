@@ -114,8 +114,9 @@ An experimental graphing application is available for download and the source ca
         - The summary will only be generated from the files you feed in.
     - If available, the data from the RAW folder will be included in your final graph.
 
+
 <img src="https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769" width="500">
-<img src="https://github.com/user-attachments/assets/fda5c161-26d9-4dd8-a8e8-e60518cfff88" width="500">
+<img src="https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769" width="500">
  </br> </br>
  
  - Collect all stats from your tracked data into a summary. Will generate in `Summary` folder.
@@ -133,6 +134,12 @@ An experimental Android App is available for download and source can be found at
    3. Say the vibration alarm failed or there are network issues.</br>Arduino will operate without the smartphone until the app registers itself again. Happens once around every 15 minutes.
 6. Your tracked data will be available under `Documents/RECORDINGS`.
 7. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
+
+<div style="display: flex; justify-content: space-between;">
+<img src="https://github.com/user-attachments/assets/f7905d4d-679c-4148-9103-57f179dbf939" width="30%">
+<img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="30%">
+</div>
+<p>Supports Material 3.</p>
 
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
