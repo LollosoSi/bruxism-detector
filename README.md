@@ -5,7 +5,7 @@ Following this readme, you will build an Arduino based device that is able to de
 Bruxism detection is done through a Machine Learning algorithm and 3 electrodes placed on the forehead.
 </br>Bruxing events are interrupted in two ways:
 1. A warning beep to interrupt it **without waking up** the user ([conditioning](https://en.wikipedia.org/wiki/Classical_conditioning))
-2. An alarm that is supposed to wake up the user.
+2. An alarm that is supposed to wake up the user.</br>
    The alarm can be:
    - A melody played by the Arduino device
    - A vibration if you are using the Android app
