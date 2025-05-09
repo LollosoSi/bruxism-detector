@@ -247,12 +247,6 @@ private static final String TAG = "Main activity";
         new SwitchManager(findViewById(android.R.id.content), this);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
-        Intent intent2 = new Intent(this, DialogHostActivity.class);
-
-        intent2.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
-        Log.d(TAG, "Starting DialogHostActivity");
-        startActivity(intent2);
-
         setupUDP(4001, 4000);
 
         checkFloatingPermission();
