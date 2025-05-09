@@ -3,6 +3,7 @@ package com.example.bruxismdetector;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
@@ -12,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import android.os.Environment;
 import android.se.omapi.Session;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,6 +21,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.SeekBar;
+import android.widget.TextView;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
@@ -43,6 +46,11 @@ public class SwitchDialogFragment extends DialogFragment {
                              @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_data_collect, container, false);
         new SwitchManager(root, requireContext());
+        new MoodSeekbarClass(root, requireContext());
+        ((TextView)root.findViewById(R.id.mood_label)).setText("How was yesterday?\n");
+        ((TextView)root.findViewById(R.id.mood_label)).setTypeface(Typeface.MONOSPACE);
+        ((TextView)root.findViewById(R.id.mood_label)).setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f); // Set text size to 12sp
+      //  ((TextView)root.findViewById(R.id.mood_label)).
         return root;
 
     }
@@ -126,7 +134,8 @@ public class SwitchDialogFragment extends DialogFragment {
                                 originalFirstLines.append(line).append("\n");
                                 count++;
                             }else{
-                                originalContent.append(line).append("\n");
+                                if(!line.contains(";MOOD;"))
+                                    originalContent.append(line).append("\n");
                             }
 
                         }
@@ -139,7 +148,9 @@ public class SwitchDialogFragment extends DialogFragment {
                     Intent intent = new Intent(requireContext(), Tracker2.class);
 
                     // Mood SeekBar
-                    intent.putExtra("mood", 3);
+                    SeekBar moodSeekBar = requireView().findViewById(R.id.seekBar_mood);
+                    int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
+                    intent.putExtra("mood", moodValue);
 
                     // Map of switch row IDs and their keys
                     Map<Integer, String> switchKeyMap = new HashMap<>();

@@ -22,8 +22,6 @@ public class SwitchManager {
         }
 
 
-
-
         private void setupSwitchLabels() {
             Map<Integer, String> switchLabelMap = new HashMap<>();
             switchLabelMap.put(R.id.row_workout, "Done workout");

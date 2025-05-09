@@ -75,17 +75,7 @@ public class MainActivity extends AppCompatActivity {
 private static final String TAG = "Main activity";
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1;
 
-    private SeekBar seekBarMood;
-    private TextView moodSelectedText;
 
-    private final String[] moodLabels = {"Good", "Neutral", "Bad", "Tired", "Sick"};
-    private final int[] moodColors = {
-            R.color.material_green_500,  // Good
-            R.color.material_blue_500,   // Neutral
-            R.color.material_orange_500, // Bad
-            R.color.material_yellow_500, // Tired
-            R.color.material_red_500     // Ill
-    };
 
     private void requestStoragePermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -142,23 +132,7 @@ private static final String TAG = "Main activity";
             }
         }
 
-        seekBarMood = findViewById(R.id.seekBar_mood);
-        moodSelectedText = findViewById(R.id.mood_selected_text);
 
-        updateMoodDisplay(seekBarMood.getProgress()); // Initialize text and color
-
-        seekBarMood.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                updateMoodDisplay(progress);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {  }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {  }
-        });
 
         setupSwitchLabels();
 
@@ -271,25 +245,20 @@ private static final String TAG = "Main activity";
         setSwitchThreshold_sharedpref_text();
 
         new SwitchManager(findViewById(android.R.id.content), this);
+        new MoodSeekbarClass(findViewById(android.R.id.content), this);
+
+        Intent intent2 = new Intent(this, DialogHostActivity.class);
+
+        intent2.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
+        Log.d(TAG, "Starting DialogHostActivity");
+        startActivity(intent2);
 
         setupUDP(4001, 4000);
 
         checkFloatingPermission();
     }
 
-    private void updateMoodDisplay(int index) {
-        // Update text
-        String selectedMood = moodLabels[4-index];
-        moodSelectedText.setText("Selected: " + selectedMood);
 
-        // Update color
-        int color = ContextCompat.getColor(this, moodColors[4-index]);
-        moodSelectedText.setTextColor(color);
-
-        // Set color for seekbar track and thumb
-        seekBarMood.getProgressDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        seekBarMood.getThumb().setColorFilter(color, PorterDuff.Mode.SRC_IN);
-    }
 
     private void setupSwitchLabels() {
         Map<Integer, String> switchLabelMap = new HashMap<>();

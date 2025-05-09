@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        >
+
+        <TextView
+            android:id="@+id/mood_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="How are you feeling today?"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="8dp" />
+
+        <SeekBar
+            android:id="@+id/seekBar_mood"
+            style="@style/Widget.AppCompat.SeekBar.Discrete"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="4"
+            android:progress="3"
+            android:layout_marginHorizontal="50dp" />
+
+        <TextView
+            android:id="@+id/mood_selected_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Selected: Neutral"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:textStyle="italic" />
+</LinearLayout>

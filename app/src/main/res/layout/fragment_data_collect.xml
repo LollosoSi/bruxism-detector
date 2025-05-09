@@ -7,16 +7,10 @@
     android:padding="16dp"
     android:background="?android:colorBackground">
 
-    <!-- Title -->
-    <TextView
-        android:id="@+id/textView5"
+    <include layout="@layout/moodseekbar"/>
+    <Space
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="How was yesterday?"
-        android:textAlignment="center"
-        android:textSize="20sp"
-        android:typeface="monospace"
-        android:paddingBottom="12dp" />
+        android:layout_height="15dp"/>
 
     <!-- Scrollable switch layout (same as your activity layout) -->
     <ScrollView
@@ -32,6 +26,6 @@
         android:id="@+id/btn_confirm"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Awesome"
+        android:text="Let's go!"
         android:layout_marginTop="12dp"/>
 </LinearLayout>
