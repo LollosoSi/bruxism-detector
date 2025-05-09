@@ -126,7 +126,7 @@ An experimental graphing application is available for download and the source ca
 
 ## **Android integration**
 An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
-1. If `Autostart Service` is enabled, you will need to follow this only once every phone reboot.
+1. If `Autostart Service` is enabled, you will need to follow this only once.
    - When tracking ends, you will still be asked about your day.
    - The app will always use your last `Session Settings` 
 3. Open it, set the pertinent switches about your day and start the tracking service to register all events from Arduino.
