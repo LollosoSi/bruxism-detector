@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -26,6 +28,7 @@
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
 
     <application
         android:allowBackup="true"
@@ -37,10 +40,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BruxismDetector"
         tools:targetApi="31">
+        <service
+            android:name=".UDPCatcher"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
             android:name=".RingReceiver"
             android:enabled="true"
-            android:exported="true"/>
+            android:exported="true" />
 
         <service
             android:name=".Tracker2"
@@ -55,13 +64,20 @@
             android:turnScreenOn="true" />
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".DialogHostActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Transparent"
+            android:launchMode="singleTask"
+            android:taskAffinity=""/>
 
         <service
             android:name=".UDPCheckJob"

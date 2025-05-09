@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:padding="16dp"
+    android:background="?android:colorBackground">
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/textView5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="How was yesterday?"
+        android:textAlignment="center"
+        android:textSize="20sp"
+        android:typeface="monospace"
+        android:paddingBottom="12dp" />
+
+    <!-- Scrollable switch layout (same as your activity layout) -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:animateLayoutChanges="true">
+
+       <include layout="@layout/switches_content" />
+    </ScrollView>
+
+    <!-- Confirm Button -->
+    <Button
+        android:id="@+id/btn_confirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Awesome"
+        android:layout_marginTop="12dp"/>
+</LinearLayout>

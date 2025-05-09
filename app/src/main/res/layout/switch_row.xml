@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:padding="4dp">
@@ -9,13 +10,18 @@
     <com.google.android.material.switchmaterial.SwitchMaterial
         android:id="@+id/switch_item"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        app:thumbTint="@color/switch_thumb_color"
+        app:trackTint="@color/switch_track_color"
+        />
 
     <TextView
         android:id="@+id/switch_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        android:autoSizeTextType="uniform"
+        android:scrollHorizontally="false"
         android:text="Label"
-        android:textSize="16sp" />
+        android:textSize="10sp" />
 </LinearLayout>

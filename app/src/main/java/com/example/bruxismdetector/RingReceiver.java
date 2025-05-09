@@ -39,6 +39,11 @@ public class RingReceiver extends BroadcastReceiver {
         if(intent.getAction()!=null) {
             if (intent.getAction().equals(cancel_action_notif)) {
                 cancel(context);
+
+                // Cancel the notification
+                NotificationManagerCompat manager = NotificationManagerCompat.from(context);
+                manager.cancel(REQUEST_CODE);  // Same ID used in notify()
+
                 return;
             }
 

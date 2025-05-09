@@ -1,13 +1,21 @@
 package com.example.bruxismdetector;
 
+import static androidx.core.app.PendingIntentCompat.getActivity;
+
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.icu.util.Calendar;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -17,6 +25,8 @@ import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.CompoundButton;
 import android.widget.SeekBar;
 import android.widget.Switch;
@@ -24,6 +34,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -31,6 +45,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.fragment.app.FragmentManager;
 
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
@@ -101,12 +116,17 @@ private static final String TAG = "Main activity";
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+
 
       //  if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
             requestStoragePermission();
@@ -146,19 +166,26 @@ private static final String TAG = "Main activity";
 
 
         SwitchMaterial swsh = (SwitchMaterial)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
-        swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
-
         swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
+                findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
+            }
+        });
+        swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
+
+        SwitchMaterial swshl = (SwitchMaterial)findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item);
+        swshl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("schedule_listener_after_tracker_ends", swshl.isChecked()).apply();  // or false when unchecked
 
             }
         });
+        swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
 
         SwitchMaterial swthr = (SwitchMaterial)findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
-        swthr.setChecked(prefs.getBoolean("use_threshold", false));
-
         swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -166,10 +193,9 @@ private static final String TAG = "Main activity";
 
             }
         });
+        swthr.setChecked(prefs.getBoolean("use_threshold", false));
 
         SwitchMaterial swardubeep = (SwitchMaterial)findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
-        swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
-
         swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -177,6 +203,34 @@ private static final String TAG = "Main activity";
 
             }
         });
+        swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
+
+
+        SwitchMaterial swonlyalarm = (SwitchMaterial)findViewById(R.id.switch_sharedpref_only_alarm).findViewById(R.id.switch_item);
+        swonlyalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("only_alarm", swonlyalarm.isChecked()).apply();  // or false when unchecked
+                swardubeep.setEnabled(!swonlyalarm.isChecked());
+                findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility( swonlyalarm.isChecked() ? View.INVISIBLE : View.VISIBLE);
+
+            }
+        });
+        swonlyalarm.setChecked(prefs.getBoolean("only_alarm", false));
+
+        SwitchMaterial swoalarmondevice = (SwitchMaterial)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
+        swoalarmondevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("alarm_on_device", swoalarmondevice.isChecked()).apply();  // or false when unchecked
+                ((TextView)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_label)).setText("Alarm on: " + (swoalarmondevice.isChecked()?"Android":"Arduino"));
+            }
+        });
+        swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
+        // Override - feature not ready
+        //((SwitchMaterial)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setEnabled(false);
+        //((SwitchMaterial)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setChecked(true);
+
 
         
         SeekBar sbar = (SeekBar)findViewById(R.id.reception);
@@ -215,7 +269,12 @@ private static final String TAG = "Main activity";
         }
 
         setSwitchThreshold_sharedpref_text();
+
+        new SwitchManager(findViewById(android.R.id.content), this);
+
         setupUDP(4001, 4000);
+
+        checkFloatingPermission();
     }
 
     private void updateMoodDisplay(int index) {
@@ -235,18 +294,11 @@ private static final String TAG = "Main activity";
     private void setupSwitchLabels() {
         Map<Integer, String> switchLabelMap = new HashMap<>();
 
-        switchLabelMap.put(R.id.row_workout, "Done workout");
-        switchLabelMap.put(R.id.row_hydrated, "Well hydrated");
-        switchLabelMap.put(R.id.row_stressed, "Felt stressed");
-        switchLabelMap.put(R.id.row_caffeine, "Had caffeine");
-        switchLabelMap.put(R.id.row_anxious, "Felt anxious");
+        switchLabelMap.put(R.id.switch_sharedpref, "Autostart Trainer");
+        switchLabelMap.put(R.id.switch_sharedpref_only_alarm, "Only Alarms");
+        switchLabelMap.put(R.id.switch_sharedpref_alarm_on_device, "Alarm on device");
+        switchLabelMap.put(R.id.switch_autostart_listener, "Autostart Service");
 
-        switchLabelMap.put(R.id.row_alcohol, "Had alcohol");
-        switchLabelMap.put(R.id.row_late_dinner, "Late dinner or skipped meals");
-        switchLabelMap.put(R.id.row_medications, "Took medications");
-        switchLabelMap.put(R.id.row_pain, "Felt pain");
-        switchLabelMap.put(R.id.row_life_event, "Significant life event");
-        switchLabelMap.put(R.id.switch_sharedpref, "Start trainer after tracker ends");
 
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
             View row = findViewById(entry.getKey());
@@ -322,6 +374,8 @@ private static final String TAG = "Main activity";
         switchKeyMap.put(R.id.row_medications, "medications");
         switchKeyMap.put(R.id.row_pain, "pain");
         switchKeyMap.put(R.id.row_life_event, "life_event");
+        switchKeyMap.put(R.id.row_botox, "botox");
+
 
         // Loop through switch rows and collect values
         for (Map.Entry<Integer, String> entry : switchKeyMap.entrySet()) {
@@ -536,4 +590,80 @@ private static final String TAG = "Main activity";
         thread.start();
 
     }
+
+
+    @SuppressLint("ScheduleExactAlarm")
+    public void startListener(View v){
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.SECOND,2);
+
+        if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DATE, 1); // Next day if already passed
+        }
+
+        Intent intent = new Intent(this, UDPCatcher.class);
+        PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+
+    }
+
+
+    //Helper method to show a dialog window
+    private void showMessageForFloatingPermission(String message) {
+        new android.app.AlertDialog.Builder(MainActivity.this)
+                .setMessage(message)
+                .setPositiveButton("OK",  new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                        checkFloatingPermission();
+
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                        //User opted not to use this feature
+                        //finish();
+
+                    }
+                })
+                .create()
+                .show();
+    }
+
+
+
+
+
+    //Helper method for checking over lay floating permission
+    public void checkFloatingPermission() {
+        if (!Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivityFloatingPermission.launch(intent);//this will open device settings for over lay permission window
+
+        }
+    }
+
+    //Initialize ActivityResultLauncher. Note here that no need custom request code
+    ActivityResultLauncher<Intent> startActivityFloatingPermission = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        //Permission granted
+                    }else{
+                        //If there is no permission allowed yet, still a dialog window will open unless a user opted not to use the feature.
+                        if (!Settings.canDrawOverlays(MainActivity.this)) {
+                            // You don't have permission yet, show a dialog reasoning
+                            showMessageForFloatingPermission("This app requires permission to show dialogs.\n\nPlease enable \"Show over other apps\" in the next screen");
+                        }
+                    }
+                }
+            });
 }

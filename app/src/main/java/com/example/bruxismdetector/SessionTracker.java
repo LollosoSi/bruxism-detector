@@ -38,13 +38,14 @@ public class SessionTracker {
     public static final byte EVALUATION_RESULT = 11;
     public static final byte SET_EVALUATION_THRESHOLD = 12;
     public static final byte DO_NOT_BEEP_ARDUINO = 13;
+    public static final byte ALARM_ARDUINO_EVEN_WITH_ANDROID = 14;
 
 
     private static final String TAG = "BruxismTracker:SessionTracker";
     String csv_folder_path = "RECORDINGS/";
     Context ctx;
     static long startmillis = 0;
-    long millis(){
+    public static long millis(){
         return System.currentTimeMillis() - startmillis;
     }
     void setup(Context ctx){
@@ -65,7 +66,7 @@ public class SessionTracker {
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started. Date: "+formattedDate}, file_out);
 
         file_raw_out = createWriter(filename2);
-        append_csv(new String[]{"Millis", "Classification"}, file_raw_out);
+        append_csv(new String[]{"Millis", "Classification", "Classification int"}, file_raw_out);
 
         Log.d(TAG, "Creating files: " + filename1 + " " + filename2);
 
@@ -74,10 +75,22 @@ public class SessionTracker {
 
     }
 
-    public void writeDailyLog(DailyLogData dld){
+    public static void writeDailyLog(DailyLogData dld, PrintWriter file_out, Context ctx) {
+        writeDailyLog(dld,file_out,ctx,false);
+    }
+
+        public static void writeDailyLog(DailyLogData dld, PrintWriter file_out, Context ctx, boolean setmszero){
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
+
 
         long ms = millis();
         String time = formatted_now();
+
+        if(setmszero){
+            ms=0;
+            time="00:00";
+        }
 
             // Append mood - this will always be written regardless of value
             String[] moodLabels = {"Sick", "Tired", "Bad", "Neutral", "Good"};
@@ -89,12 +102,12 @@ public class SessionTracker {
                         moodLabels[dld.mood]
                 }, file_out);
             } else {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "MOOD",
-                        "Unknown"
-                }, file_out);
+              //  append_csv(new String[]{
+               //         String.valueOf(ms),
+                //        time,
+               //         "MOOD",
+               //         "Unknown"
+               // }, file_out);
             }
 
             // Boolean elements (write only if true)
@@ -178,6 +191,24 @@ public class SessionTracker {
                         "LifeEvent"
                 }, file_out);
             }
+        if (dld.botox) {
+            append_csv(new String[]{
+                    String.valueOf(ms),
+                    time,
+                    "INFO",
+                    "Botox"
+            }, file_out);
+        }
+
+
+            if(prefs.getBoolean("only_alarm", false)){
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "SESSION",
+                        "OnlyAlarm"
+                }, file_out);
+            }
         }
 
     public void close(){
@@ -191,13 +222,13 @@ public class SessionTracker {
     }
 
 
-    PrintWriter file_out;
+    public PrintWriter file_out;
     PrintWriter file_raw_out;
 
     private File recordingsDirectory;
     private File rawRecordingsDirectory;
 
-    PrintWriter createWriter(String filename) {
+    public static PrintWriter createWriter(String filename) {
         try {
             File file = new File(filename);
             return new PrintWriter(file);
@@ -221,7 +252,7 @@ public class SessionTracker {
     boolean clenching=false;
 
 
-    String formatted_now() {
+    public static String formatted_now() {
         // Get the current time
         Calendar calendar = Calendar.getInstance();
 
@@ -230,7 +261,7 @@ public class SessionTracker {
         return dateFormat.format(calendar.getTime());
     }
 
-    void append_csv(String[] data, PrintWriter out) {
+    public static void append_csv(String[] data, PrintWriter out) {
 
         for (int i = 0; i < data.length; i++) {
             if (i!=0)
@@ -298,8 +329,10 @@ public class SessionTracker {
         return file.getAbsolutePath();
     }
 
+    public static final int dataelementbytes = 9;
     // Central function to process data from both UDP and Serial sources
     public void processData(byte[] data, int length) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
         Log.d(TAG, "Packlen: " + length);
         try {
             if (length == 4) {
@@ -314,24 +347,25 @@ public class SessionTracker {
                 Log.d(TAG, "Received Parameters: fs=" + samplingFrequency + ", samples=" + sampleCount);
 
 
-            } else if (length % 5 == 0) {  // Ensure it's a multiple of 5
+            } else if (length % dataelementbytes == 0) {  // Ensure it's a multiple of dataelementbytes
                 long millisforsync = millis();
 
-                int count = length / 5;   // Number of elements in the packet
+                int count = length / dataelementbytes;   // Number of elements in the packet
 
                 for (int i = 0; i < count; i++) {
-                    int offset = i * 5;
+                    int offset = i * dataelementbytes;
 
                     long timestamp = ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
                     boolean value = (data[offset + 4] != 0);
+                    float fvalue = ByteBuffer.wrap(data, offset + 5, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
-                    append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value)}, file_raw_out);
-                    Log.d(TAG, "Received RAW: " + timestamp + ", " + value);
+                    append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value), String.valueOf((int)fvalue)}, file_raw_out);
+                    Log.d(TAG, "Received RAW:\t" + timestamp + "\t" + value + "\t" + ((int)fvalue));
                 }
 
                 if (!did_print_sync) {
                     did_print_sync = true;
-                    append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(ByteBuffer.wrap(data, (count-1) * 5, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL)}, file_out);
+                    append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(ByteBuffer.wrap(data, (count-1) * dataelementbytes, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL)}, file_out);
                 }
             } else if (length==1) {
                 int val = (data[0] & 0xFF);
@@ -365,8 +399,10 @@ public class SessionTracker {
                         if (!alarmed) {
                             append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STARTED"}, file_out);
                             alarmed=true;
-                            servicereference.runAlarm();
-                            servicereference.sendUDP(new byte[]{UDP_ALARM_CONFIRMED});
+                            if(!prefs.getBoolean("alarm_on_device", true)) {
+                                servicereference.runAlarm();
+                                servicereference.sendUDP(new byte[]{UDP_ALARM_CONFIRMED});
+                            }
                         }
                         break;
                     case ALARM_STOP:
@@ -375,8 +411,7 @@ public class SessionTracker {
                         break;
                     case BEEP:
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Beep", "WARNING BEEP"}, file_out);
-                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
-                        if(!prefs.getBoolean("arduino_beep", true)){
+                        if(!prefs.getBoolean("arduino_beep", true) && (!prefs.getBoolean("only_alarm", false))){
                             Intent intent = new Intent(ctx, RingReceiver.class);
                             intent.setAction(RingReceiver.beep_once); // Use the constant here
                             ctx.sendBroadcast(intent);

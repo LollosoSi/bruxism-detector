@@ -17,6 +17,7 @@ public class DailyLogData {
     public boolean medications;
     public boolean pain;
     public boolean lifeEvent;
+    public boolean botox;
 
     public DailyLogData(Intent intent) {
         mood = intent.getIntExtra("mood", -1);
@@ -31,6 +32,8 @@ public class DailyLogData {
         medications = intent.getBooleanExtra("medications", false);
         pain = intent.getBooleanExtra("pain", false);
         lifeEvent = intent.getBooleanExtra("life_event", false);
+        botox = intent.getBooleanExtra("botox", false);
+
     }
 
     @NonNull

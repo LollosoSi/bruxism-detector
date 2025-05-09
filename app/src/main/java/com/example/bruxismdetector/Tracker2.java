@@ -1,5 +1,7 @@
 package com.example.bruxismdetector;
 
+import android.annotation.SuppressLint;
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.icu.util.Calendar;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
@@ -18,8 +21,10 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
+import androidx.fragment.app.FragmentManager;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -99,11 +104,15 @@ public class Tracker2 extends Service {
 
         }
 
-        if(!prefs.getBoolean("arduino_beep", true)){
+        if(!prefs.getBoolean("arduino_beep", true) || prefs.getBoolean("only_alarm", false)){
             sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
             Intent intent = new Intent(this, RingReceiver.class);
             intent.setAction(RingReceiver.beep_once); // Use the constant here
             sendBroadcast(intent);
+        }
+
+        if(!prefs.getBoolean("alarm_on_device", true)){
+            sendUDP(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
         }
 
 
@@ -125,13 +134,14 @@ public class Tracker2 extends Service {
             // Now you can easily pass this object around:
             Log.d("Tracker2", logData.toString());
             // Example: pass to a logger, writer, or processor
-            sessionTracker.writeDailyLog(logData);
+            sessionTracker.writeDailyLog(logData, sessionTracker.file_out, this);
         }
 
 
         return START_STICKY;
     }
 
+    @SuppressLint("ScheduleExactAlarm")
     @Override
     public void onDestroy() {
 
@@ -149,6 +159,39 @@ public class Tracker2 extends Service {
             Intent intent = new Intent(this, RingReceiver.class);
             sendBroadcast(intent);
         }
+
+        if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(Calendar.HOUR_OF_DAY, 21);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+
+            if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
+                calendar.add(Calendar.DATE, 1); // Next day if already passed
+            }
+
+            Intent intent = new Intent(this, UDPCatcher.class);
+            PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        }
+
+        if(prefs.getBoolean("collect_data_on_end",false)) {
+
+            try {
+                Intent intent2 = new Intent(this, DialogHostActivity.class);
+
+                intent2.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
+                Log.d(TAG, "Starting DialogHostActivity");
+                startActivity(intent2);
+                prefs.edit().putBoolean("collect_data_on_end", false).apply();
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to start DialogHostActivity", e);
+            }
+        }
+
+
+
 
         super.onDestroy();
     }
@@ -319,8 +362,11 @@ public void exit(){
 
                 sendUDP(new byte[]{SessionTracker.USING_ANDROID});
 
-                if(!prefs.getBoolean("arduino_beep", true)){
+                if(!prefs.getBoolean("arduino_beep", true) || prefs.getBoolean("only_alarm", false)){
                     sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
+                }
+                if(!prefs.getBoolean("alarm_on_device", true)){
+                    sendUDP(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
                 }
 
             }
