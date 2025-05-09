@@ -139,7 +139,7 @@ An experimental Android App is available for download and source can be found at
 7. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
 
 <div style="display: flex; justify-content: space-between;">
-<img src="https://github.com/user-attachments/assets/4229aa78-c3c8-42e7-aa0a-72b35194c4e7" width="30%">
+<img src="https://github.com/user-attachments/assets/3c72721e-9c30-4414-b3dc-f9b16e259f8c" width="30%">
 <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="30%">
 </div>
 <p>Supports Material 3.</p>
