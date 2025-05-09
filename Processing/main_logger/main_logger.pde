@@ -135,7 +135,7 @@ void setup() {
   append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started. Date: "+formattedDate}, file_out);
 
   file_raw_out = createWriter(filename2);
-  append_csv(new String[]{"Millis", "Classification"}, file_raw_out);
+  append_csv(new String[]{"Millis", "Classification", "Classification int"}, file_raw_out);
 
   println("Creating files: " + filename1 + " " + filename2);
 
@@ -341,6 +341,12 @@ final byte CONTINUED = 7;
 final byte ALARM_STOP = 8;
 final byte TRACKING_STOP = 9;
 final byte USING_ANDROID = 10;
+final byte EVALUATION_RESULT = 11;
+final byte SET_EVALUATION_THRESHOLD = 12;
+final byte DO_NOT_BEEP_ARDUINO = 13;
+final byte ALARM_ARDUINO_EVEN_WITH_ANDROID = 14;
+
+final int dataelementbytes = 9;
 
 // Central function to process data from both UDP and Serial sources
 void processData(byte[] data, int length) {
@@ -359,19 +365,21 @@ void processData(byte[] data, int length) {
 
       // Redraw visualization with new parameters
       background(255);
-    } else if (length % 5 == 0) {  // Ensure it's a multiple of 5
+    } else if (length % dataelementbytes == 0) {  // Ensure it's a multiple of dataelementbytes
       long millisforsync = millis();
 
-      int count = length / 5;   // Number of elements in the packet
+      int count = length / dataelementbytes;   // Number of elements in the packet
 
       for (int i = 0; i < count; i++) {
-        int offset = i * 5;
+        int offset = i * dataelementbytes;
 
         long timestamp = ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
         boolean value = (data[offset + 4] != 0);
+        float fvalue = ByteBuffer.wrap(data, offset + 5, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
-        append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value)}, file_raw_out);
-        println("Received RAW: " + timestamp + ", " + value);
+
+        append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value), String.valueOf((int)fvalue)}, file_raw_out);
+        println("Received RAW:\t" + timestamp + "\t" + value + "\t" + ((int)fvalue));
       }
 
       if (!did_print_sync) {
