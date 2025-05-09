@@ -126,17 +126,20 @@ An experimental graphing application is available for download and the source ca
 
 ## **Android integration**
 An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
-1. Open it, set the pertinent switches about your day and start the tracking service to register all events from Arduino.
-2. The app will catch beeps from Arduino: you can configure your phone to beep with a certain volume or into headphones to avoid disturbing others' sleep
-3. The app will also catch alarms: it will try to wake you up more gently by vibrating.</br>Turning the screen on/off counts as button press and dismisses the alarm.
-   1. In case the vibration alarm fails to wake you up in 10 seconds, we consider something failed and the Arduino will ring instead.
-   2. Ensure a stable wifi connection.</br>If your phone disconnects you will miss events in the final logs.
-   3. Say the vibration alarm failed or there are network issues.</br>Arduino will operate without the smartphone until the app registers itself again. Happens once around every 15 minutes.
+1. If `Autostart Service` is enabled, you will need to follow this only once every phone reboot.
+   - When tracking ends, you will still be asked about your day.
+   - The app will always use your last `Session Settings` 
+3. Open it, set the pertinent switches about your day and start the tracking service to register all events from Arduino.
+4. The app will catch beeps from Arduino: you can configure your phone to beep with a certain volume or into headphones to avoid disturbing others' sleep
+5. The app will also catch alarms: it will try to wake you up more gently by vibrating.</br>Turning the screen on/off counts as button press and dismisses the alarm.
+   - In case the vibration alarm fails to wake you up in 10 seconds, we consider something failed and the Arduino will ring instead.
+   - Ensure a stable wifi connection.</br>If your phone disconnects you will miss events in the final logs.
+   - Say the vibration alarm failed or there are network issues.</br>Arduino will operate without the smartphone until the app registers itself again. Happens once around every 15 minutes.
 6. Your tracked data will be available under `Documents/RECORDINGS`.
 7. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
 
 <div style="display: flex; justify-content: space-between;">
-<img src="https://github.com/user-attachments/assets/f7905d4d-679c-4148-9103-57f179dbf939" width="30%">
+<img src="https://github.com/user-attachments/assets/4229aa78-c3c8-42e7-aa0a-72b35194c4e7" width="30%">
 <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="30%">
 </div>
 <p>Supports Material 3.</p>
