@@ -132,7 +132,20 @@ void read_from_udp() {
           break;
 
         case DO_NOT_BEEP_ARDUINO:
-          do_not_beep_if_android=true;
+          do_not_beep_if_android = true;
+        break;
+
+        case ALARM_ARDUINO_EVEN_WITH_ANDROID:
+        if(!alarm_even_with_android){
+            tone(BUZZER, Notes::C6, Notes::DottedEighth / 4);
+            delay(50);
+            tone(BUZZER, Notes::D6, Notes::DottedEighth / 4);
+            delay(50);
+            tone(BUZZER, Notes::E6, Notes::DottedEighth / 4);
+            delay(50);
+            tone(BUZZER, Notes::F6, Notes::DottedEighth / 4);
+          }
+          alarm_even_with_android = true;
         break;
       }
     }

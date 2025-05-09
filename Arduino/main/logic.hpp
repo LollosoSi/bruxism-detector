@@ -48,8 +48,8 @@ bool alarm_running = 0;
 
 long last_tone_ms = 0, last_flash = 0;
 
-void add_to_elements(bool b) {
-  data_elements[elements_cursor++] = { millis(), b };
+void add_to_elements(bool b, float f) {
+  data_elements[elements_cursor++] = { millis(), b, f };
 
   if (elements_cursor == elements_size) {
     send_elements_batch(data_elements);  // Send all at once
@@ -81,7 +81,7 @@ void warning_beep() {
 inline void loop_alarm() {
   if (alarm_running) {
 
-    if (!is_using_android) {
+    if (!is_using_android || alarm_even_with_android) {
       if (millis() - last_tone_ms >= tunes[playtune]->waits[tone_sel]) {
         if (++tone_sel >= tunes[playtune]->tone_num) {
           tone_sel = 0;
@@ -106,8 +106,12 @@ inline void loop_alarm() {
   }
 }
 
-void trigger_system(int classificazione, unsigned long tempoAttuale) {
-  add_to_elements(classificazione);
+/** This function collects campioniFiltraggio samples and if the positive samples are >= (2 * (campioniFiltraggio / 3)) then the system considers a clenching event started.
+ * Adds latency, as little as campioniFiltraggio * 1/samplingFrequency
+ * 
+*/
+void trigger_system(int classificazione, float& result, unsigned long tempoAttuale) {
+  add_to_elements(classificazione, result);
 
   bool esitoFiltraggio = false;
   bool filtraggioCompletato = false;
@@ -213,7 +217,7 @@ void setup_logic() {
 inline void loop_logic() {
   float result = 0;
   if (!is_calc_ema)
-    trigger_system(classify(vReal, result), millis());
+    trigger_system(classify(vReal, result), result, millis());
   else {
     classify(vReal, result);
 

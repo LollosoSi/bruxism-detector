@@ -12,6 +12,7 @@ bool stream_FFT = false;
 struct data_element {
   unsigned long timestamp;  // 4 bytes
   bool value;               // 1 byte
+  float fvalue;             // 4 bytes
 };
 #pragma pack(pop)  // Restore default packing alignment
 
@@ -33,10 +34,12 @@ const uint8_t USING_ANDROID = 10;
 const uint8_t EVALUATION_RESULT = 11;
 const uint8_t SET_EVALUATION_THRESHOLD = 12;
 const uint8_t DO_NOT_BEEP_ARDUINO = 13;
+const uint8_t ALARM_ARDUINO_EVEN_WITH_ANDROID = 14;
 
 bool is_using_android = false;
 bool do_not_beep_if_android = false;
 bool need_alarm_confirmation = false;
+bool alarm_even_with_android = false;
 
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

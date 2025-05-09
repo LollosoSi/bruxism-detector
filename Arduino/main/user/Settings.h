@@ -2,6 +2,12 @@
 
 #include "Notes.h"
 
+// ANDROID
+
+static constexpr long android_alarm_timeout = 10000;
+
+// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
 // GPIO
 
 static constexpr int analog_pin = A0;  // Set the correct analog input pin
@@ -15,7 +21,7 @@ static constexpr int BUZZER = 5;
 // Uncomment if you want to start/stop a tune by pressing the button once
 //#define TESTING_TONES
 
-uint8_t playtune = 2;            // Which tune you want to start with? (see tunes[] array)
+uint8_t playtune = 0;            // Which tune you want to start with? (see tunes[] array)
 bool rotate_tunes = false;       // Randomly pick a tune (will rotate anyway after max_replays loops, the tune failed at waking you up!)
 const uint8_t max_replays = 10;  // How many loops of the same tune before rotating
 
@@ -90,14 +96,14 @@ const uint16_t samplingFrequency = 1000;  // Adjust as needed
 
 // SVM Settings
 
-static const int classification_threshold = 68;
+int classification_threshold = 100;
 
 static const float weights[] = { 0.00000000, 0.00000000, 0.00000000, 0.00000000, 0.00000000, -0.16666446, 0.14036143, 0.10275731, 0.15018884, 0.17533556, -0.01297485, 0.29788694, -0.10588868, 0.16164895, 0.07309278, -0.06163993, 0.72166246, -0.05186196, 0.05293969, 0.17246698, -0.09546843, 0.25317097, -0.05021467, 0.20567502, 0.12985801, 0.05549219, 0.18976886, -0.10753195, -0.29549880, 0.30059777, 0.24690098, 0.00517570 };
 static const float bias = -0.2237529517562951;
+
+static const unsigned int elements_size = 150;  // How many classifications should be collected before batch sending to logger. NOTE: More than 1400 bytes will segment the packet and reception will fail.
+
 static const int weight_length = (sizeof(weights) / sizeof(float));
-
-static const unsigned int elements_size = 1000;  // How many classifications should be collected before batch sending to logger
-
 static_assert(samples / 2 == weight_length, "Error: Weights are not as many as samples/2");
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
