@@ -22,10 +22,13 @@ public class FileRawEventReader {
 
 				long millis = Long.parseLong(parts[0]);
 				boolean value = Boolean.parseBoolean(parts[1]);
+				int fvalue = 0;
+				if(parts.length > 2)
+					fvalue = Integer.valueOf(parts[2]);
 				
 				//System.out.println("Reading event: " + millis + " : " + value);
 
-				events.add(new RawEvent(millis, value));
+				events.add(new RawEvent(millis, value, fvalue==0 ? value ? 100 : 0 : fvalue));
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading file: " + fileName);

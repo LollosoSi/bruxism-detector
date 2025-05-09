@@ -54,14 +54,14 @@ public class Grapher {
 		side_info_margin = graph_width / 20;
 		info_text_height = 50;
 
-		timeline_height = graph_height - 200;
+		timeline_height = graph_height - 240;
 		legend_height = graph_height - 80;
 		first_slot_height = graph_height - 180;
 		slot_height = 50;
 		slot_spacing = 50;
 
 		clenchline_height_low = legend_height - 25;
-		clenchline_height_high = clenchline_height_low - 20;
+		clenchline_height_high = clenchline_height_low - 60;
 
 		min_time = events.get(0).millis;
 		max_time = events.get(events.size() - 1).millis;
@@ -81,8 +81,9 @@ public class Grapher {
 	
 
 	BufferedImage medicationIcon, stressedIcon, alcoholIcon, badMealIcon, dayPainIcon;
-	BufferedImage workoutIcon, hydratedIcon, coffeeIcon, lifeEventIcon, anxietyIcon;
+	BufferedImage workoutIcon, hydratedIcon, coffeeIcon, lifeEventIcon, anxietyIcon, botoxIcon;
 	BufferedImage sickIcon, badMoodIcon, goodMoodIcon;
+	BufferedImage onlyAlarmsIcon;
 
 	public void loadIcons() {
 		try {
@@ -99,6 +100,9 @@ public class Grapher {
 			sickIcon = recolorPng(ImageIO.read(getClass().getResource("/sick.png")), Color.decode("#FF9800"));
 			badMoodIcon = recolorPng(ImageIO.read(getClass().getResource("/bad.png")), Color.decode("#F44336"));
 			goodMoodIcon = recolorPng(ImageIO.read(getClass().getResource("/good.png")), Color.decode("#00BCD4"));
+			botoxIcon = recolorPng(ImageIO.read(getClass().getResource("/botox.png")), Color.decode("#4CAF50"));
+			onlyAlarmsIcon = recolorPng(ImageIO.read(getClass().getResource("/onlyAlarms.png")), Color.decode("#4CAF50"));
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -192,11 +196,61 @@ public class Grapher {
 				getBaseYslot(slot) - slot_height - (16 * text_slot));
 	}
 
+
+    public float calculatePercentage(int value, int maxValue, int minValue) {
+        // Calculate percentage of value from the baseline relative to minAverage
+        return (float) (value - minValue) / (maxValue - minValue);
+    }
+    public int calculateHeightFromPercentage(float percentage, int clenchlineHeightLow, int clenchlineHeightHigh) {
+        // Map percentage to height between the low and high values
+    	return (int) (clenchlineHeightLow + ((clenchlineHeightHigh - clenchlineHeightLow) * percentage));
+    }
+	
 	void drawRaw(Graphics2D g, boolean use_dark_mode) {
 
 		if (raw_events == null)
 			return;
+		
+		boolean fallback_nofvalues = false;
+		
+		// Initialize the baseline with a large value or Integer.MAX_VALUE
+		int baseline = Integer.MAX_VALUE;
+		int minFvalue = Integer.MAX_VALUE; // To store the minimum fvalue
+		int maxFvalue = Integer.MIN_VALUE; // To store the maximum fvalue
 
+		// Minimum average
+		int sumFvalue = 0;
+		int countFalseValues = 0;
+
+		// Iterate through the events array
+		for (RawEvent event : raw_events) {
+		    if (event.value) {
+		        // If the event value is true, check if its fvalue is smaller than the current baseline
+		        if (event.fvalue < baseline) {
+		            baseline = event.fvalue;
+		        }
+		    } else {
+		        // If the event value is false, add the fvalue to the sum and increment the count
+		        sumFvalue += event.fvalue;
+		        countFalseValues++;
+		    }
+		    // Track the minimum and maximum fvalue for events where value is false
+	        if (event.fvalue < minFvalue) {
+	            minFvalue = event.fvalue;
+	        }
+	        if (event.fvalue > maxFvalue) {
+	            maxFvalue = event.fvalue;
+	        }
+		}
+        
+        // Calculate the minimum average if there are events where value is false
+        float minAverage = 0;
+        if (countFalseValues > 0) {
+            minAverage = (float) sumFvalue / countFalseValues;
+        }
+
+        fallback_nofvalues = baseline == 0;
+        
 		long syncmillis = -1;
 
 		for (Event e : events) {
@@ -235,17 +289,28 @@ public class Grapher {
 				last_event = re;
 				continue;
 			}
-
+			
+			if(fallback_nofvalues)
 			g.drawLine(xtimescale(last_event.millis - syncmillis),
 					(last_event.value ? clenchline_height_high : clenchline_height_low),
 					xtimescale(re.millis - syncmillis), (re.value ? clenchline_height_high : clenchline_height_low));
+			else
+				g.drawLine(xtimescale(last_event.millis - syncmillis),
+						calculateHeightFromPercentage(calculatePercentage(last_event.fvalue, maxFvalue, minFvalue), clenchline_height_low, clenchline_height_high),
+						xtimescale(re.millis - syncmillis),
+						calculateHeightFromPercentage(calculatePercentage(re.fvalue, maxFvalue, minFvalue), clenchline_height_low, clenchline_height_high));
 
 			if (stop_drawing)
 				break;
 
 			last_event = re;
 		}
-
+		
+		if(baseline != maxFvalue) {
+			g.setColor(Colours.getColor(Color_element.Clenching, use_dark_mode));
+			int baseline_line = calculateHeightFromPercentage(calculatePercentage(baseline, maxFvalue, minFvalue), clenchline_height_low, clenchline_height_high);
+			g.drawLine(xtimescale(min_time), baseline_line, xtimescale(max_time), baseline_line);
+		}
 	}
 
 	public void drawIcons(Graphics2D g, int graphX, int graphY) {
@@ -295,9 +360,31 @@ public class Grapher {
 			    case "lifeevent":
 			        icon = lifeEventIcon;
 			        break;
+			    case "botox":
+			    	icon = botoxIcon;
+			    	break;
 			}
 
 
+				if (icon != null) {
+					if (count++ % 2 == 0) {
+						x -= iconSize + spacing;
+						y = starty;
+					}
+					g.drawImage(icon, x, y, iconSize, iconSize, null);
+					y += iconSize + spacing;
+				}
+			}
+			
+			if (e.type.equals("SESSION")) {
+				BufferedImage icon = null;
+				
+				switch(e.notes.toLowerCase()) {
+				case "onlyalarm":
+					icon = onlyAlarmsIcon;
+					break;
+				}
+				
 				if (icon != null) {
 					if (count++ % 2 == 0) {
 						x -= iconSize + spacing;

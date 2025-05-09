@@ -8,11 +8,12 @@ import java.util.ArrayList;
 public class RawEvent {
 	long millis;
 	boolean value;
+	int fvalue;
 
-	public RawEvent(long millis, boolean value) {
+	public RawEvent(long millis, boolean value, int fvalue) {
 		this.millis = millis;
 		this.value = value;
-
+		this.fvalue = fvalue;
 	}
 }
 
