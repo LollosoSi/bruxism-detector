@@ -138,12 +138,13 @@ An experimental Android App is available for download and source can be found at
 6. Your tracked data will be available under `Documents/RECORDINGS`.
 7. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
 
+
 <div style="display: flex; justify-content: space-between;">
-<img src="https://github.com/user-attachments/assets/3c72721e-9c30-4414-b3dc-f9b16e259f8c" width="30%">
+<img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" width="30%">
 <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="30%">
-<img src="https://github.com/user-attachments/assets/50675360-f5d6-462a-b49b-94efa0815225" width="30%">
+<img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="30%">
 </div>
-<p>Supports Material 3.</p>
+
 
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
