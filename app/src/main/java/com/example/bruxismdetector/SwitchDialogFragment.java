@@ -107,7 +107,9 @@ public class SwitchDialogFragment extends DialogFragment {
                 });
 
                 // Return the most recent file
-                return files[0];
+                int i = 0;
+                while(files[i].isDirectory()){i++;}
+                return files[i];
             }
         }
         return null; // Return null if no files found or directory doesn't exist

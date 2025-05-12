@@ -3,7 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -28,7 +27,7 @@
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:allowBackup="true"
@@ -40,6 +39,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BruxismDetector"
         tools:targetApi="31">
+        <activity
+            android:name=".GraphViewer"
+            android:exported="false" />
+
         <service
             android:name=".UDPCatcher"
             android:enabled="true"
@@ -72,12 +75,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity android:name=".DialogHostActivity"
+        <activity
+            android:name=".DialogHostActivity"
             android:exported="true"
-            android:theme="@style/Theme.Transparent"
             android:launchMode="singleTask"
-            android:taskAffinity=""/>
+            android:taskAffinity=""
+            android:theme="@style/Theme.Transparent" />
 
         <service
             android:name=".UDPCheckJob"

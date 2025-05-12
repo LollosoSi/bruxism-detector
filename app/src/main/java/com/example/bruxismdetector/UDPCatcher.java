@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 
 public class UDPCatcher extends Service {
     public UDPCatcher() {
+
     }
 
     public static final String ACTION_STOP = "STOPLISTENER";

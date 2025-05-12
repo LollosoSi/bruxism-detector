@@ -12,15 +12,17 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.PorterDuff;
 import android.icu.util.Calendar;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
@@ -29,7 +31,6 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.CompoundButton;
 import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,8 +46,8 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.fragment.app.FragmentManager;
 
+import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.File;
@@ -105,6 +106,8 @@ private static final String TAG = "Main activity";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+
         EdgeToEdge.enable(this);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
@@ -629,4 +632,53 @@ private static final String TAG = "Main activity";
                     }
                 }
             });
+
+
+
+    public void tryGraphing(View v){
+
+        
+
+        // Acquire a WakeLock to keep the screen on
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "MyApp:MyWakeLockTag");
+        wakeLock.acquire();
+
+        GrapherAsyncTask task = new GrapherAsyncTask(this);
+
+        // Wait for the AsyncTask to finish (not recommended on the main thread)
+        try {
+
+            task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (wakeLock.isHeld()) {
+                wakeLock.release();
+            }
+            new Thread(() -> {
+                while(!task.taskFinished()) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                startActivity(new Intent(this, GraphViewer.class));
+
+            }).start();
+        }
+
+
+        // Release the WakeLock when the task is done
+        if (wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+
+    }
+
+
+
+
 }

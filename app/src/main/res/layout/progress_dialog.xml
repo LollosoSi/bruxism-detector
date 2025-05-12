@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="visible"
+            app:indicatorSize="48dp"
+            app:trackThickness="4dp"
+            app:indicatorColor="@color/material_dynamic_neutral_variant50"
+            android:indeterminate="true"
+            />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+            <TextView
+                android:id="@+id/dialog_progress_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Creating Graphs, please wait..."
+                android:textAppearance="?android:attr/textAppearanceMedium"
+
+                android:textAlignment="center"
+                android:textSize="16sp"
+                android:typeface="monospace"/>
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/dialog_progress_bar"
+                android:layout_margin="16dp"
+
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"
+                android:keepScreenOn="true"/>
+        </LinearLayout>
+
+
+
+
+    </LinearLayout>
+
+
+
+   <!--- <ProgressBar
+        android:id="@+id/dialog_progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        />
+        -->
+
+
+</LinearLayout>

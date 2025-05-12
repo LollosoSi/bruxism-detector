@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class FileSenderClient {
     static final String TAG = "FileSenderClient";
@@ -30,6 +32,7 @@ public class FileSenderClient {
 
             for (File file : fileList) {
                 String relativePath = baseDir.toURI().relativize(file.toURI()).getPath().replace("\\", "/");
+
                 dos.writeUTF(relativePath);
                 dos.writeLong(file.length());
 
@@ -50,10 +53,12 @@ public class FileSenderClient {
 
     private static void collectFiles(File dir, List<File> fileList) {
         for (File file : dir.listFiles()) {
-            if (file.isDirectory()) {
-                collectFiles(file, fileList);
-            } else {
-                fileList.add(file);
+            if(file.getParentFile().getName().equals("RECORDINGS") | file.getParentFile().getName().equals("RAW")) {
+                if (file.isDirectory()) {
+                    collectFiles(file, fileList);
+                } else {
+                    fileList.add(file);
+                }
             }
         }
     }
