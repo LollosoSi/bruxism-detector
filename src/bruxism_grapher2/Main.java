@@ -1,9 +1,12 @@
 package bruxism_grapher2;
 
+import java.awt.Color;
 import java.awt.Desktop;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,7 +25,8 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
-
+import grapher_interfaces.GrapherDesktop;
+import grapher_interfaces.IconManagerDesktop;
 
 import java.util.concurrent.*;
 import java.util.stream.IntStream;
@@ -34,6 +38,11 @@ public class Main {
 	static boolean dark_theme = true, redraw_all = false;
 	
 	public static void main(String[] args) {
+		
+		if (args.length != 0) {
+			createGraphs(args);
+			System.exit(0);
+		}
 		
         JFrame frame = new JFrame("Bruxism Grapher");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -211,7 +220,8 @@ public class Main {
 	            ArrayList<Event> events = FileEventReader.readCSV(file.getName());
 	            if (events.isEmpty()) return null;
 
-	            Grapher gg = new Grapher(events, file.getName());
+	            Grapher<BufferedImage, Color, Font> gg = new Grapher<>(events, file.getName(), 1280, 720);
+	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop());
 
 	            File rawfile = new File("RAW/" + file.getName().replace(".csv", "_RAW.csv"));
 	            if (rawfile.exists()) {
@@ -222,7 +232,7 @@ public class Main {
 
 	            File outputGraph = new File("./Graphs/" + file.getName().replace(".csv", ".png"));
 	            if (redraw_all || !outputGraph.exists()) {
-	                Grapher.writeImage(gg.generateGraph(dark_theme), "./Graphs/" + file.getName());
+	                gg.writeImage(gg.generateGraph(dark_theme), "./Graphs/" + file.getName());
 	            }
 
 	            return gg.getStats();
