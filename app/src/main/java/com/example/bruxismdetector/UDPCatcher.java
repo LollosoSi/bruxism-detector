@@ -10,6 +10,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.icu.util.Calendar;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
@@ -60,11 +61,28 @@ public class UDPCatcher extends Service {
         return START_NOT_STICKY;
     }
 
+    @SuppressLint("ScheduleExactAlarm")
     private void handleAction(Intent intent) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         if (intent == null || intent.getAction() == null) return;
         switch (intent.getAction()) {
             case ACTION_STOP:
-                stopSelf();
+                if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(Calendar.HOUR_OF_DAY, 21);
+                    calendar.set(Calendar.MINUTE, 0);
+                    calendar.set(Calendar.SECOND, 0);
+
+                    if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
+                        calendar.add(Calendar.DATE, 1); // Next day if already passed
+                    }
+
+                    Intent rsintent = new Intent(this, UDPCatcher.class);
+                    PendingIntent rspendingIntent = PendingIntent.getService(this, 0, rsintent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), rspendingIntent);
+                }
+                    stopSelf();
                 break;
             case ACTION_RESCHEDULE_30:
                 scheduleSelfAfterMinutes(30);

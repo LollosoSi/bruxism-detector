@@ -188,6 +188,13 @@ public class Tracker2 extends Service {
             } catch (Exception e) {
                 Log.e(TAG, "Failed to start DialogHostActivity", e);
             }
+        }else{
+
+            Intent myIntent = new Intent(Tracker2.this, MainActivity.class);
+            myIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
+            myIntent.setAction(MainActivity.LAUNCH_GRAPHER);
+            this.startActivity(myIntent);
+
         }
 
 
@@ -300,6 +307,7 @@ public void exit(){
             if (ACTION_STOP_SERVICE.equals(intent.getAction())) {
                 Log.d(TAG, "Stop action received");
                 stopSelf();
+
             }
             if (ACTION_BUTTON_SERVICE.equals(intent.getAction()) || ALARMOFF_BUTTON_SERVICE.equals(intent.getAction())) {
                 Log.d(TAG, "Button received");

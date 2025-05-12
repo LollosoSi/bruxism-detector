@@ -36,7 +36,7 @@ public class Grapher<Image, Color, Font> {
 
 	GrapherInterface<Color, Image, Font> gi = null;
 	IconManager<Color, Image> icm = null;
-	Image android_icon, medicationIcon, stressedIcon, alcoholIcon, badMealIcon, dayPainIcon, workoutIcon, hydratedIcon, coffeeIcon, lifeEventIcon, anxietyIcon, botoxIcon, sickIcon, badMoodIcon, goodMoodIcon, onlyAlarmsIcon;
+	Image android_icon, medicationIcon, stressedIcon, alcoholIcon, badMealIcon, dayPainIcon, workoutIcon, hydratedIcon, coffeeIcon, lifeEventIcon, anxietyIcon, botoxIcon, sickIcon, badMoodIcon, goodMoodIcon, onlyAlarmsIcon, tiredIcon;
 
 	public Grapher(ArrayList<Event> event_list, String file_name, int width, int height) {
 		events = event_list;
@@ -94,6 +94,7 @@ public class Grapher<Image, Color, Font> {
 		goodMoodIcon = icm.loadImage("good.png", "#00BCD4");
 		botoxIcon = icm.loadImage("botox.png", "#4CAF50");
 		onlyAlarmsIcon = icm.loadImage("onlyalarms.png","#4CAF50");
+		tiredIcon = icm.loadImage("tired.png", "#FFEB3B");
 
 
 	}
@@ -336,6 +337,7 @@ public class Grapher<Image, Color, Font> {
 					case "botox":
 						icon = botoxIcon;
 						break;
+
 				}
 
 
@@ -381,6 +383,9 @@ public class Grapher<Image, Color, Font> {
 					case "Sick":
 						moodIcon = sickIcon;
 						break;
+					case "Tired":
+						moodIcon = tiredIcon;
+						break;
 				}
 
 				if (moodIcon != null) {
@@ -394,6 +399,7 @@ public class Grapher<Image, Color, Font> {
 			}
 		}
 	}
+
 
 	public Image generateGraph(boolean use_dark_mode) {
 
@@ -589,3 +595,4 @@ public class Grapher<Image, Color, Font> {
 	}
 
 }
+

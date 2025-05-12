@@ -7,12 +7,11 @@
     android:gravity="center_vertical"
     android:padding="4dp">
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/switch_item"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:thumbTint="@color/switch_thumb_color"
-        app:trackTint="@color/switch_track_color"
+        app:thumbIconTint="@color/material_dynamic_neutral90"
         />
 
     <TextView
@@ -21,5 +20,5 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:text="Label"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 </LinearLayout>

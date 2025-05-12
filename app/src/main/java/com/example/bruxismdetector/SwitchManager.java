@@ -6,6 +6,10 @@ import android.preference.PreferenceManager;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.appcompat.content.res.AppCompatResources;
+
+import com.google.android.material.materialswitch.MaterialSwitch;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,6 +47,8 @@ public class SwitchManager {
                     if (label != null) {
                         label.setText(entry.getValue());
                     }
+                    MaterialSwitch materialSwitch = row.findViewById(R.id.switch_item);
+                    //materialSwitch.setThumbIconDrawable(AppCompatResources.getDrawable(context, R.drawable.check));
                 }
             }
         }

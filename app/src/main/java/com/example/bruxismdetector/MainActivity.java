@@ -15,6 +15,8 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.icu.util.Calendar;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -48,7 +50,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
-import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.material.elevation.SurfaceColors;
+import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,6 +68,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
+    public final static String LAUNCH_GRAPHER = "Launch_Grapher_Please";
     private MulticastSocket receiveSocket;
     private DatagramSocket sendSocket;
     private InetAddress multicastAddress;
@@ -108,10 +112,21 @@ private static final String TAG = "Main activity";
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
 
-        EdgeToEdge.enable(this);
+        final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+         //       | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        //getWindow().getDecorView().setSystemUiVisibility(flags);
+
+
+
+        //EdgeToEdge.enable(this);
+
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -121,11 +136,11 @@ private static final String TAG = "Main activity";
 
 
 
-      //  if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-            requestStoragePermission();
-       // } else {
+            getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
 
-        //}
+
+        requestStoragePermission();
+
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
@@ -142,27 +157,61 @@ private static final String TAG = "Main activity";
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
 
-        SwitchMaterial swsh = (SwitchMaterial)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
+        MaterialSwitch swsh = (MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
         swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
                 findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
+
             }
         });
         swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
 
-        SwitchMaterial swshl = (SwitchMaterial)findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item);
+        MaterialSwitch swshl = (MaterialSwitch)findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item);
         swshl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @SuppressLint("ScheduleExactAlarm")
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("schedule_listener_after_tracker_ends", swshl.isChecked()).apply();  // or false when unchecked
+
+                Intent intent = new Intent(MainActivity.this, UDPCatcher.class);
+
+                // Try to retrieve the existing PendingIntent (without creating it)
+                PendingIntent existingIntent = PendingIntent.getService(
+                        MainActivity.this, 0, intent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+                );
+
+                // If it exists, cancel it
+                if (existingIntent != null && !swshl.isChecked()) {
+                    Log.i("Autostart Listener", "Autostart cancelled");
+                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                    alarmManager.cancel(existingIntent);
+                    existingIntent.cancel(); // Also cancel the PendingIntent itself
+                }else if(swshl.isChecked()){
+                    Log.i("Autostart Listener", "Autostart set");
+                    Calendar calendar = Calendar.getInstance();
+                    calendar.set(Calendar.HOUR_OF_DAY, 21);
+                    calendar.set(Calendar.MINUTE, 0);
+                    calendar.set(Calendar.SECOND, 0);
+
+                    if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
+                        calendar.add(Calendar.DATE, 1); // Next day if already passed
+                    }
+
+                    Intent intent2 = new Intent(MainActivity.this, UDPCatcher.class);
+                    PendingIntent pendingIntent2 = PendingIntent.getService(MainActivity.this, 0, intent2, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent2);
+
+                }
+
 
             }
         });
         swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
 
-        SwitchMaterial swthr = (SwitchMaterial)findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
+        MaterialSwitch swthr = (MaterialSwitch)findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
         swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -172,7 +221,7 @@ private static final String TAG = "Main activity";
         });
         swthr.setChecked(prefs.getBoolean("use_threshold", false));
 
-        SwitchMaterial swardubeep = (SwitchMaterial)findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
+        MaterialSwitch swardubeep = (MaterialSwitch)findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
         swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -183,19 +232,19 @@ private static final String TAG = "Main activity";
         swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
 
 
-        SwitchMaterial swonlyalarm = (SwitchMaterial)findViewById(R.id.switch_sharedpref_only_alarm).findViewById(R.id.switch_item);
+        MaterialSwitch swonlyalarm = (MaterialSwitch)findViewById(R.id.switch_sharedpref_only_alarm).findViewById(R.id.switch_item);
         swonlyalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("only_alarm", swonlyalarm.isChecked()).apply();  // or false when unchecked
                 swardubeep.setEnabled(!swonlyalarm.isChecked());
-                findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility( swonlyalarm.isChecked() ? View.INVISIBLE : View.VISIBLE);
+                findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility( swonlyalarm.isChecked() ? View.GONE : View.VISIBLE);
 
             }
         });
         swonlyalarm.setChecked(prefs.getBoolean("only_alarm", false));
 
-        SwitchMaterial swoalarmondevice = (SwitchMaterial)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
+        MaterialSwitch swoalarmondevice = (MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
         swoalarmondevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -205,8 +254,8 @@ private static final String TAG = "Main activity";
         });
         swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
         // Override - feature not ready
-        //((SwitchMaterial)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setEnabled(false);
-        //((SwitchMaterial)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setChecked(true);
+        //((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setEnabled(false);
+        //((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setChecked(true);
 
 
         
@@ -239,9 +288,9 @@ private static final String TAG = "Main activity";
 
         View roww = findViewById(R.id.switch_sharedpref_arduino_beep);
         if (roww != null) {
-            TextView switchMaterial = roww.findViewById(R.id.switch_label);
-            if (switchMaterial != null) {
-                switchMaterial.setText("Arduino beeps");
+            TextView materialSwitch = roww.findViewById(R.id.switch_label);
+            if (materialSwitch != null) {
+                materialSwitch.setText("Arduino beeps");
             }
         }
 
@@ -253,6 +302,19 @@ private static final String TAG = "Main activity";
         setupUDP(4001, 4000);
 
         checkFloatingPermission();
+
+        Intent launchintent = getIntent();
+        if(launchintent!=null){
+            if(launchintent.getAction()!=null){
+            switch (launchintent.getAction()){
+                case LAUNCH_GRAPHER:
+                    makeGraphsAndOpenWindow(this);
+                    break;
+                default:
+                    break;
+            }
+        }
+            }
     }
 
 
@@ -269,9 +331,9 @@ private static final String TAG = "Main activity";
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
             View row = findViewById(entry.getKey());
             if (row != null) {
-                TextView switchMaterial = row.findViewById(R.id.switch_label);
-                if (switchMaterial != null) {
-                    switchMaterial.setText(entry.getValue());
+                TextView materialSwitch = row.findViewById(R.id.switch_label);
+                if (materialSwitch != null) {
+                    materialSwitch.setText(entry.getValue());
                 }
             }
         }
@@ -280,10 +342,10 @@ private static final String TAG = "Main activity";
     void setSwitchThreshold_sharedpref_text(){
         View row = findViewById(R.id.switch_sharedpref_use_threshold);
         if (row != null) {
-            TextView switchMaterial = row.findViewById(R.id.switch_label);
-            if (switchMaterial != null) {
+            TextView materialSwitch = row.findViewById(R.id.switch_label);
+            if (materialSwitch != null) {
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-                switchMaterial.setText("Threshold: " + prefs.getInt("classification_threshold", 0));
+                materialSwitch.setText("Threshold: " + prefs.getInt("classification_threshold", 0));
             }
         }
     }
@@ -347,7 +409,7 @@ private static final String TAG = "Main activity";
         for (Map.Entry<Integer, String> entry : switchKeyMap.entrySet()) {
             View row = findViewById(entry.getKey());
             if (row != null) {
-                SwitchMaterial sw = row.findViewById(R.id.switch_item);
+                MaterialSwitch sw = row.findViewById(R.id.switch_item);
                 if (sw != null) {
                     intent.putExtra(entry.getValue(), sw.isChecked());
                 }
@@ -636,15 +698,18 @@ private static final String TAG = "Main activity";
 
 
     public void tryGraphing(View v){
+        makeGraphsAndOpenWindow(this);
 
-        
+    }
+
+    public static void makeGraphsAndOpenWindow(MainActivity ctx){
 
         // Acquire a WakeLock to keep the screen on
-        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        PowerManager powerManager = (PowerManager) ctx.getSystemService(POWER_SERVICE);
         PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "MyApp:MyWakeLockTag");
         wakeLock.acquire();
 
-        GrapherAsyncTask task = new GrapherAsyncTask(this);
+        GrapherAsyncTask task = new GrapherAsyncTask(ctx);
 
         // Wait for the AsyncTask to finish (not recommended on the main thread)
         try {
@@ -665,7 +730,7 @@ private static final String TAG = "Main activity";
                         throw new RuntimeException(e);
                     }
                 }
-                startActivity(new Intent(this, GraphViewer.class));
+                ctx.startActivity(new Intent(ctx, GraphViewer.class));
 
             }).start();
         }

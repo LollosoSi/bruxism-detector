@@ -34,7 +34,13 @@ public class IconManagerAndroid implements IconManager<Color, Bitmap> {
 
     @Override
     public Bitmap loadImage(String imagePath, Color recolor) {
-        return loadImage(imagePath, recolor.toString());
+        try (InputStream inputStream = context.getAssets().open(imagePath)) {
+            Bitmap original = BitmapFactory.decodeStream(inputStream);
+            return recolorPng(original, recolor.toArgb());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @Override

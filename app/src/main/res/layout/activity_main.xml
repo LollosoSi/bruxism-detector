@@ -12,22 +12,23 @@
     tools:context=".MainActivity">
 
 
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fillViewport="true"
-        android:orientation="vertical"
-        android:animateLayoutChanges="true">
-
     <LinearLayout
         android:id="@+id/main_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:layout_height="match_parent"
         android:layout_gravity="center"
+        android:fillViewport="true"
         android:gravity="center"
-        android:padding="16dp">
-
+        android:orientation="vertical"
+        >
+<LinearLayout
+    android:id="@+id/menu_content"
+    android:paddingTop="10dp"
+    android:paddingHorizontal="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="vertical">
         <TextView
             android:id="@+id/textView5"
             android:layout_width="match_parent"
@@ -41,7 +42,7 @@
             android:layout_width="wrap_content"
             android:layout_height="25dp" />
 
-       <include layout="@layout/moodseekbar"/>
+        <include layout="@layout/moodseekbar" />
 
         <Space
             android:layout_width="wrap_content"
@@ -49,23 +50,40 @@
 
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
 
             android:layout_gravity="center_vertical"
+            android:layout_weight="1"
+            android:animateLayoutChanges="true"
             android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:animateLayoutChanges="true">
+            android:orientation="vertical">
 
             <include layout="@layout/switches_content" />
 
         </ScrollView>
+</LinearLayout>
 
-<TextView
-    android:layout_width="wrap_content"
+<com.google.android.material.card.MaterialCardView
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:text="Session settings"
-    android:gravity="center"
-    android:textAlignment="center"/>
+    app:cardCornerRadius="24dp"
+    app:cardElevation="@dimen/cardview_default_elevation"
+    >
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:animateLayoutChanges="true"
+        >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Session settings"
+            android:textAlignment="center"
+            android:paddingTop="8dp"/>
 
 
         <!-- Switches in two columns -->
@@ -73,113 +91,117 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:weightSum="2">
+            android:weightSum="2"
+            >
 
             <!-- Left Column -->
             <LinearLayout
+                android:paddingLeft="16dp"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:animateLayoutChanges="true"
+                android:gravity="start|center"
                 android:orientation="vertical">
 
                 <!-- Switch Rows -->
-                <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_use_threshold"/>
-                <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_alarm_on_device"/>
+                <include
+                    android:id="@+id/switch_sharedpref_use_threshold"
+                    layout="@layout/switch_row" />
+
+                <include
+                    android:id="@+id/switch_sharedpref"
+                    layout="@layout/switch_row" />
+
+                <include
+                    android:id="@+id/switch_autostart_listener"
+                    layout="@layout/switch_row" />
 
             </LinearLayout>
 
             <!-- Right Column -->
             <LinearLayout
+                android:paddingRight="16dp"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:animateLayoutChanges="true"
+                android:gravity="start|center"
                 android:orientation="vertical">
 
-                <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_only_alarm"/>
-                <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref_arduino_beep"/>
+                <!-- Switch Rows -->
+                <include
+                    android:id="@+id/switch_sharedpref_alarm_on_device"
+                    layout="@layout/switch_row" />
+
+                <include
+                    android:id="@+id/switch_sharedpref_only_alarm"
+                    layout="@layout/switch_row" />
+
+                <include
+                    android:id="@+id/switch_sharedpref_arduino_beep"
+                    layout="@layout/switch_row" />
 
             </LinearLayout>
         </LinearLayout>
-        <!-- Buttons -->
-        <TableLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:stretchColumns="0,1">
 
-        <TableRow
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="fill"
-            android:layout_gravity="fill">
-        <include layout="@layout/switch_row" android:id="@+id/switch_sharedpref"/>
-        <include layout="@layout/switch_row" android:id="@+id/switch_autostart_listener"/>
-        </TableRow>
-        </TableLayout>
+            android:orientation="horizontal"
+            android:gravity="center|fill_vertical"
+            android:animateLayoutChanges="true">
+            <Button
+                android:id="@+id/button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="startService"
+                android:text="Start"
+                app:icon="@drawable/start_recording" />
 
-        <!-- Buttons -->
-        <TableLayout
+            <Button
+                android:id="@+id/button2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_marginEnd="5dp"
+                android:onClick="sendMyFolder"
+                android:text="PC"
+                app:icon="@drawable/desktop_windows" />
+
+            <Button
+                android:id="@+id/button_makegraphs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="tryGraphing"
+                android:text="Graphs"
+                app:icon="@drawable/graphs" />
+        </LinearLayout>
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:stretchColumns="0,1,2">
-
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="fill"
-                android:layout_gravity="fill">
-
-                <Button
-                    android:id="@+id/button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:onClick="startService"
-                    android:text="Start service" />
-
-                <Space
-                    android:layout_width="10dp"
-                    android:layout_height="wrap_content"
-                    />
-
-                <Button
-                    android:id="@+id/button2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:onClick="sendMyFolder"
-                    android:text="Send to pc" />
-            </TableRow>
-
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" >
-
-                <Button
-                    android:id="@+id/button_start_trainer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:onClick="startTrainer"
-                    android:text="Start trainer" />
-
-                <Space
-                    android:layout_width="10dp"
-                    android:layout_height="wrap_content"
-                    />
-
-            </TableRow>
-
-        </TableLayout>
-
-        <Button
-            android:id="@+id/button_makegraphs"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:onClick="tryGraphing"
-            android:text="Make Graph" />
+            android:orientation="horizontal"
+            android:gravity="center|fill_vertical"
+            android:animateLayoutChanges="true"
+            >
+            <Button
+                android:id="@+id/button_start_trainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="startTrainer"
+                android:text="Start trainer"
+                app:icon="@drawable/trainer"
+
+                />
+        </LinearLayout>
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+
 
     </LinearLayout>
 
-    </ScrollView>
 
     <LinearLayout
         android:id="@+id/reception_layout"

@@ -194,6 +194,11 @@ public class SwitchDialogFragment extends DialogFragment {
                     e.printStackTrace();
                 }
 
+                Intent myIntent = new Intent(requireContext(), MainActivity.class);
+                myIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
+                myIntent.setAction(MainActivity.LAUNCH_GRAPHER);
+                requireContext().startActivity(myIntent);
+
                 dismiss();
             }
         });
