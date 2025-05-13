@@ -24,6 +24,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
@@ -136,7 +137,7 @@ private static final String TAG = "Main activity";
 
 
 
-            getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
+        getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
 
 
         requestStoragePermission();
@@ -149,8 +150,6 @@ private static final String TAG = "Main activity";
                 startActivity(intent);
             }
         }
-
-
 
         setupSwitchLabels();
 
@@ -308,13 +307,15 @@ private static final String TAG = "Main activity";
             if(launchintent.getAction()!=null){
             switch (launchintent.getAction()){
                 case LAUNCH_GRAPHER:
-                    makeGraphsAndOpenWindow(this);
+                    tryGraphing(null);
                     break;
                 default:
                     break;
             }
         }
             }
+
+
     }
 
 
@@ -337,6 +338,17 @@ private static final String TAG = "Main activity";
                 }
             }
         }
+    }
+
+    public void launchChartActivity(View v){
+        makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
+            @Override
+            public void onGraphTaskCompleted() {
+                Intent intent = new Intent(MainActivity.this, SummaryCharts.class);
+                startActivity(intent);
+            }
+        });
+
     }
 
     void setSwitchThreshold_sharedpref_text(){
@@ -698,11 +710,16 @@ private static final String TAG = "Main activity";
 
 
     public void tryGraphing(View v){
-        makeGraphsAndOpenWindow(this);
 
+        makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
+            @Override
+            public void onGraphTaskCompleted() {
+                startActivity(new Intent(MainActivity.this, GraphViewer.class));
+            }
+        });
     }
 
-    public static void makeGraphsAndOpenWindow(MainActivity ctx){
+    public static void makeGraphs(MainActivity ctx, GrapherAsyncTask.GraphTaskCallback callback){
 
         // Acquire a WakeLock to keep the screen on
         PowerManager powerManager = (PowerManager) ctx.getSystemService(POWER_SERVICE);
@@ -711,29 +728,11 @@ private static final String TAG = "Main activity";
 
         GrapherAsyncTask task = new GrapherAsyncTask(ctx);
 
-        // Wait for the AsyncTask to finish (not recommended on the main thread)
-        try {
+        // Set a completion listener
+        task.setTaskCallback(callback);
+        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-            task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (wakeLock.isHeld()) {
-                wakeLock.release();
-            }
-            new Thread(() -> {
-                while(!task.taskFinished()) {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                ctx.startActivity(new Intent(ctx, GraphViewer.class));
-
-            }).start();
-        }
 
 
         // Release the WakeLock when the task is done

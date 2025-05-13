@@ -25,10 +25,15 @@ import java.util.Comparator;
 import android.app.UiModeManager;
 
 public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
+    public interface GraphTaskCallback {
+        void onGraphTaskCompleted();
+    }
+
     ProgressingDialog asyncDialog;
     String typeStatus;
 
-
+    GraphTaskCallback taskcallback = null;
+    public void setTaskCallback(GraphTaskCallback callback) {taskcallback=callback;}
     public GrapherAsyncTask(MainActivity context){
         ctx = context;
     }
@@ -183,6 +188,9 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
         });
         isFinished = true;
         super.onPostExecute(result);
+
+        if(taskcallback!=null)
+            taskcallback.onGraphTaskCompleted();
     }
 
     public boolean taskFinished(){return isFinished;}

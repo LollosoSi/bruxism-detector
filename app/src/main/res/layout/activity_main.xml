@@ -152,6 +152,10 @@
             android:orientation="horizontal"
             android:gravity="center|fill_vertical"
             android:animateLayoutChanges="true">
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <Button
                 android:id="@+id/button"
                 android:layout_width="wrap_content"
@@ -159,32 +163,48 @@
                 android:onClick="startService"
                 android:text="Start"
                 app:icon="@drawable/start_recording" />
-
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <Button
                 android:id="@+id/button2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="5dp"
-                android:layout_marginEnd="5dp"
+
                 android:onClick="sendMyFolder"
                 android:text="PC"
                 app:icon="@drawable/desktop_windows" />
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
-            <Button
-                android:id="@+id/button_makegraphs"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:onClick="tryGraphing"
-                android:text="Graphs"
-                app:icon="@drawable/graphs" />
+                <Button
+                    android:id="@+id/button_makegraphs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="tryGraphing"
+                    android:text="Sessions"
+                    app:icon="@drawable/graphs" />
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+
         </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center|fill_vertical"
+            android:gravity="center|fill_horizontal"
             android:animateLayoutChanges="true"
             >
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <Button
                 android:id="@+id/button_start_trainer"
                 android:layout_width="wrap_content"
@@ -192,8 +212,20 @@
                 android:onClick="startTrainer"
                 android:text="Start trainer"
                 app:icon="@drawable/trainer"
-
+                android:layout_marginRight="5dp"
                 />
+
+            <Button
+                android:id="@+id/button_makecharts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="launchChartActivity"
+                android:text="Summary"
+                app:icon="@drawable/chart" />
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
         </LinearLayout>
 
     </LinearLayout>

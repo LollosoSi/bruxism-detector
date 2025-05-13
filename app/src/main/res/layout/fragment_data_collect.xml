@@ -5,7 +5,8 @@
     android:layout_height="wrap_content"
     android:gravity="center"
     android:padding="16dp"
-    android:background="?android:colorBackground">
+    android:backgroundTint="?android:colorBackground"
+    android:background="@drawable/border">
 
     <include layout="@layout/moodseekbar"/>
     <Space

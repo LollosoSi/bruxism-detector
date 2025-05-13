@@ -40,6 +40,11 @@
         android:theme="@style/Theme.BruxismDetector"
         tools:targetApi="31">
         <activity
+            android:name=".SummaryCharts"
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar"
+            />
+        <activity
             android:name=".GraphViewer"
             android:exported="false" />
 
