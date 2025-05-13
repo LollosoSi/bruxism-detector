@@ -129,20 +129,24 @@ An experimental Android App is available for download and source can be found at
 1. If `Autostart Service` is enabled, you will need to follow this only once.
    - When tracking ends, you will still be asked about your day.
    - The app will always use your last `Session Settings` 
-3. Open it, set the pertinent switches about your day and start the tracking service to register all events from Arduino.
+3. Open it, set the pertinent switches about your day and tap `Start` to register all events from Arduino.
 4. The app will catch beeps from Arduino: you can configure your phone to beep with a certain volume or into headphones to avoid disturbing others' sleep
 5. The app will also catch alarms: it will try to wake you up more gently by vibrating.</br>Turning the screen on/off counts as button press and dismisses the alarm.
    - In case the vibration alarm fails to wake you up in 10 seconds, we consider something failed and the Arduino will ring instead.
    - Ensure a stable wifi connection.</br>If your phone disconnects you will miss events in the final logs.
    - Say the vibration alarm failed or there are network issues.</br>Arduino will operate without the smartphone until the app registers itself again. Happens once around every 15 minutes.
 6. Your tracked data will be available under `Documents/RECORDINGS`.
-7. Tap "send to pc" to send your data to the Grapher program (which will be listening after clicking "Receive from android")
-
+   - To see your graphs on the app, tap `Sessions`
+   - To see your summary, tap `Summary`
+   - Tap `PC` to send your data to the Grapher program on your computer (which will be listening after clicking `Receive from android`)
 
 <div style="display: flex; justify-content: space-between;">
-<img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" width="30%">
-<img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="30%">
-<img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="30%">
+<img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" width="22%">
+<img src="https://github.com/user-attachments/assets/7e5e71dc-89f0-4ec1-86ed-939fd8b6eeed" width="22%">
+<img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="22%">
+<img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%">
+
+
 </div>
 
 
