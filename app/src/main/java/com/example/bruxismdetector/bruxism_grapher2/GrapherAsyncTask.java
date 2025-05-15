@@ -156,7 +156,7 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
                     summaryDir.mkdirs();
 
                     try (PrintWriter pw = new PrintWriter(summaryDir.getParent() + "/Summary/Summary.csv")) {
-                        pw.println(StatData.produce_csv_header());
+                        pw.println(sda.get(0).produce_csv_header());
                         for (StatData sd : sda) {
                             pw.println(sd.produce_csv_line());
                         }
@@ -239,7 +239,7 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
 
         Grapher<Bitmap, Color, Typeface> gg = new Grapher<>(FileEventReader.readCSV(file.getAbsolutePath()), file.getName(), 1280,720);
 
-
+        gg.setSleepData(FileSleepReader.readCSV(file.getParent()+"/Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
 
 
         Log.i(TAG, "Path: " + path + " raw: " + rawfile.getAbsolutePath());

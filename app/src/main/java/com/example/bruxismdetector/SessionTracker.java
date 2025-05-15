@@ -101,104 +101,19 @@ public class SessionTracker {
                         "MOOD",
                         moodLabels[dld.mood]
                 }, file_out);
-            } else {
-              //  append_csv(new String[]{
-               //         String.valueOf(ms),
-                //        time,
-               //         "MOOD",
-               //         "Unknown"
-               // }, file_out);
             }
 
             // Boolean elements (write only if true)
-            if (dld.workout) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Workout"
-                }, file_out);
+            if (dld.info!=null) {
+                if(!dld.info.isEmpty()) {
+                    append_csv(new String[]{
+                            String.valueOf(ms),
+                            time,
+                            "INFO",
+                            dld.info
+                    }, file_out);
+                }
             }
-            if (dld.hydrated) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Hydrated"
-                }, file_out);
-            }
-            if (dld.stressed) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Stressed"
-                }, file_out);
-            }
-            if (dld.caffeine) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Caffeine"
-                }, file_out);
-            }
-            if (dld.anxious) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Anxious"
-                }, file_out);
-            }
-            if (dld.alcohol) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Alcohol"
-                }, file_out);
-            }
-            if (dld.lateDinner) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "LateDinner"
-                }, file_out);
-            }
-            if (dld.medications) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Medications"
-                }, file_out);
-            }
-            if (dld.pain) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "Pain"
-                }, file_out);
-            }
-            if (dld.lifeEvent) {
-                append_csv(new String[]{
-                        String.valueOf(ms),
-                        time,
-                        "INFO",
-                        "LifeEvent"
-                }, file_out);
-            }
-        if (dld.botox) {
-            append_csv(new String[]{
-                    String.valueOf(ms),
-                    time,
-                    "INFO",
-                    "Botox"
-            }, file_out);
-        }
 
 
             if(prefs.getBoolean("only_alarm", false)){

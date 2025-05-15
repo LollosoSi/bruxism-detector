@@ -1,5 +1,6 @@
 package com.example.bruxismdetector;
 
+import android.animation.LayoutTransition;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Build;
@@ -9,6 +10,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -47,6 +49,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class SummaryCharts extends AppCompatActivity {
@@ -112,6 +115,17 @@ public class SummaryCharts extends AppCompatActivity {
             @Override
             public void run() {
                 LinearLayout ll = (LinearLayout) findViewById(R.id.graphs_holder);
+
+                TextView noResultText = (TextView) findViewById(R.id.noresultext);
+
+                if (noResultText.getVisibility() == View.VISIBLE && !((CheckBox)findViewById(R.id.basedrawcheckbox)).isChecked()) {
+                    LayoutTransition layoutTransition = new LayoutTransition();
+                    ll.setLayoutTransition(layoutTransition);
+                } else {
+                    // Optionally, if you want to remove any existing transitions when the TextView is not visible
+                    ll.setLayoutTransition(null);
+                }
+
                 ll.removeAllViews();
                 if (switchesbox.isEmpty())
                     createFiltersSwitches();
@@ -139,17 +153,34 @@ public class SummaryCharts extends AppCompatActivity {
     }
 
     private boolean isTupleCompliantFilter(String[] data, int conditionindex) {
+        ArrayList<String> infoextracted = new ArrayList<>(Arrays.asList(data[data.length-1].split(",")));
+
         if(conditionindex==-1) {
             for (int i = 0; i < switchesbox.size(); i++) {
                 if (((CheckBox) switchesbox.get(i).getChildAt(0)).isChecked()) {
-                    if (Boolean.parseBoolean(data[startfilterindex + i]) != ((MaterialSwitch) switchesbox.get(i).getChildAt(1)).isChecked())
-                        return false;
+                    if (((MaterialSwitch) switchesbox.get(i).getChildAt(1)).isChecked()) {
+                        if (!infoextracted.contains(filterNames.get(i))) {
+                            return false;
+                        }
+                    }else {
+                        if (infoextracted.contains(filterNames.get(i))) {
+                            return false;
+                        }
+                    }
                 }
             }
-            return true;
         }else{
-            return Boolean.parseBoolean(data[startfilterindex + conditionindex]) == ((MaterialSwitch) switchesbox.get(conditionindex).getChildAt(1)).isChecked();
+            if (((MaterialSwitch) switchesbox.get(conditionindex).getChildAt(1)).isChecked()) {
+                if (!infoextracted.contains(filterNames.get(conditionindex))) {
+                    return false;
+                }
+            }else {
+                if (infoextracted.contains(filterNames.get(conditionindex))) {
+                    return false;
+                }
+            }
         }
+        return true;
     }
 
     void addGraphs(){
@@ -158,12 +189,12 @@ public class SummaryCharts extends AppCompatActivity {
         createChartWithDateFromIndex(2);
         createChartWithDateFromIndex(3);
         createChartWithDateFromIndex(7);
+        createChartWithDateFromIndex(8);
         createChartWithDateFromIndex(9);
         createChartWithDateFromIndex(10);
         createChartWithDateFromIndex(11);
         createChartWithDateFromIndex(12);
-        createChartWithDateFromIndex(13);
-        createChartWithDateFromIndex(14);
+
 
     }
 
@@ -182,7 +213,7 @@ public class SummaryCharts extends AppCompatActivity {
             ((TextView)findViewById(R.id.noresultext)).setVisibility(View.GONE);
 
             for(int i = 0; i < howmanychecked;i++){
-                a.add(makeDatasetWithDate(index, (((MaterialSwitch) switchesbox.get(getCheckedBoxIndex(i)).getChildAt(1)).isChecked()? "" : "Not ")+filterNames[getCheckedBoxIndex(i)], true, getCheckedBoxIndex(i), getResources().getColor(color_array[i%color_array.length])));
+                a.add(makeDatasetWithDate(index, (((MaterialSwitch) switchesbox.get(getCheckedBoxIndex(i)).getChildAt(1)).isChecked()? "" : "Not ")+filterNames.get(getCheckedBoxIndex(i)), true, getCheckedBoxIndex(i), getResources().getColor(color_array[i%color_array.length])));
             }
         }else if(howmanychecked>0){
             a.add(makeDatasetWithDate(index, "Filtered", true, -1, getResources().getColor(R.color.material_orange_500)));
@@ -197,7 +228,7 @@ public class SummaryCharts extends AppCompatActivity {
             }
 
             for(int i = 0; i < howmanychecked; i++){
-                desc += (i!=0?" + ":"")+(((MaterialSwitch) switchesbox.get(getCheckedBoxIndex(i)).getChildAt(1)).isChecked()? "" : "Not ")+filterNames[getCheckedBoxIndex(i)];
+                desc += (i!=0?" + ":"")+(((MaterialSwitch) switchesbox.get(getCheckedBoxIndex(i)).getChildAt(1)).isChecked()? "" : "Not ")+filterNames.get(getCheckedBoxIndex(i));
             }
         }
 
@@ -303,8 +334,16 @@ public class SummaryCharts extends AppCompatActivity {
         return lc;
     }
 
-    int startfilterindex = 15;
-    String[] filterNames;
+    ArrayList<String> filterNames = new ArrayList<>();
+
+    void addFilter(String[] names){
+        for(String s : names)
+            addFilter(s);
+    }
+    void addFilter(String name){
+        if(!filterNames.contains(name))
+            filterNames.add(name);
+    }
 
     ArrayList<LinearLayout> switchesbox = new ArrayList<>();
 
@@ -339,6 +378,12 @@ public class SummaryCharts extends AppCompatActivity {
     LinearLayout createFilterCheckSwitch(String checkboxtext){
         CheckBox cb = new CheckBox(this);
         TextView tw = new TextView(this);
+        tw.setTextSize(11);
+        //tw.setMaxWidth(250);
+        tw.setSingleLine(false);
+
+        //tw.setGravity(Gravity.CENTER);
+        tw.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_START);
         tw.setPadding(10, 0, 0, 0);
         MaterialSwitch sw = new MaterialSwitch(this);
         sw.setChecked(true);
@@ -365,6 +410,7 @@ public class SummaryCharts extends AppCompatActivity {
         cb.setChecked(false);
 
         LinearLayout lll = new LinearLayout(this);
+        lll.setGravity(Gravity.FILL_HORIZONTAL);
         lll.setOrientation(LinearLayout.HORIZONTAL);
         lll.addView(cb);
         lll.addView(sw);
@@ -372,26 +418,17 @@ public class SummaryCharts extends AppCompatActivity {
         return lll;
     }
     void createFiltersSwitches(){
-        filterNames = new String[summaryTitles.length-startfilterindex];
+
+        LinearLayout right = findViewById(R.id.right_col), left=findViewById(R.id.left_col);
+
         int i = 0;
-        TableRow tr = null;
-        for(;i<filterNames.length;i++){
-            if(i%2==0){
-                if(tr!=null) {
-                    ((LinearLayout) findViewById(R.id.filtertable)).addView(tr);
-                }
-                tr = new TableRow(this);
-            }
 
-
-            LinearLayout l = createFilterCheckSwitch(filterNames[i]=summaryTitles[i+startfilterindex]);
-
-            tr.addView(l);
+        for(String e : filterNames){
+            LinearLayout currentcol = (i%2==0) ? left : right;
+            LinearLayout l=createFilterCheckSwitch(e);
             switchesbox.add(l);
-
-        }
-        if(tr!=null) {
-            ((LinearLayout) findViewById(R.id.filtertable)).addView(tr);
+            currentcol.addView(l);
+            i++;
         }
     }
 
@@ -403,6 +440,9 @@ public class SummaryCharts extends AppCompatActivity {
         File recordingsDir = new File(documentsDir, "RECORDINGS");
         File summaryDir = new File(recordingsDir, "Summary");
 
+        ArrayList<String> titles = new ArrayList<>();
+        int infoindex=-1;
+
         try (BufferedReader br = new BufferedReader(new FileReader(summaryDir.getParent() + "/Summary/Summary.csv"))) {
             String line;
             boolean firstLine = true;
@@ -410,16 +450,24 @@ public class SummaryCharts extends AppCompatActivity {
                 if (firstLine) {
                     firstLine = false;
                     summaryTitles = line.split(";");
+                    titles = new ArrayList<>(Arrays.asList(summaryTitles));
+                    infoindex = titles.indexOf("Info");
+                    if(infoindex==-1)
+                        throw new Exception("Summary does not have Info!");
                     continue;
                 }
                 String[] splitline = line.split(";");
                 summaryTuples.add(splitline);
                 dateLabels.add(splitline[0]);
 
+                if(splitline.length > infoindex)
+                    addFilter(splitline[infoindex].split(","));
             }
         } catch (IOException e) {
             System.err.println("Error reading file: " + (summaryDir.getParent() + "/Summary/Summary.csv"));
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

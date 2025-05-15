@@ -39,13 +39,15 @@ import java.util.Map;
 
 public class SwitchDialogFragment extends DialogFragment {
 
+    SwitchManager switchManager;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_data_collect, container, false);
-        new SwitchManager(root, requireContext());
+        switchManager = new SwitchManager(root, requireContext());
         new MoodSeekbarClass(root, requireContext());
         ((TextView)root.findViewById(R.id.mood_label)).setText("How was yesterday?\n");
         ((TextView)root.findViewById(R.id.mood_label)).setTypeface(Typeface.MONOSPACE);
@@ -153,32 +155,8 @@ public class SwitchDialogFragment extends DialogFragment {
                     SeekBar moodSeekBar = requireView().findViewById(R.id.seekBar_mood);
                     int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
                     intent.putExtra("mood", moodValue);
+                    intent.putExtra("info", switchManager.extractInfo());
 
-                    // Map of switch row IDs and their keys
-                    Map<Integer, String> switchKeyMap = new HashMap<>();
-                    switchKeyMap.put(R.id.row_workout, "workout");
-                    switchKeyMap.put(R.id.row_hydrated, "hydrated");
-                    switchKeyMap.put(R.id.row_stressed, "stressed");
-                    switchKeyMap.put(R.id.row_caffeine, "caffeine");
-                    switchKeyMap.put(R.id.row_anxious, "anxious");
-                    switchKeyMap.put(R.id.row_alcohol, "alcohol");
-                    switchKeyMap.put(R.id.row_late_dinner, "late_dinner");
-                    switchKeyMap.put(R.id.row_medications, "medications");
-                    switchKeyMap.put(R.id.row_pain, "pain");
-                    switchKeyMap.put(R.id.row_life_event, "life_event");
-                    switchKeyMap.put(R.id.row_botox, "botox");
-
-
-                    // Loop through switch rows and collect values
-                    for (Map.Entry<Integer, String> entry : switchKeyMap.entrySet()) {
-                        View row = requireView().findViewById(entry.getKey());
-                        if (row != null) {
-                            SwitchMaterial sw = row.findViewById(R.id.switch_item);
-                            if (sw != null) {
-                                intent.putExtra(entry.getValue(), sw.isChecked());
-                            }
-                        }
-                    }
 
                     DailyLogData dld = new DailyLogData(intent);
 

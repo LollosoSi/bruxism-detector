@@ -29,10 +29,14 @@ import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.CompoundButton;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,6 +46,7 @@ import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -51,6 +56,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
+import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
 import com.google.android.material.elevation.SurfaceColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -65,6 +71,7 @@ import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -81,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
 private static final String TAG = "Main activity";
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1;
 
-
+SwitchManager switchManager;
 
     private void requestStoragePermission() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -295,7 +302,7 @@ private static final String TAG = "Main activity";
 
         setSwitchThreshold_sharedpref_text();
 
-        new SwitchManager(findViewById(android.R.id.content), this);
+        switchManager = new SwitchManager(findViewById(android.R.id.content), this);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
         setupUDP(4001, 4000);
@@ -316,6 +323,126 @@ private static final String TAG = "Main activity";
             }
 
 
+
+    }
+
+
+    private static final int PICK_FILE_REQUEST_CODE = 1;
+
+    public void openFilePicker(View v) {
+        AlertDialog ad = showIndefiniteProgressDialog(MainActivity.this, "Handling your database");
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                if(MiBandDBConverter.tryRoot(MainActivity.this)){
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ad.dismiss();
+                        }
+                    });
+
+                    return;
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ad.dismiss();
+                    }
+                });
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                        intent.setType("*/*"); // You can restrict this to specific MIME types like "text/plain", "application/json", etc.
+
+                        startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
+                    }
+                });
+
+            }
+        }).start();
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == PICK_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            if (data != null) {
+                Uri uri = data.getData();
+
+
+                if(uri!=null) {
+                    AlertDialog ad = showIndefiniteProgressDialog(this, "Converting your database");
+                    Thread t = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            getContentResolver().takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            );
+
+                            // Use the Uri to read the file
+                            Log.d("FilePicker", "Selected file: " + uri.getPath());
+                            // You can now open the stream: getContentResolver().openInputStream(uri)
+                            MiBandDBConverter mbdbc = new MiBandDBConverter();
+                            mbdbc.convert(MainActivity.this, uri);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    ad.dismiss();
+                                }
+                            });
+                        }
+                    });
+
+                    t.start();
+                }
+            }
+        }
+    }
+
+    public AlertDialog showIndefiniteProgressDialog(Activity context, String message) {
+        // Keep screen on for the activity
+        context.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        LinearLayout ll = new LinearLayout(context);
+        ll.setOrientation(LinearLayout.HORIZONTAL);
+        ll.setGravity(Gravity.CENTER | Gravity.CENTER_VERTICAL);
+
+        ProgressBar progressBar = new ProgressBar(context);
+        progressBar.setIndeterminate(true);
+        progressBar.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
+        TextView tw = new TextView(context);
+        tw.setText("Please wait...");
+
+        ll.addView(progressBar);
+        ll.addView(tw);
+
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle(message)
+                .setView(ll)
+                .setCancelable(false)
+                .create();
+
+        // Also keep screen on for the dialog's window
+        dialog.setOnShowListener(d -> {
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            }
+        });
+
+        dialog.show();
+        return dialog;
     }
 
 
@@ -401,32 +528,7 @@ private static final String TAG = "Main activity";
         SeekBar moodSeekBar = findViewById(R.id.seekBar_mood);
         int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
         intent.putExtra("mood", moodValue);
-
-        // Map of switch row IDs and their keys
-        Map<Integer, String> switchKeyMap = new HashMap<>();
-        switchKeyMap.put(R.id.row_workout, "workout");
-        switchKeyMap.put(R.id.row_hydrated, "hydrated");
-        switchKeyMap.put(R.id.row_stressed, "stressed");
-        switchKeyMap.put(R.id.row_caffeine, "caffeine");
-        switchKeyMap.put(R.id.row_anxious, "anxious");
-        switchKeyMap.put(R.id.row_alcohol, "alcohol");
-        switchKeyMap.put(R.id.row_late_dinner, "late_dinner");
-        switchKeyMap.put(R.id.row_medications, "medications");
-        switchKeyMap.put(R.id.row_pain, "pain");
-        switchKeyMap.put(R.id.row_life_event, "life_event");
-        switchKeyMap.put(R.id.row_botox, "botox");
-
-
-        // Loop through switch rows and collect values
-        for (Map.Entry<Integer, String> entry : switchKeyMap.entrySet()) {
-            View row = findViewById(entry.getKey());
-            if (row != null) {
-                MaterialSwitch sw = row.findViewById(R.id.switch_item);
-                if (sw != null) {
-                    intent.putExtra(entry.getValue(), sw.isChecked());
-                }
-            }
-        }
+        intent.putExtra("info", this.switchManager.extractInfo());
 
         // Start the service
         ContextCompat.startForegroundService(this, intent);

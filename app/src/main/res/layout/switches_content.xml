@@ -9,33 +9,23 @@
 
         <!-- Left Column -->
         <LinearLayout
+            android:id="@+id/left_col"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <!-- Switch Rows -->
-            <include layout="@layout/switch_row" android:id="@+id/row_workout" />
-            <include layout="@layout/switch_row" android:id="@+id/row_hydrated"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_stressed"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_caffeine"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_anxious"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_botox"/>
 
         </LinearLayout>
 
         <!-- Right Column -->
         <LinearLayout
+            android:id="@+id/right_col"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <include layout="@layout/switch_row" android:id="@+id/row_alcohol"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_late_dinner"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_medications"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_pain"/>
-            <include layout="@layout/switch_row" android:id="@+id/row_life_event"/>
 
         </LinearLayout>
     </LinearLayout>
