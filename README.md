@@ -113,10 +113,10 @@ An experimental graphing application is available for download and the source ca
     - Use the command line to generate data only for specific files (and `light` can also be inserted here): `java -jar generator.jar light 2025-03-30.csv`
         - The summary will only be generated from the files you feed in.
     - If available, the data from the RAW folder will be included in your final graph.
+    - If available, your sleep data (sleep phases, heart rate, stress, SpO2) will be included in your final graph.
 
+<img src="[https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769](https://github.com/user-attachments/assets/48dd34e4-24ab-40f8-a6f0-b8d60f495f95)" width="500">
 
-<img src="https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769" width="500">
-<img src="https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769" width="500">
  </br> </br>
  
  - Collect all stats from your tracked data into a summary. Will generate in `Summary` folder.
@@ -139,6 +139,7 @@ An experimental Android App is available for download and source can be found at
    - To see your graphs on the app, tap `Sessions`
    - To see your summary, tap `Summary`
    - Tap `PC` to send your data to the Grapher program on your computer (which will be listening after clicking `Receive from android`)
+   - Tap `Smartband DB` if you are using a Mi Band to track your sleep with Mi Fitness, and you have either a rooted device or the database (`fitness_data`) file
 
 <div style="display: flex; justify-content: space-between;">
 <img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" width="22%">
