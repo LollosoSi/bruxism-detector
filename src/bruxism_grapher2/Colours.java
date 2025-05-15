@@ -3,7 +3,7 @@ package bruxism_grapher2;
 public class Colours {
 
 	static enum Color_element {
-		Background, Text, Button, Clenching, Alarm, Warning, Clenchfill, Clenchline, Clenchline_guide;
+		Background, Text, Button, Clenching, Alarm, Warning, Clenchfill, Clenchline, Clenchline_guide, Hrline, Spoline, Stressline;
 	};
 
 	static String[] light_mode = {
@@ -15,7 +15,10 @@ public class Colours {
 			"#ff00ff", // MAGENTA
 			"#0000ff", // BLUE
 			"#00ff00", // GREEN
-			"#808080"  // GRAY
+			"#808080",  // GRAY
+			"#F44336", // RED
+			"#40C4FF", // BLUE
+			"#00E676" // GREEN
 	};
 
 	static String[] dark_mode = {
@@ -27,7 +30,10 @@ public class Colours {
 			"#ff00ff", // MAGENTA
 			"#0000ff", // BLUE
 			"#00ff00", // GREEN
-			"#808080"  // GRAY
+			"#808080",  // GRAY
+			"#F44336", // RED
+			"#40C4FF", // BLUE
+			"#00E676" // GREEN
 	};
 
 	static String getColor(Color_element element, boolean use_dark_mode) {

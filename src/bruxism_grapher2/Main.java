@@ -221,14 +221,19 @@ public class Main {
 	            if (events.isEmpty()) return null;
 
 	            Grapher<BufferedImage, Color, Font> gg = new Grapher<>(events, file.getName(), 1280, 720);
-	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop());
-
+	            
 	            File rawfile = new File("RAW/" + file.getName().replace(".csv", "_RAW.csv"));
 	            if (rawfile.exists()) {
 	                gg.addRawData(FileRawEventReader.readCSV(rawfile.getAbsolutePath()));
 	            } else {
 	                System.out.println(rawfile.getPath() + " was not found, consider including your raw files.");
 	            }
+	            
+	            gg.setSleepData(FileSleepReader.readCSV("Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
+	            
+	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop());
+
+	           
 
 	            File outputGraph = new File("./Graphs/" + file.getName().replace(".csv", ".png"));
 	            if (redraw_all || !outputGraph.exists()) {
@@ -257,7 +262,7 @@ public class Main {
 	    summaryDir.mkdirs();
 
 	    try (PrintWriter pw = new PrintWriter("./Summary/summary.csv")) {
-	        pw.println(StatData.produce_csv_header());
+	        pw.println(sda.get(0).produce_csv_header());
 	        for (StatData sd : sda) {
 	            pw.println(sd.produce_csv_line());
 	        }

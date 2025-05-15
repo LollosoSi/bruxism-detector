@@ -6,6 +6,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class FileEventReader {
+
+	public static String getFirstLine(String fileName){
+		String fline = "";
+		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+			String line;
+			boolean firstLine = true;
+			while ((line = br.readLine()) != null) {
+
+					fline=line;
+					break;
+
+			}
+        } catch (IOException e) {
+			System.err.println("Error reading file: " + fileName);
+			e.printStackTrace();
+		}
+
+		return fline;
+	}
 	public static ArrayList<Event> readCSV(String fileName) {
 		ArrayList<Event> events = new ArrayList<>();
 		try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
@@ -19,6 +38,7 @@ public class FileEventReader {
 				String[] parts = line.split(";");
 				if (parts.length < 3)
 					continue;
+
 
 				long millis = Long.parseLong(parts[0]);
 				String time = parts[1];
