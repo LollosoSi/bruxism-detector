@@ -140,12 +140,15 @@ An experimental Android App is available for download and source can be found at
    - To see your summary, tap `Summary`
    - Tap `PC` to send your data to the Grapher program on your computer (which will be listening after clicking `Receive from android`)
    - Tap `Smartband DB` if you are using a Mi Band to track your sleep with Mi Fitness, and you have either a rooted device or the database (`fitness_data`) file
+7. Spot correlations with tagged sessions in `Summary -> Correlations`. You will get an overview.
 
 <div style="display: flex; justify-content: space-between;">
 <img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" width="22%">
-<img src="https://github.com/user-attachments/assets/7e5e71dc-89f0-4ec1-86ed-939fd8b6eeed" width="22%">
+<img src="https://github.com/user-attachments/assets/6540fea7-7fa0-43f4-8ec4-44cf723825cd" width="22%">
+<img src="https://github.com/user-attachments/assets/4aea7393-ac43-4a46-8ecf-63a68c1f5d58" width="22%">
+
 <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="22%">
-<img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%">
+<!-- <img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%"> -->
 
 
 </div>
