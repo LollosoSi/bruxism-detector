@@ -206,19 +206,6 @@
                 android:layout_height="0dp"
                 android:layout_weight="1" />
             <Button
-                android:id="@+id/button_start_trainer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:onClick="startTrainer"
-                android:text="Start trainer"
-                app:icon="@drawable/trainer"
-                android:layout_marginRight="5dp"
-                />
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-            <Button
                 android:id="@+id/button_extractdb"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -240,7 +227,34 @@
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
+
         </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center|fill_horizontal"
+        android:animateLayoutChanges="true"
+        >
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+        <Button
+            android:id="@+id/button_start_trainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="startTrainer"
+            android:text="Start trainer"
+            app:icon="@drawable/trainer"
+            android:layout_marginRight="5dp"
+            />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
 
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -1,5 +1,6 @@
 package com.example.bruxismdetector;
 
+import android.animation.LayoutTransition;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.Gravity;
@@ -175,6 +176,8 @@ public class CorrelationsFragment extends Fragment {
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
+
+
                 ((LinearLayout)root.findViewById(R.id.correlations_holder)).removeAllViews();
             }
         });
