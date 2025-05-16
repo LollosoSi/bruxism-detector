@@ -12,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
 
+import java.util.Objects;
+
 public class ProgressingDialog extends DialogFragment {
     private ProgressBar progressBar;
     private TextView dialogText;
@@ -44,7 +46,7 @@ public class ProgressingDialog extends DialogFragment {
         super.onStart();
         Dialog dialog = getDialog();
         if (dialog != null) {
-            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            Objects.requireNonNull(dialog.getWindow()).addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
     }
 
@@ -55,8 +57,8 @@ public class ProgressingDialog extends DialogFragment {
     }
 
     public void setMessage(String message) {
-        if (dialogText != null) {
+        if(dialogText!=null)
             dialogText.setText(message);
-        }
+
     }
 }

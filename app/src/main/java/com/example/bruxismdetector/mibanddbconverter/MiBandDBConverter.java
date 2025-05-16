@@ -40,13 +40,18 @@ import java.util.stream.Collectors;
 
 public class MiBandDBConverter {
 
+    public interface ProgressReport{
+        public void setProgress(int progress);
+    }
+
     Context context;
 
-    public static boolean tryRoot(Context ct) {
+
+    public static boolean tryRoot(Context ct, ProgressReport pr) {
         if(hasRootAccess()){
             try {
                 if(tryfolders(ct)){
-                    new MiBandDBConverter().convert(ct, null);
+                    new MiBandDBConverter().convert(ct, null, pr);
                     return true;
                 }else{return false;}
             } catch (Exception e) {
@@ -240,9 +245,10 @@ public class MiBandDBConverter {
         }
     }
 
-    public void convert(Context context, Uri uri) {
+    public void convert(Context context, Uri uri, ProgressReport pr) {
         this.context = context;
 
+        pr.setProgress(0);
 
         File internalCopy = new File(context.getCacheDir(), "temp_db_copy.db");
         if(uri!=null) {
@@ -299,8 +305,12 @@ public class MiBandDBConverter {
 
         Log.i("DBParser", "Parsing sessions");
 
-
+        int cur = 0, max = groupedSegments.entrySet().size();
         for (Map.Entry<LocalDate, List<JSONObject>> entry : groupedSegments.entrySet()) {
+
+            pr.setProgress((int) (((float)cur++/(float)max)*100));
+
+
             LocalDate sessionDate = entry.getKey();
             List<JSONObject> segments = entry.getValue();
 
@@ -434,6 +444,7 @@ public class MiBandDBConverter {
                 exportTimeSeries(db, outputDir, sessionDate, sessionStart, sessionEnd, "stress_record", "stress", "stress");
                 exportTimeSeries(db, outputDir, sessionDate, sessionStart, sessionEnd, "spo2_record", "spo2", "spo2");
             }
+
         }
 
 

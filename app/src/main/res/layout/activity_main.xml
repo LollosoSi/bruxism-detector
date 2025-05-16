@@ -205,13 +205,14 @@
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
+
             <Button
                 android:id="@+id/button_extractdb"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:onClick="openFilePicker"
                 android:text="Smartband DB"
-                app:icon="@drawable/chart" />
+                app:icon="@drawable/tbconvert" />
             <Space
                 android:layout_width="0dp"
                 android:layout_height="0dp"

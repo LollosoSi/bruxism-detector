@@ -330,13 +330,27 @@ SwitchManager switchManager;
     private static final int PICK_FILE_REQUEST_CODE = 1;
 
     public void openFilePicker(View v) {
-        AlertDialog ad = showIndefiniteProgressDialog(MainActivity.this, "Handling your database");
+        ProgressingDialog ad = showProgressDialog(MainActivity.this, "Handling your database");
+        ad.setMessage("Converting your database");
 
         new Thread(new Runnable() {
             @Override
             public void run() {
 
-                if(MiBandDBConverter.tryRoot(MainActivity.this)){
+                MiBandDBConverter.ProgressReport pr = new MiBandDBConverter.ProgressReport() {
+                    @Override
+                    public void setProgress(int progress) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                ad.updateProgress(progress);
+                            }
+                        });
+                        }
+                    };
+
+
+                if(MiBandDBConverter.tryRoot(MainActivity.this, pr)){
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -379,7 +393,7 @@ SwitchManager switchManager;
 
 
                 if(uri!=null) {
-                    AlertDialog ad = showIndefiniteProgressDialog(this, "Converting your database");
+                    ProgressingDialog ad = showProgressDialog(this, "Converting your database");
                     Thread t = new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -388,11 +402,23 @@ SwitchManager switchManager;
                                     Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                             );
 
+                            MiBandDBConverter.ProgressReport pr = new MiBandDBConverter.ProgressReport() {
+                                @Override
+                                public void setProgress(int progress) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            ad.updateProgress(progress);
+                                        }
+                                    });
+                                }
+                            };
+
                             // Use the Uri to read the file
                             Log.d("FilePicker", "Selected file: " + uri.getPath());
                             // You can now open the stream: getContentResolver().openInputStream(uri)
                             MiBandDBConverter mbdbc = new MiBandDBConverter();
-                            mbdbc.convert(MainActivity.this, uri);
+                            mbdbc.convert(MainActivity.this, uri, pr);
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -408,41 +434,19 @@ SwitchManager switchManager;
         }
     }
 
-    public AlertDialog showIndefiniteProgressDialog(Activity context, String message) {
-        // Keep screen on for the activity
-        context.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        LinearLayout ll = new LinearLayout(context);
-        ll.setOrientation(LinearLayout.HORIZONTAL);
-        ll.setGravity(Gravity.CENTER | Gravity.CENTER_VERTICAL);
+    public ProgressingDialog showProgressDialog(Activity context, String message) {
+        ProgressingDialog asyncDialog = new ProgressingDialog();
+        //set message of the dialog
 
-        ProgressBar progressBar = new ProgressBar(context);
-        progressBar.setIndeterminate(true);
-        progressBar.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
 
-        TextView tw = new TextView(context);
-        tw.setText("Please wait...");
+        asyncDialog.updateProgress(0);
 
-        ll.addView(progressBar);
-        ll.addView(tw);
+        //show dialog
+        asyncDialog.show(getSupportFragmentManager(), "ProgressingDialogDatabase");
+        asyncDialog.setCancelable(false);
+        asyncDialog.setMessage(message);
 
-        AlertDialog dialog = new AlertDialog.Builder(context)
-                .setTitle(message)
-                .setView(ll)
-                .setCancelable(false)
-                .create();
-
-        // Also keep screen on for the dialog's window
-        dialog.setOnShowListener(d -> {
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            }
-        });
-
-        dialog.show();
-        return dialog;
+        return asyncDialog;
     }
 
 
