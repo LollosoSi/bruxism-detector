@@ -1,8 +1,10 @@
 package com.example.bruxismdetector;
 
 import android.animation.LayoutTransition;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -56,11 +58,27 @@ public class CorrelationsFragment extends Fragment {
         ((CheckBox)root.findViewById(R.id.seeallcheckbox)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prepareCorrelationArrays();
+                //prepareCorrelationArrays();
+                LinearLayout ll = (LinearLayout) root.findViewById(R.id.correlations_holder);
+
+
+                LayoutTransition layoutTransition = new LayoutTransition();
+                ll.setLayoutTransition(layoutTransition);
+
+                for(CardWithRows a : cards){
+                    if(b)
+                        a.show();
+                    else
+                        a.hideIf();
+                }
+
+                ll.setLayoutTransition(null);
+
             }
         });
     }
 
+    double threshold = 0.2;
     boolean[] positiveIfIncreased = {
             false,  // Clenching Rate (per hour) → lower is better
             false,  // Jaw Events → fewer events is better
@@ -134,7 +152,75 @@ public class CorrelationsFragment extends Fragment {
         }
     }
 
+    public static class CardWithRows{
+        com.google.android.material.card.MaterialCardView card;
+        ArrayList<ThresholdRow> rows = new ArrayList<>();
+        public CardWithRows(com.google.android.material.card.MaterialCardView cv) {
+            card = cv;
+        }
 
+        void addToArray(ThresholdRow tr){
+            rows.add(tr);
+        }
+        void hideIf(){
+            boolean hid_all = true;
+            for(ThresholdRow tr : rows){
+                if(tr.hideIfThreshold()){
+                    hid_all = false;
+                }
+            }
+            if(hid_all)
+                card.setVisibility(View.GONE);
+        }
+        void show(){
+            for(ThresholdRow tr : rows){
+                tr.show();
+            }
+            card.setVisibility(View.VISIBLE);
+        }
+    };
+    public static class ThresholdRow {
+        public ThresholdRow(LinearLayout ll, boolean didmeet) {
+            this.row = ll;
+            this.did_meet_threshold = didmeet;
+            row.setAlpha(1f);
+        }
+
+        LinearLayout row;
+        boolean did_meet_threshold = false;
+
+        public boolean hideIfThreshold() {
+            if (!did_meet_threshold) {
+                /*row.post(() -> {
+                    row.animate()
+                            .alpha(0f)
+                            .setDuration(100)
+                            .withEndAction(() -> row.setVisibility(View.GONE))
+                            .start();
+                });*/
+
+                row.setVisibility(View.GONE);
+            }
+            return did_meet_threshold;
+        }
+
+        public void show() {
+            if (row.getVisibility() != View.VISIBLE) {
+                /*row.post(() -> {
+                    row.setAlpha(0f);
+                    row.setVisibility(View.VISIBLE);
+                    row.animate()
+                            .alpha(1f)
+                            .setDuration(100)
+                            .start();
+                });*/
+
+                row.setVisibility(View.VISIBLE);
+            }
+        }
+    }
+
+    ArrayList<CardWithRows> cards = new ArrayList<>();
     void prepareCorrelationArrays(){
 
         // We will create a matrix, where
@@ -185,6 +271,8 @@ public class CorrelationsFragment extends Fragment {
 
             int posnegcount = 0;
 
+
+
             com.google.android.material.card.MaterialCardView cv = new com.google.android.material.card.MaterialCardView(requireContext());
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -196,8 +284,15 @@ public class CorrelationsFragment extends Fragment {
             cv.setPadding(16,40,16,16);
             cv.setElevation(4);
 
+            CardWithRows cwr = new CardWithRows(cv);
+
             LinearLayout ll1 = new LinearLayout(requireContext());
             ll1.setOrientation(LinearLayout.VERTICAL);
+
+            LayoutTransition transition = new LayoutTransition();
+            transition.enableTransitionType(LayoutTransition.CHANGING);
+            ll1.setLayoutTransition(transition);
+
 
             LinearLayout ll = new LinearLayout(requireContext());
             ll.setOrientation(LinearLayout.VERTICAL);
@@ -210,46 +305,104 @@ public class CorrelationsFragment extends Fragment {
             ll1.addView(title);
             ll1.addView(ll);
             for(int i = 0; i < effectivedatalength; i++){
-                if(Math.abs(correlations[filter][i])<0.2 && !((CheckBox)root.findViewById(R.id.seeallcheckbox)).isChecked())
-                    continue;
+
+                int rowHeight = (int) TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP, 48, getResources().getDisplayMetrics());
+
                 LinearLayout row = new LinearLayout(requireContext());
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setLayoutParams(new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
+                        rowHeight
                 ));
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(0, 8, 0, 8);  // Vertical spacing
+
+                String finaltext = summaryTitles[i + 2];
+                if (finaltext.contains("(")) {
+                    finaltext = finaltext.substring(0, finaltext.indexOf("(") - 1);
+                }
 
                 TextView label = new TextView(requireContext());
-                label.setText(summaryTitles[i + 2]);
+                label.setText(finaltext);
                 label.setTextSize(12);
-                label.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-                label.setGravity(Gravity.END|Gravity.CENTER);
-                label.setPadding(0,0,16,0);
+                label.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
+                label.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+                label.setPadding(0, 0, 16, 0);
+                label.setMaxLines(3); // Optional: allow wrapping to a few lines
+                //label.setEllipsize(TextUtils.TruncateAt.END);
 
-                TextView value = new TextView(requireContext());
-                value.setText(String.format(Locale.US, "%.2f", correlations[filter][i]));
-                value.setTextSize(12);
-                value.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-                value.setGravity(Gravity.START|Gravity.CENTER);
-                value.setPadding(16,0,0,0);
-
-                if(Math.abs(correlations[filter][i])<0.2){
-                    value.setTextColor(getResources().getColor(R.color.material_blue_500, cv.getContext().getTheme()));
-                }else {
-                    try {
-                        boolean good = isGoingToBetter(correlations[filter][i], i);
-                        posnegcount+= good?1:-1;
-                        value.setTextColor( good ? getResources().getColor(R.color.material_green_500, cv.getContext().getTheme()) : getResources().getColor(R.color.material_red_500, cv.getContext().getTheme()));
-                    } catch (Exception e) {
-                    }
+                // Enable text justification if API >= 29
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    //label.setJustificationMode(LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
                 }
 
 
+                double corr = correlations[filter][i];
+                double absCorr = Math.min(1f, Math.abs(corr));
+                boolean good = isGoingToBetter(corr, i);
+                if(Math.abs(correlations[filter][i])>=threshold)
+                    posnegcount += good ? 1 : -1;
+
+                LinearLayout barContainer = new LinearLayout(requireContext());
+                barContainer.setOrientation(LinearLayout.HORIZONTAL);
+                barContainer.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 2));
+                barContainer.setPadding(4, 8, 4, 8); // top/bottom padding for centering
+                barContainer.setBackgroundColor(getResources().getColor(R.color.seekbar_track_background, cv.getContext().getTheme()));
+                barContainer.setGravity(Gravity.CENTER_VERTICAL);
+
+// Bar elements
+                View negFill = new View(requireContext());
+                negFill.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr < 0) ? (float) absCorr : 0));
+                negFill.setBackgroundColor(getResources().getColor(good ? R.color.material_green_500 : R.color.material_red_500, cv.getContext().getTheme()));
+
+                View centerLine = new View(requireContext());
+                LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(2, LinearLayout.LayoutParams.MATCH_PARENT);
+                centerLine.setLayoutParams(centerParams);
+                centerLine.setBackgroundColor(getResources().getColor(R.color.black, cv.getContext().getTheme()));
+
+                View posFill = new View(requireContext());
+                posFill.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr > 0) ? (float) absCorr : 0));
+                posFill.setBackgroundColor(getResources().getColor(good ? R.color.material_green_500 : R.color.material_red_500, cv.getContext().getTheme()));
+
+                View leftSpacer = new View(requireContext());
+                leftSpacer.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr < 0) ? (float) (1f - absCorr) : 1f));
+                View rightSpacer = new View(requireContext());
+                rightSpacer.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr > 0) ? (float) (1f - absCorr) : 1f));
+
+                barContainer.addView(leftSpacer);
+                barContainer.addView(negFill);
+                barContainer.addView(centerLine);
+                barContainer.addView(posFill);
+                barContainer.addView(rightSpacer);
+
+                TextView valueLabel = new TextView(requireContext());
+                valueLabel.setText((corr > 0 ? "+" : "") + String.format(Locale.US, "%.2f", corr));
+                valueLabel.setTextSize(12);
+                valueLabel.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.6f));
+                valueLabel.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                valueLabel.setPadding(8, 0, 16, 0); // left and right spacing
+
+                    valueLabel.setTextColor(getResources().getColor(
+                            Math.abs(correlations[filter][i])>threshold ?
+                        good ? R.color.material_green_500 : R.color.material_red_500
+                            : R.color.material_blue_500,
+                        cv.getContext().getTheme()
+                ));
+
                 row.addView(label);
-                row.addView(value);
+                row.addView(barContainer);
+                row.addView(valueLabel);
                 ll.addView(row);
 
+                ThresholdRow tr = new ThresholdRow(row, Math.abs(correlations[filter][i])>=threshold);
+                tr.hideIfThreshold();
+                cwr.addToArray(tr);
+
+
             }
+            cards.add(cwr);
+            cwr.hideIf();
 
             String[] evals = new String[]{"Negative", "Mostly negative", "Neutral", "Mostly positive", "Positive"};
             int ab = Math.abs(posnegcount);
@@ -263,7 +416,7 @@ public class CorrelationsFragment extends Fragment {
                 c = positive ? getResources().getColor(R.color.material_green_500,cv.getContext().getTheme()) : getResources().getColor(R.color.material_red_500,cv.getContext().getTheme());
 
             }else {
-                selected = positive ? 5 : 0;
+                selected = positive ? 4 : 0;
                 c = positive ? getResources().getColor(R.color.material_green_500,cv.getContext().getTheme()) : getResources().getColor(R.color.material_red_500,cv.getContext().getTheme());
             }
 
