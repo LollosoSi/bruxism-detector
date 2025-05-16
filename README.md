@@ -47,24 +47,25 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 
 ## **What to expect**
 - Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps in csv files. Via Processing or the experimental Android App
-- Raw data: all SVM results (clenching/not clenching) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm.
-- A graph if you wish to see one. Use `data/RECORDINGS/generator.jar`.
-- A csv summary of your collected data. Use `data/RECORDINGS/generator.jar`.
+- Raw data: all SVM results (clenching/not clenching and confidence) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm.
+- Match your data with sleep data from your sleep tracker*
+- A graph if you wish to see one. Use `generator.jar` or the Android app.
+- A summary of your collected data. Use `generator.jar` or the Android app.
 - Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings).
+- Detect correlations between your tagged sessions <sub>(Android)</sub>
+
+</br><sub>*You will need to export the tracker data to a compatible format</sub>
 
 ## What **NOT** to expect
 - Magic
-- Miracles
-- Permanent fixes
-- Everything to work flawlessly without a drop of `know-how`
-- Holding the author accountable for this work. This software is distributed as-is with no guarantees.
+- Holding the author accountable for this work. This software is distributed with no guarantees.
 
 ## **How it works**
 - Detects jaw clenching / activity through a Machine Learning algorithm. (SVM. You must train it before usage)
 - After clenching is detected, arduino or the processing sketch will beep a number of times, then activate an alarm and wake you up.
 - The beep count will reset with time, but if the alarm is fired then you need to press the button to turn it off. After pressing the button you get a grace time to reposition yourself in bed.
 - The processing sketch (`main_logger`) logs your session of clenching events, beeps, alarms, button presses in a CSV file under `data/RECORDINGS/` Folder
-- Inside the `data/RECORDINGS/` folder you will find an utility `generator.jar`. Run it to convert your files to graphs, really dirty graphs but you get the idea.
+- Inside the `data/RECORDINGS/` folder you will find an utility `generator.jar`. Run it to convert your files to graphs.
 
 ## **Daytime Training**
 Using the Android app, you can enable the "trainer", which works as follows:
@@ -87,6 +88,7 @@ For more information, [see here](https://en.wikipedia.org/wiki/Classical_conditi
 - [A way to fix everything in place, I designed a 3D printed model to do so](https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure)
 - Conductive gel. Ultrasound gel usually works too, alternatively saliva should work.
 - An elastic band to hold the electrodes together and make it reusable
+- (optional) a sleep tracker
 
 ## **Software you need**
 - Arduino IDE with libraries "debounce" by Aaron Kimball, "CMSIS-DSP"
@@ -115,7 +117,7 @@ An experimental graphing application is available for download and the source ca
     - If available, the data from the RAW folder will be included in your final graph.
     - If available, your sleep data (sleep phases, heart rate, stress, SpO2) will be included in your final graph.
 
-<img src="[https://github.com/user-attachments/assets/59ba7aaf-2119-428b-aa44-89d48d91f769](https://github.com/user-attachments/assets/48dd34e4-24ab-40f8-a6f0-b8d60f495f95)" width="500">
+<img src="https://github.com/user-attachments/assets/48dd34e4-24ab-40f8-a6f0-b8d60f495f95" width="800">
 
  </br> </br>
  
