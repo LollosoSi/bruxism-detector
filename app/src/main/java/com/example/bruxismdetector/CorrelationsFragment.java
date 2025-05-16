@@ -68,7 +68,6 @@ public class CorrelationsFragment extends Fragment {
             false,  // Beep Count → fewer beeps = better
             true,   // Button Presses → user actively responded
             true,   // Stopped after beep → good, indicates awareness
-            false,  // Did not stop after beeps → bad
             false,  // Avg beeps per event → lower is better (faster response)
             false,  // Alarm % → fewer alarm-level events is better
             true,   // Average clenching event pause → longer gaps between events = better
