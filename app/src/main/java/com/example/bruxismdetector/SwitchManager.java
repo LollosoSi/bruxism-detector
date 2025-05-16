@@ -16,6 +16,7 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -68,8 +69,10 @@ public class SwitchManager {
 
     void addSwitches(){
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        String em = prefs.getString("elements_switch_array", "Alcohol,Anxious,Botox,Caffeine,Hydrated,Life Event,Medication,Mouth Guard,Pain,Stressed,Workout,Skipped or late dinner");
+        String em = prefs.getString("elements_switch_array", "Alcohol,Anxious,Botox,Caffeine,Hydrated,Life Event,Medication,Mouth Guard,Pain,Stressed,Workout,Skipped or late dinner,Osteopathy,Physiotherapy");
         String[] elements = em.split(",");
+        Arrays.sort(elements);
+
         LinearLayout right = root.findViewById(R.id.right_col), left=root.findViewById(R.id.left_col);
 
         int i = 0;
