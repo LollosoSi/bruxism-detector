@@ -24,11 +24,13 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -68,6 +70,7 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,39 +89,17 @@ public class MainActivity extends AppCompatActivity {
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 private static final String TAG = "Main activity";
-    private static final int REQUEST_WRITE_EXTERNAL_STORAGE = 1;
 
-SwitchManager switchManager;
-
-    private void requestStoragePermission() {
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                    REQUEST_WRITE_EXTERNAL_STORAGE);
-        } else {
-
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_WRITE_EXTERNAL_STORAGE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-            } else {
-                // Permission denied, handle accordingly (e.g., show a message)
-            }
-        }
-    }
-
+    SwitchManager switchManager;
     boolean is_user_editing_classification_thumb = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+
+
+
 
         final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -146,17 +127,10 @@ SwitchManager switchManager;
 
         getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
 
-
-        requestStoragePermission();
-
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                intent.setData(Uri.parse("package:" + getPackageName()));
-                startActivity(intent);
-            }
+        if(launchActivityforPermissionsIfNecessary()){
+            return;
         }
+
 
         setupSwitchLabels();
 
@@ -307,7 +281,7 @@ SwitchManager switchManager;
 
         setupUDP(4001, 4000);
 
-        checkFloatingPermission();
+
 
         Intent launchintent = getIntent();
         if(launchintent!=null){
@@ -322,8 +296,47 @@ SwitchManager switchManager;
         }
             }
 
+        if(prefs.getBoolean("tutorial",true)) {
+            prefs.edit().putBoolean("tutorial",false).apply();
+            new Handler(Looper.getMainLooper()).post(() -> {
+                List<Pair<View, String>> steps = Arrays.asList(
+                        new Pair<>(findViewById(R.id.menu_content), "Set the switches that best describe your day"),
+                        new Pair<>(findViewById(R.id.sessioncard), "These settings affect your user experience, it's recommended to leave as is."),
+                        new Pair<>(findViewById(R.id.switch_sharedpref_use_threshold), "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device."),
+                        new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
+                        new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service."),
 
 
+                        new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
+                        new Pair<>(findViewById(R.id.switch_sharedpref_only_alarm), "Select this if you only want to have alarms and not beeps."),
+                        new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
+
+
+                        new Pair<>(findViewById(R.id.button), "Tap this button to start tracking"),
+                        new Pair<>(findViewById(R.id.button2), "Send all data to the grapher application on your computer."),
+                        new Pair<>(findViewById(R.id.button_makegraphs), "Generate and see your graphs."),
+                        new Pair<>(findViewById(R.id.button_makecharts), "See your stats and data correlations\n(if any)"),
+                        new Pair<>(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from a Mi Fitness database."),
+
+                        new Pair<>(findViewById(R.id.button_extractdb), "Have fun!\nRefer to GitHub should you have any issues.")
+
+
+                );
+
+                new TutorialOverlayManager(MainActivity.this, steps).start();
+            });
+        }
+
+
+    }
+
+    private boolean launchActivityforPermissionsIfNecessary() {
+        if (!PermissionsActivity.hasAllPermissions(this)) {
+            Intent intent = new Intent(this, PermissionsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+        return false;
     }
 
 
@@ -756,62 +769,7 @@ SwitchManager switchManager;
     }
 
 
-    //Helper method to show a dialog window
-    private void showMessageForFloatingPermission(String message) {
-        new android.app.AlertDialog.Builder(MainActivity.this)
-                .setMessage(message)
-                .setPositiveButton("OK",  new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
 
-                        checkFloatingPermission();
-
-                    }
-                })
-                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-
-                        //User opted not to use this feature
-                        //finish();
-
-                    }
-                })
-                .create()
-                .show();
-    }
-
-
-
-
-
-    //Helper method for checking over lay floating permission
-    public void checkFloatingPermission() {
-        if (!Settings.canDrawOverlays(this)) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName()));
-            startActivityFloatingPermission.launch(intent);//this will open device settings for over lay permission window
-
-        }
-    }
-
-    //Initialize ActivityResultLauncher. Note here that no need custom request code
-    ActivityResultLauncher<Intent> startActivityFloatingPermission = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            new ActivityResultCallback<ActivityResult>() {
-                @Override
-                public void onActivityResult(ActivityResult result) {
-                    if (result.getResultCode() == Activity.RESULT_OK) {
-                        //Permission granted
-                    }else{
-                        //If there is no permission allowed yet, still a dialog window will open unless a user opted not to use the feature.
-                        if (!Settings.canDrawOverlays(MainActivity.this)) {
-                            // You don't have permission yet, show a dialog reasoning
-                            showMessageForFloatingPermission("This app requires permission to show dialogs.\n\nPlease enable \"Show over other apps\" in the next screen");
-                        }
-                    }
-                }
-            });
 
 
 

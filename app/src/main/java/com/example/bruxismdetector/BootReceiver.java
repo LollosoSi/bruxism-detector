@@ -19,7 +19,7 @@ public class BootReceiver extends BroadcastReceiver {
     @SuppressLint("ScheduleExactAlarm")
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction()) && PermissionsActivity.isExactAlarmPermissionGranted(context)) {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
             if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
                 Log.d(TAG, "Device booted, scheduling UDPCatcher");

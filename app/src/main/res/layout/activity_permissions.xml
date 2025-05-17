@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainvert"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".PermissionsActivity">
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Please allow the necessary permissions"
+        android:textAlignment="center"
+        android:textSize="20sp" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/Storage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Storage" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/ext_storage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="External Storage" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/alms"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Alarms" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/floatview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Floating window" />
+
+</LinearLayout>
