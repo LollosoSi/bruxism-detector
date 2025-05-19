@@ -106,14 +106,53 @@ public class PermissionsActivity extends AppCompatActivity {
             });
         }
 
+        if(isExactAlarmPermissionGranted(this)){
+            coolperms++;
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.alms));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.alms)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestExactAlarmPermission(PermissionsActivity.this);
+                    checkset();
+                }
+            });
+        }
 
-        if(coolperms==4){
+        if(hasNotificationPermission(this)){
+            coolperms++;
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.nts));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.nts)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    askNotificationPerm();
+                    checkset();
+                }
+            });
+        }
+
+
+        if(coolperms==6){
             // restart the application
-            Intent intent = new Intent(this, MainActivity.class);
-            startActivity(intent);
+            //Intent intent = new Intent(this, MainActivity.class);
+            //startActivity(intent);
             finish();
         }
     }
+
+    public static boolean hasNotificationPermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return true; // For older versions, permission is automatically granted
+    }
+
     public static void requestExactAlarmPermission(Activity activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
@@ -132,7 +171,17 @@ public class PermissionsActivity extends AppCompatActivity {
 
 
     public static boolean hasAllPermissions(Context ct){
-        return hasExternalPerm() && hasStorage(ct) && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct);
+        return hasExternalPerm() && hasStorage(ct) && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct) && hasNotificationPermission(ct);
+    }
+
+    public void askNotificationPerm(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    1001
+            );
+        }
     }
 
     public static boolean hasExternalPerm(){
@@ -168,14 +217,10 @@ public static boolean hasStorage(Context ct){
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_WRITE_EXTERNAL_STORAGE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-            } else {
-                // Permission denied, handle accordingly (e.g., show a message)
-            }
-        }
+        checkset();
     }
+
+
 
     public static boolean hasFloatingPermission(Context ct){
         return Settings.canDrawOverlays(ct);

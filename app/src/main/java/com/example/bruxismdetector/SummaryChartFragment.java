@@ -188,6 +188,7 @@ public class SummaryChartFragment extends Fragment {
 
     void addGraphs(){
 
+        createChartWithDateFromIndex(1);
 
         createChartWithDateFromIndex(2);
         createChartWithDateFromIndex(3);
@@ -460,6 +461,7 @@ public class SummaryChartFragment extends Fragment {
                     continue;
                 }
                 String[] splitline = line.split(";");
+                splitline[1]=String.valueOf(Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
                 summaryTuples.add(splitline);
                 dateLabels.add(splitline[0]);
 
@@ -478,44 +480,8 @@ public class SummaryChartFragment extends Fragment {
     }
 
 
-    void prepareCorrelationArrays(){
-
-        // We will create a matrix, where
-        //  filter1-contained in tuple1?, filter1-contained in tuple2?, ecc
-        //  filter2-contained in tuple1?, filter2-contained in tuple2?, ecc
-
-        // total length - 2 : (skip date, info)
-        int effectivedatalength = summaryTuples.get(0).length-2;
-
-        double[][] filterstats = new double[filterNames.size()][summaryTuples.size()];
-        double[][] entries = new double[effectivedatalength][summaryTuples.size()];
-
-
-        for(int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
-            for (int tuple = 0; tuple < summaryTuples.size(); tuple++) {
-                entries[chartelement][tuple] = Double.parseDouble(summaryTuples.get(tuple)[chartelement+1].replace(",","."));
-            }
-        }
-
-        for(int filter = 0; filter < filterNames.size(); filter++){
-            for (int tuple = 0; tuple < summaryTuples.size(); tuple++) {
-                filterstats[filter][tuple] = summaryTuples.get(tuple)[summaryTuples.get(tuple).length - 1].contains(filterNames.get(filter)) ? 1.0 : 0.0;
-            }
-        }
-
-        double[][] correlations = new double[filterNames.size()][effectivedatalength];
-
-        for(int filter = 0; filter < filterNames.size(); filter++) {
-            for (int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
-                correlations[filter][chartelement] = Correlations.pearsonCorrelation(entries[chartelement], filterstats[filter]);
-            }
-        }
-
-    }
-
     private boolean isExpanded = false;
     private int collapsedHeightDp = 50;
-    private int expandedHeightDp = 400;
 
     private com.google.android.material.bottomnavigation.BottomNavigationView bottomCardView;
     private View topHandle;

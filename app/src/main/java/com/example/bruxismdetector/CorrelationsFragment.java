@@ -26,6 +26,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Locale;
 
 public class CorrelationsFragment extends Fragment {
@@ -79,24 +80,33 @@ public class CorrelationsFragment extends Fragment {
     }
 
     double threshold = 0.2;
-    boolean[] positiveIfIncreased = {
-            false,  // Clenching Rate (per hour) → lower is better
-            false,  // Jaw Events → fewer events is better
-            false,  // Alarm Triggers → fewer alarms = better
-            false,  // Beep Count → fewer beeps = better
-            true,   // Button Presses → user actively responded
-            true,   // Stopped after beep → good, indicates awareness
-            false,  // Avg beeps per event → lower is better (faster response)
-            false,  // Alarm % → fewer alarm-level events is better
-            true,   // Average clenching event pause → longer gaps between events = better
-            false,  // Average clenching duration → shorter clenches = better
-            false,  // Total clench time → less overall clenching = better
-            false   // Active time (permille) → lower activity during sleep = better
+    static final byte PositiveCorr = 1, NegativeCorr = 2, NeutralCorr = 0;
+    byte[] positiveIfIncreased = {
+            NeutralCorr,   // Longer sleep. Not necessarily
+            NegativeCorr,  // Clenching Rate (per hour) → lower is better
+            NegativeCorr,  // Jaw Events → fewer events is better
+            NegativeCorr,  // Alarm Triggers → fewer alarms = better
+            NegativeCorr,  // Beep Count → fewer beeps = better
+            PositiveCorr,   // Button Presses → user actively responded
+            PositiveCorr,   // Stopped after beep → good, indicates awareness
+            NegativeCorr,  // Avg beeps per event → lower is better (faster response)
+            NegativeCorr,  // Alarm % → fewer alarm-level events is better
+            PositiveCorr,   // Average clenching event pause → longer gaps between events = better
+            NegativeCorr,  // Average clenching duration → shorter clenches = better
+            NegativeCorr,  // Total clench time → less overall clenching = better
+            NegativeCorr   // Active time (permille) → lower activity during sleep = better
     };
 
-    boolean isGoingToBetter(double correlation, int index) throws IndexOutOfBoundsException {
+    byte isGoingToBetter(double correlation, int index) throws IndexOutOfBoundsException {
         if(index < positiveIfIncreased.length){
-            return (correlation > 0) == positiveIfIncreased[index];
+
+            boolean c1 = (correlation>0);
+            boolean c2 = (correlation<0);
+
+            boolean b1 = c1 && (positiveIfIncreased[index]==PositiveCorr);
+            boolean b2 = c2 && (positiveIfIncreased[index]==NegativeCorr);
+
+            return positiveIfIncreased[index]==NeutralCorr ? NeutralCorr : (b1 || b2 ? PositiveCorr : NegativeCorr);
         }else{
             throw new IndexOutOfBoundsException();
         }
@@ -116,13 +126,13 @@ public class CorrelationsFragment extends Fragment {
     String[] summaryTitles;
     ArrayList<String[]> summaryTuples = new ArrayList<>();
     ArrayList<String> dateLabels = new ArrayList<>();
+    int infoindex = -1;
     void readSummary() {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         File recordingsDir = new File(documentsDir, "RECORDINGS");
         File summaryDir = new File(recordingsDir, "Summary");
 
         ArrayList<String> titles = new ArrayList<>();
-        int infoindex=-1;
 
         try (BufferedReader br = new BufferedReader(new FileReader(summaryDir.getParent() + "/Summary/Summary.csv"))) {
             String line;
@@ -137,12 +147,18 @@ public class CorrelationsFragment extends Fragment {
                         throw new Exception("Summary does not have Info!");
                     continue;
                 }
+                String[] base = new String[infoindex+1];
+                Arrays.fill(base, "");
                 String[] splitline = line.split(";");
-                summaryTuples.add(splitline);
-                dateLabels.add(splitline[0]);
+                splitline[1]=String.valueOf(Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
+                for(int i = 0; i < splitline.length; i++)
+                    base[i] = splitline[i];
 
-                if(splitline.length > infoindex)
-                    addFilter(splitline[infoindex].split(","));
+                summaryTuples.add(base);
+                dateLabels.add(base[0]);
+
+                if(!base[infoindex].isEmpty())
+                    addFilter(base[infoindex].split(","));
             }
         } catch (IOException e) {
             System.err.println("Error reading file: " + (summaryDir.getParent() + "/Summary/Summary.csv"));
@@ -150,6 +166,9 @@ public class CorrelationsFragment extends Fragment {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+        filterNames.sort(Comparator.naturalOrder());
+
     }
 
     public static class CardWithRows{
@@ -227,8 +246,9 @@ public class CorrelationsFragment extends Fragment {
         //  filter1-contained in tuple1?, filter1-contained in tuple2?, ecc
         //  filter2-contained in tuple1?, filter2-contained in tuple2?, ecc
 
-        // total length - 3 : (skip date, time, info)
+        // total length - 3 : (skip date, mood, info)
         int effectivedatalength = summaryTuples.get(0).length-3;
+        int startcolumn = 1;
 
         double[][] filterstats = new double[filterNames.size()][summaryTuples.size()];
         double[][] entries = new double[effectivedatalength][summaryTuples.size()];
@@ -237,13 +257,13 @@ public class CorrelationsFragment extends Fragment {
 
         for(int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
             for (int tuple = 0; tuple < summaryTuples.size(); tuple++) {
-                entries[chartelement][tuple] = Double.parseDouble(summaryTuples.get(tuple)[chartelement+2].replace(",","."));
+                entries[chartelement][tuple] = Double.parseDouble(summaryTuples.get(tuple)[chartelement+startcolumn].replace(",","."));
             }
         }
 
         for(int filter = 0; filter < filterNames.size(); filter++){
             for (int tuple = 0; tuple < summaryTuples.size(); tuple++) {
-                boolean hit = summaryTuples.get(tuple)[summaryTuples.get(tuple).length - 1].contains(filterNames.get(filter));
+                boolean hit = summaryTuples.get(tuple)[infoindex].contains(filterNames.get(filter));
                 filterstats[filter][tuple] = hit ? 1.0 : 0.0;
                 if(hit)
                     filterhitcount[filter]++;
@@ -318,7 +338,7 @@ public class CorrelationsFragment extends Fragment {
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(0, 8, 0, 8);  // Vertical spacing
 
-                String finaltext = summaryTitles[i + 2];
+                String finaltext = summaryTitles[i + startcolumn];
                 if (finaltext.contains("(")) {
                     finaltext = finaltext.substring(0, finaltext.indexOf("(") - 1);
                 }
@@ -329,7 +349,7 @@ public class CorrelationsFragment extends Fragment {
                 label.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
                 label.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
                 label.setPadding(0, 0, 16, 0);
-                label.setMaxLines(3); // Optional: allow wrapping to a few lines
+                //label.setMaxLines(3); // Optional: allow wrapping to a few lines
                 //label.setEllipsize(TextUtils.TruncateAt.END);
 
                 // Enable text justification if API >= 29
@@ -340,9 +360,9 @@ public class CorrelationsFragment extends Fragment {
 
                 double corr = correlations[filter][i];
                 double absCorr = Math.min(1f, Math.abs(corr));
-                boolean good = isGoingToBetter(corr, i);
+                byte good = isGoingToBetter(corr, i);
                 if(Math.abs(correlations[filter][i])>=threshold)
-                    posnegcount += good ? 1 : -1;
+                    posnegcount += good == PositiveCorr ? 1 : (good == NegativeCorr ? -1 : 0);
 
                 LinearLayout barContainer = new LinearLayout(requireContext());
                 barContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -354,7 +374,7 @@ public class CorrelationsFragment extends Fragment {
 // Bar elements
                 View negFill = new View(requireContext());
                 negFill.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr < 0) ? (float) absCorr : 0));
-                negFill.setBackgroundColor(getResources().getColor(good ? R.color.material_green_500 : R.color.material_red_500, cv.getContext().getTheme()));
+                negFill.setBackgroundColor(getResources().getColor(good == PositiveCorr ? R.color.material_green_500 : (good == NegativeCorr ?  R.color.material_red_500 : R.color.material_blue_500), cv.getContext().getTheme()));
 
                 View centerLine = new View(requireContext());
                 LinearLayout.LayoutParams centerParams = new LinearLayout.LayoutParams(2, LinearLayout.LayoutParams.MATCH_PARENT);
@@ -363,7 +383,7 @@ public class CorrelationsFragment extends Fragment {
 
                 View posFill = new View(requireContext());
                 posFill.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr > 0) ? (float) absCorr : 0));
-                posFill.setBackgroundColor(getResources().getColor(good ? R.color.material_green_500 : R.color.material_red_500, cv.getContext().getTheme()));
+                posFill.setBackgroundColor(getResources().getColor(good == PositiveCorr ? R.color.material_green_500 : (good == NegativeCorr ?  R.color.material_red_500 : R.color.material_blue_500), cv.getContext().getTheme()));
 
                 View leftSpacer = new View(requireContext());
                 leftSpacer.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (corr < 0) ? (float) (1f - absCorr) : 1f));
@@ -385,7 +405,7 @@ public class CorrelationsFragment extends Fragment {
 
                     valueLabel.setTextColor(getResources().getColor(
                             Math.abs(correlations[filter][i])>threshold ?
-                        good ? R.color.material_green_500 : R.color.material_red_500
+                                    (good == PositiveCorr ? R.color.material_green_500 : (good == NegativeCorr ? R.color.material_red_500 : R.color.material_blue_500))
                             : R.color.material_blue_500,
                         cv.getContext().getTheme()
                 ));

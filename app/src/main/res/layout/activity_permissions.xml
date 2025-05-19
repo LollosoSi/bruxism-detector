@@ -37,6 +37,12 @@
         android:text="Alarms" />
 
     <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/nts"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Notifications" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/floatview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

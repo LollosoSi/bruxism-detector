@@ -123,13 +123,11 @@ private static final String TAG = "Main activity";
             return insets;
         });
 
-
+        //SleepAsAndroidExtractor.extract(this, this);
 
         getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
 
-        if(launchActivityforPermissionsIfNecessary()){
-            return;
-        }
+        launchActivityforPermissionsIfNecessary();
 
 
         setupSwitchLabels();
