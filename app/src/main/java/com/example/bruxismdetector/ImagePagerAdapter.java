@@ -2,38 +2,55 @@ package com.example.bruxismdetector;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.github.chrisbanes.photoview.PhotoView;
+
 import java.io.File;
 
-public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.ImageViewHolder> {
-    private final File[] imageFiles;
+public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.PhotoViewHolder> {
 
-    public ImagePagerAdapter(File[] files) {
+    public interface OnScaleChangedListener {
+        void onScaleChanged(float scale);
+    }
+
+    private final File[] imageFiles;
+    private final OnScaleChangedListener scaleChangedListener;
+
+    public ImagePagerAdapter(File[] files, OnScaleChangedListener listener) {
         this.imageFiles = files;
+        this.scaleChangedListener = listener;
     }
 
     @NonNull
     @Override
-    public ImageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_image, parent, false);
-        return new ImageViewHolder(view);
+    public PhotoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_photoview, parent, false);
+        return new PhotoViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ImageViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull PhotoViewHolder holder, int position) {
         Bitmap bitmap = BitmapFactory.decodeFile(imageFiles[position].getAbsolutePath());
-        holder.bind(bitmap);
+        holder.photoView.setImageBitmap(bitmap);
+
+        // Set scale change listener on the PhotoView
+        holder.photoView.setOnScaleChangeListener((scaleFactor, focusX, focusY) -> {
+            if (scaleChangedListener != null) {
+                float currentScale = holder.photoView.getScale();
+                scaleChangedListener.onScaleChanged(currentScale);
+            }
+        });
+
+        // Also notify the initial scale (usually 1f)
+        if (scaleChangedListener != null) {
+            scaleChangedListener.onScaleChanged(holder.photoView.getScale());
+        }
     }
 
     @Override
@@ -41,59 +58,12 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Im
         return imageFiles.length;
     }
 
-    static class ImageViewHolder extends RecyclerView.ViewHolder {
-        private final ZoomableImageView imageView;
-        private final Matrix matrix = new Matrix();
-        private float scale = 1f;
-        private float lastX, lastY;
-        private boolean isDragging = false;
+    static class PhotoViewHolder extends RecyclerView.ViewHolder {
+        PhotoView photoView;
 
-        public ImageViewHolder(@NonNull View itemView) {
+        public PhotoViewHolder(@NonNull View itemView) {
             super(itemView);
-            imageView = itemView.findViewById(R.id.image_view);
-
-            ScaleGestureDetector scaleDetector = new ScaleGestureDetector(itemView.getContext(),
-                    new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                        @Override
-                        public boolean onScale(ScaleGestureDetector detector) {
-                            //scale *= detector.getScaleFactor();
-                            //scale = Math.max(0.5f, Math.min(scale, 5.0f));
-                            //matrix.setScale(scale, scale, detector.getFocusX(), detector.getFocusY());
-                            //imageView.setImageMatrix(matrix);
-                            return true;
-                        }
-                    });
-
-            imageView.setOnTouchListener((v, event) -> {
-                scaleDetector.onTouchEvent(event);
-                switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                    case MotionEvent.ACTION_DOWN:
-                        lastX = event.getX();
-                        lastY = event.getY();
-                        isDragging = true;
-                        break;
-                    case MotionEvent.ACTION_MOVE:
-                        if (isDragging) {
-                            float dx = event.getX() - lastX;
-                            float dy = event.getY() - lastY;
-                            //matrix.postTranslate(dx, dy);
-                            //imageView.setImageMatrix(matrix);
-                            lastX = event.getX();
-                            lastY = event.getY();
-                        }
-                        break;
-                    case MotionEvent.ACTION_UP:
-                    case MotionEvent.ACTION_POINTER_UP:
-                        isDragging = false;
-                        break;
-                }
-                return true;
-            });
+            photoView = itemView.findViewById(R.id.photo_view);
         }
-
-        public void bind(Bitmap bitmap) {
-            imageView.setImageAndCenter(bitmap);
-        }
-
     }
 }
