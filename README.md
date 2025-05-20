@@ -1,5 +1,5 @@
 # Bruxism Detector
-This small suite helps you detect night (and day) bruxism and interrupt it, while trying to track down its triggers.</br>
+This small suite helps you detect bruxism and interrupt it, while trying to track down its triggers.</br>
 #### Overview
 Following this readme, you will build an Arduino based device that is able to detect bruxism.</br><sub><sup>Basic knowledge about electronics is advisable.</sup></sub></br></br>
 Bruxism detection is done through a Machine Learning algorithm and 3 electrodes placed on the forehead.
