@@ -69,7 +69,16 @@ public class Grapher<Image, Color, Font> {
 
 	GrapherInterface<Color, Image, Font> gi = null;
 	IconManager<Color, Image> icm = null;
-	Map<String, Image> icons = new HashMap<String, Image>();
+	Map<String, IconAndNiceness> icons = new HashMap<String, IconAndNiceness>();
+
+	public class IconAndNiceness{
+		public IconAndNiceness(Image ic, String nice) {
+			icon = ic;
+			niceness = nice;
+		}
+		Image icon;
+		String niceness = Neutral;
+	};
 
 	public Grapher(ArrayList<Event> event_list, String file_name, int width, int height) {
 		events = event_list;
@@ -139,24 +148,24 @@ public class Grapher<Image, Color, Font> {
 	public void loadIcons() {
 
 
-		icons.put("android", icm.loadImage("android.png", Nice));
-		icons.put("medication", icm.loadImage("medication.png", Bad));
-		icons.put("stressed", icm.loadImage("stressed.png", Bad));
-		icons.put("alcohol", icm.loadImage("alcohol.png", Mediocre));
-		icons.put("skipped or late dinner", icm.loadImage("bad_meal.png", Mediocre));
-		icons.put("pain", icm.loadImage("day_pain.png", Bad));
-		icons.put("workout", icm.loadImage("workout.png", Nice));
-		icons.put("hydrated", icm.loadImage("hydrated.png", Neutral));
-		icons.put("caffeine", icm.loadImage("coffee.png", Mediocre));
-		icons.put("life event", icm.loadImage("life_event.png", Mediocre));
-		icons.put("anxious", icm.loadImage("anxiety.png", Mediocre));
-		icons.put("sick", icm.loadImage("sick.png", Mediocre));
-		icons.put("bad", icm.loadImage("bad.png", Bad));
-		icons.put("good", icm.loadImage("good.png", Nice));
-		icons.put("botox", icm.loadImage("botox.png", Nice));
-		icons.put("onlyalarm", icm.loadImage("onlyalarms.png", Neutral));
-		icons.put("tired", icm.loadImage("tired.png", Mediocre));
-		icons.put("mouth guard", icm.loadImage("mouthguard.png", Neutral));
+		icons.put("android", new IconAndNiceness(icm.loadImage("android.png", Nice), Nice));
+		icons.put("medication", new IconAndNiceness(icm.loadImage("medication.png", Bad), Bad));
+		icons.put("stressed", new IconAndNiceness(icm.loadImage("stressed.png", Bad), Bad));
+		icons.put("alcohol", new IconAndNiceness(icm.loadImage("alcohol.png", Mediocre), Mediocre));
+		icons.put("skipped or late dinner", new IconAndNiceness(icm.loadImage("bad_meal.png", Mediocre), Mediocre));
+		icons.put("pain", new IconAndNiceness(icm.loadImage("day_pain.png", Bad), Bad));
+		icons.put("workout", new IconAndNiceness(icm.loadImage("workout.png", Nice), Nice));
+		icons.put("hydrated", new IconAndNiceness(icm.loadImage("hydrated.png", Neutral), Neutral));
+		icons.put("caffeine", new IconAndNiceness(icm.loadImage("coffee.png", Mediocre), Mediocre));
+		icons.put("life event", new IconAndNiceness(icm.loadImage("life_event.png", Mediocre), Mediocre));
+		icons.put("anxious", new IconAndNiceness(icm.loadImage("anxiety.png", Mediocre), Mediocre));
+		icons.put("sick", new IconAndNiceness(icm.loadImage("sick.png", Mediocre), Mediocre));
+		icons.put("bad", new IconAndNiceness(icm.loadImage("bad.png", Bad), Bad));
+		icons.put("good", new IconAndNiceness(icm.loadImage("good.png", Nice), Nice));
+		icons.put("botox", new IconAndNiceness(icm.loadImage("botox.png", Nice), Nice));
+		icons.put("onlyalarm", new IconAndNiceness(icm.loadImage("onlyalarms.png", Neutral), Neutral));
+		icons.put("tired", new IconAndNiceness(icm.loadImage("tired.png", Mediocre), Mediocre));
+		icons.put("mouth guard", new IconAndNiceness(icm.loadImage("mouthguard.png", Neutral), Neutral));
 
 	}
 
@@ -601,57 +610,119 @@ public class Grapher<Image, Color, Font> {
 	}
 
 	public void drawIcons(int graphX, int graphY) {
-		int iconSize = 32;
-		int spacing = 10;
-		int starty = graphY;
-		int x = graphX;
-		int y = graphY;
-		int count = 0;
+		int incremental = 0;
+		int sessionincremental = 0;
+
+		// Collect these to print by niceness
+		ArrayList<IconAndNiceness> infoicons = new ArrayList<>();
+
+		Image androidIcon = null;
+		Image moodIcon = null;
+		ArrayList<IconAndNiceness> sessionicons = new ArrayList<>();
 
 		for (Event e : events) {
-			if (e.type.equals("ANDROID")) {
-				gi.drawImage(icons.get("android"), graph_width - 60, 30, 40, 40);
+			if (e.type.equals("ANDROID") && androidIcon==null) {
+				androidIcon =  icons.get("android").icon;
 			}
 
 			if (e.type.toLowerCase().equals("info")) {
-				Image icon = icons.get(e.notes.toLowerCase());
-
-				if (icon != null) {
-					if (count++ % 2 == 0) {
-						x -= iconSize + spacing;
-						y = starty;
-					}
-					gi.drawImage(icon, x, y, iconSize, iconSize);
-					y += iconSize + spacing;
+				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+				if(ian==null) {
+					System.out.println("Info icon is null: " + e.notes.toLowerCase());
+					continue;
 				}
+				infoicons.add(icons.get(e.notes.toLowerCase()));
+
 			}
 
 			if (e.type.equals("SESSION")) {
-				Image icon = icons.get(e.notes.toLowerCase());
 
-				if (icon != null) {
-					if (count++ % 2 == 0) {
-						x -= iconSize + spacing;
-						y = starty;
-					}
-					gi.drawImage(icon, x, y, iconSize, iconSize);
-					y += iconSize + spacing;
+				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+				if(ian==null) {
+					System.out.println("Session icon is null: " + e.notes.toLowerCase());
+					continue;
 				}
+				sessionicons.add(ian);
+
 			}
 
-			if (e.type.equals("MOOD")) {
-				Image moodIcon = icons.get(e.notes.toLowerCase());
-
-				if (moodIcon != null) {
-					if (count++ % 2 == 0) {
-						x -= iconSize + spacing;
-						y = starty;
-					}
-					gi.drawImage(moodIcon, x, y, iconSize, iconSize);
-					y += iconSize + spacing;
+			if (e.type.equals("MOOD") && moodIcon==null) {
+				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+				if(ian==null) {
+					System.out.println("Mood icon is null: " + e.notes.toLowerCase());
+					continue;
 				}
+				moodIcon = ian.icon;
+
+
 			}
 		}
+
+		if(androidIcon!=null) {
+			drawIconToSessionGrid(sessionincremental++, androidIcon, graph_width - 60, 30);
+		}
+		if(moodIcon!=null) {
+			drawIconToSessionGrid(sessionincremental++, moodIcon, graph_width - 60, 30);
+		}
+
+		String [] nicenesses = {Bad, Mediocre, Neutral, Nice};
+		// Loop for niceness levels
+		for(int i = nicenesses.length-1; i>=0; i--)
+			for(IconAndNiceness e : sessionicons) {
+				if(!e.niceness.equals(nicenesses[i])) {continue;}
+				drawIconToSessionGrid(sessionincremental++, e.icon, graph_width - 60, 30);
+			}
+
+		// Loop for niceness levels
+		for(int i = nicenesses.length-1; i>=0; i--)
+			for(IconAndNiceness e : infoicons) {
+				if(!e.niceness.equals(nicenesses[i])) {continue;}
+
+				Image icon = e.icon;
+
+				drawIconToGrid(incremental++, icon, graphX-(20), graphY);
+			}
+	}
+
+	void drawIconToGrid(int iconincremental, Image icon, int graphX, int graphY) {
+		int iconSize = 32;
+		int spacing = 10;
+		int startY = graphY;
+		int startX = graphX;
+
+
+		int numcolumns = 6;
+
+		int row = iconincremental/numcolumns;
+		int column = iconincremental%numcolumns;
+
+		int x = startX-(column*(spacing+iconSize));
+		int y = startY+(row*(spacing+iconSize));
+
+		if (icon != null) {
+			gi.drawImage(icon, x, y, iconSize, iconSize);
+		}
+
+	}
+
+	void drawIconToSessionGrid(int iconincremental, Image icon, int graphX, int graphY) {
+		int iconSize = 40;
+		int spacing = 10;
+		int startY = graphY;
+		int startX = graphX-spacing;
+
+		int numcolumns = 1;
+
+		int row = iconincremental/numcolumns;
+		int column = iconincremental%numcolumns;
+
+		int x = startX-(column*(spacing+iconSize));
+		int y = startY+(row*(spacing+iconSize));
+
+		if (icon != null) {
+			gi.drawImage(icon, x, y, iconSize, iconSize);
+		}
+
 	}
 
 	void drawInfoStats(ArrayList<String> values, int rows, boolean use_dark_mode) {
@@ -687,7 +758,7 @@ public class Grapher<Image, Color, Font> {
 	int columnOffset(int[] maxchars_row, int cc) {
 		int sum = 0;
 		for(int i = 1; i <= cc; i++) {
-			sum+=maxchars_row[i-1]*7;
+			sum+=maxchars_row[i-1]*10;
 		}
 		return sum;
 	}
@@ -704,9 +775,9 @@ public class Grapher<Image, Color, Font> {
 	public String findSessionName(){
 		String[] startnote = findStart().notes.split(" ");
 		String session_name = startnote[startnote.length-1]; // It's a string date YYYY-MM-DD
-		Log.i("Session", "Session is "+session_name);
 		return session_name;
 	}
+
 	public Image generateGraph(boolean use_dark_mode) {
 
 		if(gi==null)
@@ -917,4 +988,3 @@ public class Grapher<Image, Color, Font> {
 	}
 
 }
-
