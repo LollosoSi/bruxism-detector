@@ -2,26 +2,28 @@ package bruxism_grapher2;
 
 import grapher_interfaces.GrapherInterface;
 import grapher_interfaces.IconManager;
-import bruxism_grapher2.Colours.Color_element;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import bruxism_grapher2.Colours.Color_element;
+
+import java.util.Arrays;
+import java.util.Calendar;
 public class Grapher<Image, Color, Font> {
-	
+
 	public void setPlatformSpecificAbstractions(GrapherInterface<Color, Image, Font> g, IconManager<Color, Image> im) {
 		gi = g;
 		icm = im;
 
 		calculateGraphParameters();
 	}
+
 
 	StatData sd = null;
 	SleepData sleepData = null;
@@ -46,18 +48,18 @@ public class Grapher<Image, Color, Font> {
 	int tick_length, tick_slot_length, xcharsize;
 
 	long sync_unix_second_time_start = 0;
-	
+
 	int clenchline_height_low, clenchline_height_high;
 	int heartrate_height_low, heartrate_height_high;
 	int spo2_height_low, spo2_height_high;
 	int stress_height_low, stress_height_high;
-	
+
 	static final int
-		alarm_slot = 0, alarm_slot_length = 3,
-		clenching_slot = 4, clenching_slot_length = 1,
-		button_slot = 1, button_slot_length = 2,
-		beep_slot = 0, beep_slot_length = 1;
-	
+			alarm_slot = 0, alarm_slot_length = 3,
+			clenching_slot = 4, clenching_slot_length = 1,
+			button_slot = 1, button_slot_length = 2,
+			beep_slot = 0, beep_slot_length = 1;
+
 	String file_name;
 
 	ArrayList<Event> events;
@@ -87,35 +89,35 @@ public class Grapher<Image, Color, Font> {
 		legend_height = graph_height - 80;
 
 		int line_height_temp = legend_height;
-		
+
 		if(raw_events != null) {
-		if(!raw_events.isEmpty()) {
-			clenchline_height_low = (line_height_temp -= 25);
-			clenchline_height_high = (line_height_temp -= 30);
+			if(!raw_events.isEmpty()) {
+				clenchline_height_low = (line_height_temp -= 25);
+				clenchline_height_high = (line_height_temp -= 30);
+			}
 		}
-		}
-		
+
 		if(!sleepData.heartrate.isEmpty()) {
 			heartrate_height_low = (line_height_temp -= 25);
 			heartrate_height_high = (line_height_temp -= 30);
 		}
-		
+
 		if(!sleepData.spo2.isEmpty() || !sleepData.stress.isEmpty()) {
 			spo2_height_low = (line_height_temp -= 25);
 			spo2_height_high = (line_height_temp -= 30);
 		}
-		
+
 		//if(!sleepData.stress.isEmpty()) {
 		//	stress_height_low = (line_height_temp -= 25);
 		//	stress_height_high = (line_height_temp -= 30);
 		//}
-		
+
 		timeline_height = (line_height_temp -= 80);
-		
+
 		first_slot_height = timeline_height;
 		slot_height = 20;
 		slot_spacing = 5;
-		
+
 		min_time = events.get(0).millis;
 		max_time = events.get(events.size() - 1).millis;
 		time_scale = (graph_width - 2 * side_margin) / (double) (max_time - min_time);
@@ -126,15 +128,15 @@ public class Grapher<Image, Color, Font> {
 
 	}
 
-	static final String 
-	Bad = "#F44336",        // Material Red 500
-	Mediocre = "#FF9800",   // Material Orange 500
-	Neutral = "#2196F3",    // Material Blue 500
-	Nice = "#4CAF50";       // Material Green 500
+	static final String
+			Bad = "#F44336",        // Material Red 500
+			Mediocre = "#FF9800",   // Material Orange 500
+			Neutral = "#2196F3",    // Material Blue 500
+			Nice = "#4CAF50";       // Material Green 500
 
 	public void loadIcons() {
 
-		
+
 		icons.put("android", icm.loadImage("android.png", Nice));
 		icons.put("medication", icm.loadImage("medication.png", Bad));
 		icons.put("stressed", icm.loadImage("stressed.png", Bad));
@@ -152,7 +154,7 @@ public class Grapher<Image, Color, Font> {
 		icons.put("botox", icm.loadImage("botox.png", Nice));
 		icons.put("onlyalarm", icm.loadImage("onlyalarms.png", Neutral));
 		icons.put("tired", icm.loadImage("tired.png", Mediocre));
-
+		icons.put("mouth guard", icm.loadImage("mouthguard.png", Neutral));
 
 	}
 
@@ -236,89 +238,89 @@ public class Grapher<Image, Color, Font> {
 		// Map percentage to height between the low and high values
 		return (int) (HeightLow + ((HeightHigh - HeightLow) * percentage));
 	}
-	
+
 	public void setStartUnixSeconds(String session_name) {
 
 		for (Event e : events) {
 			if (e.type.equals("Start")) {
 				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-		        try {
-		            Date date = formatter.parse(session_name);
-		            Calendar calendar = Calendar.getInstance();
-		            calendar.setTime(date);
-		            calendar.set(Calendar.HOUR, Integer.parseInt(e.time.split(":")[0]));
-		            calendar.set(Calendar.MINUTE, Integer.parseInt(e.time.split(":")[1]));
-		            calendar.set(Calendar.SECOND, 0);
-		            sync_unix_second_time_start = (int)(calendar.getTimeInMillis()/1000.0);
-		            System.out.println("Session started at: " + calendar.getTime() + " : " + sync_unix_second_time_start);
-		             
-		        } catch (ParseException ee) {
-		            ee.printStackTrace();
-		        }
+				try {
+					Date date = formatter.parse(session_name);
+					Calendar calendar = Calendar.getInstance();
+					calendar.setTime(date);
+					calendar.set(Calendar.HOUR, Integer.parseInt(e.time.split(":")[0]));
+					calendar.set(Calendar.MINUTE, Integer.parseInt(e.time.split(":")[1]));
+					calendar.set(Calendar.SECOND, 0);
+					sync_unix_second_time_start = (int)(calendar.getTimeInMillis()/1000.0);
+					System.out.println("Session started at: " + calendar.getTime() + " : " + sync_unix_second_time_start);
+
+				} catch (ParseException ee) {
+					ee.printStackTrace();
+				}
 			}
 			if (e.type.equals("UnixSeconds")) {
 				sync_unix_second_time_start = Long.parseLong(e.notes);
-	            System.out.println("Session started (using UnixSec) at: " + sync_unix_second_time_start);
+				System.out.println("Session started (using UnixSec) at: " + sync_unix_second_time_start);
 
 				break;
 			}
-			
+
 		}
 
 	}
-	
+
 	int sleepStageHeightConvert(int stagevalue) {
 		int[] conversion = new int[] {4,4,2,1,3,4};
 		if(stagevalue >= conversion.length)
 			return 4;
 		return conversion[stagevalue];
 	}
-	
+
 	boolean drawSleepStageOutline(SleepData.SleepStage previous_stage, SleepData.SleepStage current_stage, long unixcorrection) {
-		
+
 		int sleepYstart = timeline_height;
-		
+
 		int sleepstagespacing = (2*slot_height)/4;
-		
+
 		boolean end_here = false;
-		
+
 		int prev_value;
 		long prev_unix_sec;
 		if(previous_stage!=null) {
 			prev_value = previous_stage.value;
 			prev_unix_sec = previous_stage.unix_sec_end;
-			
+
 			if(1000*(current_stage.unix_sec_end+unixcorrection) < min_time) {
 				return true;
 			}
-			
+
 		}else {
 			prev_value = 1;
 			prev_unix_sec = -unixcorrection;
 		}
-		
-		if(prev_value==0) 
+
+		if(prev_value==0)
 			prev_value = 4;
-		
-		if(current_stage.value==0) 
+
+		if(current_stage.value==0)
 			current_stage.value = 4;
-		
-		
+
+
 		long prev_end_ms = 1000*(prev_unix_sec+unixcorrection);
 		long cur_end_ms = 1000*(current_stage.unix_sec_end+unixcorrection);
 
 		if(prev_end_ms<min_time)prev_end_ms=min_time;
 		if(prev_end_ms>max_time) {
 			prev_end_ms=max_time;
-			}
-		
+		}
+
 		if(cur_end_ms<min_time)cur_end_ms=min_time;
-		
+
 		if(cur_end_ms>max_time) {
 			cur_end_ms=max_time;
 		}
-		
-		
+
+
 		String[] sleepcolors = new String[]{
 				"#FDD835",	// Unknown
 				"#FDD835",	// Awake
@@ -327,18 +329,18 @@ public class Grapher<Image, Color, Font> {
 				"#18FFFF",	// REM
 				"#FDD835"	// Unknown
 		};
-		
+
 		int prev_stage_height = sleepYstart-(sleepStageHeightConvert(prev_value)*sleepstagespacing);
 		int cur_stage_height = sleepYstart-(sleepStageHeightConvert(current_stage.value)*sleepstagespacing);
-		
+
 		Color colorA, colorB = gi.convertColor(sleepcolors[current_stage.value]);
-		colorA = sleepStageHeightConvert(prev_value)>sleepStageHeightConvert(current_stage.value) ? gi.convertColor(sleepcolors[prev_value]) : colorB;  
-		
+		colorA = sleepStageHeightConvert(prev_value)>sleepStageHeightConvert(current_stage.value) ? gi.convertColor(sleepcolors[prev_value]) : colorB;
+
 		gi.setColor(colorA);
 		gi.drawLine(xtimescale(prev_end_ms), prev_stage_height, xtimescale(prev_end_ms), cur_stage_height);
 		gi.setColor(colorB);
 		gi.drawLine(xtimescale(prev_end_ms), cur_stage_height, xtimescale(cur_end_ms), cur_stage_height);
-		
+
 		//if(previous_stage==null)
 		//	drawEventLine(xtimescale(1000*(current_stage.unix_sec+unixcorrection)), "", -2, 5, false,
 		//			gi.convertColor(sleepcolors[1]),
@@ -347,19 +349,19 @@ public class Grapher<Image, Color, Font> {
 		//	drawEventLine(xtimescale(cur_end_ms), "", 0, 4, false,
 		//				gi.convertColor(sleepcolors[1]),
 		//				gi.convertColor(sleepcolors[1]));
-		
+
 		return end_here;
 
 	}
-	
+
 	void drawSleepStages(ArrayList<SleepData.SleepStage> data) {
 		if(data.isEmpty())
 			return;
-		
+
 		long unixcorrection = data.get(0).unix_sec-sync_unix_second_time_start;
 		// Let's adjust the first item
 		data.get(0).unix_sec = 0;
-		
+
 		SleepData.SleepStage previous = null;
 		for(SleepData.SleepStage ss : data) {
 			if(drawSleepStageOutline(previous, ss, unixcorrection))
@@ -367,17 +369,17 @@ public class Grapher<Image, Color, Font> {
 					continue;
 				else
 					break;
-			
+
 			previous = ss;
 		}
-		
+
 	}
-	
-	void drawSleepRecords(String name, ArrayList<bruxism_grapher2.SleepData.Record> data, int height_high, int height_low, boolean use_dark_mode, Color_element linecolor, int standard_minval, int standard_maxval, boolean drawRight) {
-		
+
+	void drawSleepRecords(String name, ArrayList<SleepData.Record> data, int height_high, int height_low, boolean use_dark_mode, Color_element linecolor, int standard_minval, int standard_maxval, boolean drawRight) {
+
 		if(data.isEmpty())
 			return;
-		
+
 		long unixcorrection = data.get(0).unix_sec-sync_unix_second_time_start;
 		// Let's adjust the first item
 		data.get(0).unix_sec = 0;
@@ -392,17 +394,17 @@ public class Grapher<Image, Color, Font> {
 		int countValues = 0;
 
 		// Iterate through the events array
-		for (bruxism_grapher2.SleepData.Record event : data) {
+		for (SleepData.Record event : data) {
 
 			if (((event.unix_sec+unixcorrection)*1000) > max_time)
 				continue;
 
-			if (((event.unix_sec+unixcorrection)*1000) < min_time) 
+			if (((event.unix_sec+unixcorrection)*1000) < min_time)
 				continue;
-			
-			
-				avgFvalue += event.value;
-				countValues++;
+
+
+			avgFvalue += event.value;
+			countValues++;
 
 			// Track the minimum and maximum value for events where value is false
 			if (event.value < minFvalue) {
@@ -411,7 +413,7 @@ public class Grapher<Image, Color, Font> {
 			if (event.value > maxFvalue) {
 				maxFvalue = event.value;
 			}
-			
+
 		}
 		if(countValues!=0)
 			avgFvalue = avgFvalue/countValues;
@@ -425,7 +427,7 @@ public class Grapher<Image, Color, Font> {
 			gi.drawString(String.valueOf(minFvalue), xtimescale(min_time) - 9 * 4, height_low + 7);
 			gi.drawString(String.valueOf(avgFvalue), xtimescale(min_time) - 9 * 4, height_low - ((height_low-height_high)/2) + 7);
 			gi.drawString(String.valueOf(maxFvalue), xtimescale(min_time) - 9 * 4, height_high + 7);
-			
+
 			gi.setColor(gi.convertColor(Colours.getColor(linecolor, use_dark_mode)));
 			gi.drawString(name, xtimescale(min_time) - 9 * 10, height_low - ((height_low-height_high)/2) + 7);
 
@@ -433,29 +435,29 @@ public class Grapher<Image, Color, Font> {
 			gi.drawString(String.valueOf(minFvalue), xtimescale(max_time) + 9, height_low + 7);
 			gi.drawString(String.valueOf(avgFvalue), xtimescale(max_time) + 9, height_low - ((height_low-height_high)/2) + 7);
 			gi.drawString(String.valueOf(maxFvalue), xtimescale(max_time) + 9, height_high + 7);
-			
+
 			gi.setColor(gi.convertColor(Colours.getColor(linecolor, use_dark_mode)));
 			gi.drawString(name, xtimescale(max_time) + (9*4), height_low - ((height_low-height_high)/2) + 7);
 
 		}
-		
+
 
 		if(standard_maxval>0)
 			maxFvalue = standard_maxval;
 		if(standard_minval>0)
 			minFvalue = standard_minval;
-		
+
 		gi.setColor(gi.convertColor(Colours.getColor(linecolor, use_dark_mode)));
-		bruxism_grapher2.SleepData.Record last_event = null;
-		for (bruxism_grapher2.SleepData.Record re : data) {
+		SleepData.Record last_event = null;
+		for (SleepData.Record re : data) {
 
 			if (((re.unix_sec+unixcorrection)*1000) > max_time)
 				continue;
 
-			if (((re.unix_sec+unixcorrection)*1000) < min_time) 
+			if (((re.unix_sec+unixcorrection)*1000) < min_time)
 				continue;
-			
-			
+
+
 			if (last_event == null) {
 				last_event = re;
 				continue;
@@ -472,9 +474,9 @@ public class Grapher<Image, Color, Font> {
 			}
 
 			gi.drawLine(xtimescale(((last_event.unix_sec+unixcorrection)*1000)),
-						calculateHeightFromPercentage(calculatePercentage(last_event.value, maxFvalue, minFvalue), height_low, height_high),
-						xtimescale(((re.unix_sec+unixcorrection)*1000)),
-						calculateHeightFromPercentage(calculatePercentage(re.value, maxFvalue, minFvalue), height_low, height_high));
+					calculateHeightFromPercentage(calculatePercentage(last_event.value, maxFvalue, minFvalue), height_low, height_high),
+					xtimescale(((re.unix_sec+unixcorrection)*1000)),
+					calculateHeightFromPercentage(calculatePercentage(re.value, maxFvalue, minFvalue), height_low, height_high));
 
 			if (stop_drawing)
 				break;
@@ -652,16 +654,16 @@ public class Grapher<Image, Color, Font> {
 
 	void drawInfoStats(ArrayList<String> values, int rows, boolean use_dark_mode) {
 		boolean ignoredate = true;
-		
+
 		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
 
 		int[] maxchars_row = new int[values.size()];
 		Arrays.fill(maxchars_row, 0);
 
 		int row_spacing = 20;
-		
+
 		int element_count = 0;
-		
+
 		for(String v : values) {
 			int current_column = (((element_count)/rows));
 			if(!ignoredate) {
@@ -674,31 +676,43 @@ public class Grapher<Image, Color, Font> {
 			}else {
 				ignoredate=false;
 			}
-			
+
 			gi.drawString(v, side_info_margin + columnOffset(maxchars_row, current_column), info_text_height + (row_spacing * (element_count%rows)));
 			element_count++;
 		}
 	}
-	
+
 	int columnOffset(int[] maxchars_row, int cc) {
 		int sum = 0;
 		for(int i = 1; i <= cc; i++) {
-			sum+=maxchars_row[i-1]*9;
+			sum+=maxchars_row[i-1]*10;
 		}
 		return sum;
 	}
 
+	public Event findStart() {
+		for (Event e : events) {
+			if(e.type.equals("Start"))
+				return e;
+		}
+		return null;
+	}
+
+
+	public String findSessionName(){
+		String[] startnote = findStart().notes.split(" ");
+		String session_name = startnote[startnote.length-1]; // It's a string date YYYY-MM-DD
+		return session_name;
+	}
+	
 	public Image generateGraph(boolean use_dark_mode) {
 
 		if(gi==null)
 			throw new NullPointerException("You did not call platformSpecificAbstractions() before generating the graph");
-		
-		
-		String session_name = events.get(0).notes.substring(events.get(0).notes.indexOf("Date: ") + 6,
-				events.get(0).notes.length());
-		
+
+		String session_name = findSessionName();
 		setStartUnixSeconds(session_name);
-		
+
 		// Dark mode background
 		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Background, use_dark_mode)));
 		gi.fillRect(0, 0, graph_width, graph_height);
@@ -723,43 +737,47 @@ public class Grapher<Image, Color, Font> {
 
 		drawTimeBaseTick(events.get(0).millis, events.get(0).time, events.get(events.size() - 1).millis);
 
-		
+
 		// Session info table
-		
+
 		sd = getStats();
 		ArrayList<String> infostats = new ArrayList<>(Arrays.asList(new String[]{
 				"Date: " + session_name + " Filename: " + file_name,
 				"Duration: " + sd.getItem("Duration").split(":")[0] + "h " + sd.getItem("Duration").split(":")[1] + "m",
-				"Alarms: " + sd.getItem("Alarm Triggers"),
 				"Warnings: " + sd.getItem("Beep Count"),
-				"Clenching Events: " + sd.getItem("Jaw Events"),
-				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
+				"Alarms: " + sd.getItem("Alarm Triggers"),
 				"Stop After Beeps: " + sd.getItem("Stopped after beep"),
-				"Avg beeps per event: " + sd.getItem("Avg beeps per event"),
-				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
-				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
-				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s",
+				"Clenching Events: " + sd.getItem("Jaw Events"),
+				"Avg beeps per event: " + sd.getItem("Avg beeps per event") + (Double.parseDouble(sd.getItem("Avg beeps per event")) <= 2.0 ? " <-- Cool!" : ""),
+
 				"Total clenching time: " + sd.getItem("Total clench time (seconds)") + "s",
+				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
+				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
+				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s" + (Double.parseDouble(sd.getItem("Average clenching duration (seconds)")) <= 5.0 ? " <-- Remarkable!" : ""),
+				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
+				"Stop After Beeps %: " + sd.getItem("Stopped after beep %") + "%" + (Double.parseDouble(sd.getItem("Stopped after beep %")) > 95.0 ? " <-- Awesome!" : ""),
+
 				"Active time: " + sd.getItem("Active time (permille)") + "‰"
 		}));
-		
+
+
 		if(!sleepData.sleep_stages.isEmpty()) {
 
 			int p1 = (int)(100.0f*calculatePercentage(sleepData.duration_lightsleep, sleepData.duration_sleep, 0)), p2 = (int)(100.0f*calculatePercentage(sleepData.duration_deepsleep, sleepData.duration_sleep, 0)), p3 = (int)(100.0f*calculatePercentage(sleepData.duration_rem, sleepData.duration_sleep, 0));
-			
+
 			infostats.add("Sleep duration: " + sleepData.duration_sleep/60 + "h "+ sleepData.duration_sleep%60 +"m");
 			infostats.add("Light sleep: " + sleepData.duration_lightsleep/60 + "h "+ sleepData.duration_lightsleep%60 +"m (" + (p1) +"%)");
 			infostats.add("Deep sleep: " + sleepData.duration_deepsleep/60 + "h "+ sleepData.duration_deepsleep%60 +"m (" + (p2) +"%)");
 			infostats.add("REM: " + sleepData.duration_rem/60 + "h "+ sleepData.duration_rem%60 +"m (" + (p3) +"%)");
 			infostats.add("Awake: " + sleepData.duration_awake/60 + "h "+ sleepData.duration_awake%60 +"m ("+sleepData.awake_count+")");
-			
+
 			infostats.add("Average BPM: " + sleepData.average_hr);
 			infostats.add("Breath Quality: " + sleepData.average_breath_quality + "%" );
-			
+
 			drawSleepStages(sleepData.sleep_stages);
-			
+
 		}
-		
+
 		drawInfoStats(infostats, 7, use_dark_mode);
 
 		int startx_legend = graph_width / 8;
@@ -783,6 +801,7 @@ public class Grapher<Image, Color, Font> {
 		gi.drawString("Alarm", startx_legend + (spacing * 3) + 30, y_legend + 15);
 
 		drawIcons(graph_width - 100, 35);
+
 
 		int c = 0, cc = 1;
 		long last_beep = 0, last_button = 0, last_alarm = 0, last_clench = 0, last_alarm_stop = 0;
@@ -881,8 +900,7 @@ public class Grapher<Image, Color, Font> {
 			throw new NullPointerException("You did not provide events for this file!");
 		}
 		if(sd==null) {
-			String session_name = events.get(0).notes.substring(events.get(0).notes.indexOf("Date: ") + 6,
-					events.get(0).notes.length());
+			String session_name = findSessionName();
 			sd = Statistics.calcStats(session_name, events);
 		}
 		return sd;
@@ -897,3 +915,4 @@ public class Grapher<Image, Color, Font> {
 	}
 
 }
+
