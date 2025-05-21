@@ -32,6 +32,10 @@
 
     <uses-permission android:name="com.urbandroid.sleep.READ" />
 
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
 
     <application
         android:allowBackup="true"
@@ -94,6 +98,12 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Transparent" />
 
+        <activity
+            android:name=".CameraTest"
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar">
+        </activity>
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true">
@@ -104,3 +114,4 @@
     </application>
 
 </manifest>
+

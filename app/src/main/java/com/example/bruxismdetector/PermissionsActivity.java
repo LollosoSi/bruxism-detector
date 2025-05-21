@@ -136,14 +136,62 @@ public class PermissionsActivity extends AppCompatActivity {
             });
         }
 
+        if(isMicrophonePermissionGranted(this)){
+            coolperms++;
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.microphonep));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.microphonep)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestMicrophonePermission(PermissionsActivity.this, 1000);
+                    checkset();
+                }
+            });
+        }
 
-        if(coolperms==6){
+        if(isCameraPermissionGranted(this)){
+            coolperms++;
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.camerap));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.camerap)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestCameraPermission(PermissionsActivity.this, 10000);
+                    checkset();
+                }
+            });
+        }
+
+
+        if(coolperms==8){
             // restart the application
             //Intent intent = new Intent(this, MainActivity.class);
             //startActivity(intent);
             finish();
         }
     }
+
+
+    public static boolean isCameraPermissionGranted(Context context) {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestCameraPermission(Activity activity, int requestCode) {
+        ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CAMERA}, requestCode);
+    }
+
+    public static boolean isMicrophonePermissionGranted(Context context) {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestMicrophonePermission(Activity activity, int requestCode) {
+        ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.RECORD_AUDIO}, requestCode);
+    }
+
 
     public static boolean hasNotificationPermission(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -171,7 +219,7 @@ public class PermissionsActivity extends AppCompatActivity {
 
 
     public static boolean hasAllPermissions(Context ct){
-        return hasExternalPerm() && hasStorage(ct) && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct) && hasNotificationPermission(ct);
+        return hasExternalPerm() && hasStorage(ct) && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct) && hasNotificationPermission(ct) && isCameraPermissionGranted(ct) && isMicrophonePermissionGranted(ct);
     }
 
     public void askNotificationPerm(){

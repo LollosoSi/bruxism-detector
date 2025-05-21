@@ -31,6 +31,18 @@
         android:text="External Storage" />
 
     <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/microphonep"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Microphone" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/camerap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Camera" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/alms"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

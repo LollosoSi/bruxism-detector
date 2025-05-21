@@ -2,6 +2,7 @@ package com.example.bruxismdetector.bruxism_grapher2;
 
 import android.icu.text.SimpleDateFormat;
 import android.icu.util.Calendar;
+import android.util.Log;
 
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.GrapherInterface;
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.IconManager;
@@ -14,6 +15,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Arrays;
+
 
 public class Grapher<Image, Color, Font> {
 
@@ -154,7 +156,7 @@ public class Grapher<Image, Color, Font> {
 		icons.put("botox", icm.loadImage("botox.png", Nice));
 		icons.put("onlyalarm", icm.loadImage("onlyalarms.png", Neutral));
 		icons.put("tired", icm.loadImage("tired.png", Mediocre));
-
+		icons.put("mouth guard", icm.loadImage("mouthguard.png", Neutral));
 
 	}
 
@@ -394,7 +396,7 @@ public class Grapher<Image, Color, Font> {
 		int countValues = 0;
 
 		// Iterate through the events array
-		for (com.example.bruxismdetector.bruxism_grapher2.SleepData.Record event : data) {
+		for (SleepData.Record event : data) {
 
 			if (((event.unix_sec+unixcorrection)*1000) > max_time)
 				continue;
@@ -685,19 +687,32 @@ public class Grapher<Image, Color, Font> {
 	int columnOffset(int[] maxchars_row, int cc) {
 		int sum = 0;
 		for(int i = 1; i <= cc; i++) {
-			sum+=maxchars_row[i-1]*9;
+			sum+=maxchars_row[i-1]*7;
 		}
 		return sum;
 	}
 
+	public Event findStart() {
+		for (Event e : events) {
+			if(e.type.equals("Start"))
+				return e;
+		}
+		return null;
+	}
+
+
+	public String findSessionName(){
+		String[] startnote = findStart().notes.split(" ");
+		String session_name = startnote[startnote.length-1]; // It's a string date YYYY-MM-DD
+		Log.i("Session", "Session is "+session_name);
+		return session_name;
+	}
 	public Image generateGraph(boolean use_dark_mode) {
 
 		if(gi==null)
 			throw new NullPointerException("You did not call platformSpecificAbstractions() before generating the graph");
 
-
-		String session_name = events.get(0).notes.substring(events.get(0).notes.indexOf("Date: ") + 6, events.get(0).notes.length());
-
+		String session_name = findSessionName();
 		setStartUnixSeconds(session_name);
 
 		// Dark mode background
@@ -731,18 +746,22 @@ public class Grapher<Image, Color, Font> {
 		ArrayList<String> infostats = new ArrayList<>(Arrays.asList(new String[]{
 				"Date: " + session_name + " Filename: " + file_name,
 				"Duration: " + sd.getItem("Duration").split(":")[0] + "h " + sd.getItem("Duration").split(":")[1] + "m",
-				"Alarms: " + sd.getItem("Alarm Triggers"),
 				"Warnings: " + sd.getItem("Beep Count"),
-				"Clenching Events: " + sd.getItem("Jaw Events"),
-				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
+				"Alarms: " + sd.getItem("Alarm Triggers"),
 				"Stop After Beeps: " + sd.getItem("Stopped after beep"),
-				"Avg beeps per event: " + sd.getItem("Avg beeps per event"),
-				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
-				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
-				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s",
+				"Clenching Events: " + sd.getItem("Jaw Events"),
+				"Avg beeps per event: " + sd.getItem("Avg beeps per event") + (Double.parseDouble(sd.getItem("Avg beeps per event")) <= 2.0 ? " <-- Cool!" : ""),
+
 				"Total clenching time: " + sd.getItem("Total clench time (seconds)") + "s",
+				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
+				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
+				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s" + (Double.parseDouble(sd.getItem("Average clenching duration (seconds)")) <= 5.0 ? " <-- Remarkable!" : ""),
+				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
+				"Stop After Beeps %: " + sd.getItem("Stopped after beep %") + "%" + (Double.parseDouble(sd.getItem("Stopped after beep %")) > 95.0 ? " <-- Awesome!" : ""),
+
 				"Active time: " + sd.getItem("Active time (permille)") + "‰"
 		}));
+
 
 		if(!sleepData.sleep_stages.isEmpty()) {
 
@@ -883,8 +902,7 @@ public class Grapher<Image, Color, Font> {
 			throw new NullPointerException("You did not provide events for this file!");
 		}
 		if(sd==null) {
-			String session_name = events.get(0).notes.substring(events.get(0).notes.indexOf("Date: ") + 6,
-					events.get(0).notes.length());
+			String session_name = findSessionName();
 			sd = Statistics.calcStats(session_name, events);
 		}
 		return sd;

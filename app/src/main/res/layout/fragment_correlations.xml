@@ -23,18 +23,34 @@
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="0dp"
-        android:padding="6dp"
-        android:layout_weight="1">
-        <CheckBox
-            android:layout_gravity="center|bottom"
-            android:id="@+id/seeallcheckbox"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="See all elements"
-            android:checked="false"
+        android:animateLayoutChanges="true"
+        >
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:animateLayoutChanges="true">
+            <TextView
+                android:id="@+id/errortext"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/material_red_500"
+                android:text="There was an error"
+                android:textAlignment="center"
+                android:layout_weight="0"
+                android:visibility="gone"
+                />
+            <CheckBox
+                android:layout_gravity="center|bottom"
+                android:id="@+id/seeallcheckbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="See all elements"
+                android:checked="false"
+                android:layout_weight="0"
+                />
+        </LinearLayout>
 
-
-            />
     </com.google.android.material.bottomnavigation.BottomNavigationView>
 </LinearLayout>

@@ -256,6 +256,17 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/button_test"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="launchcameratest"
+            android:text="Camera test"
+            app:icon="@drawable/trainer"
+            android:layout_marginRight="5dp"
+            />
+
     </LinearLayout>
 
     </LinearLayout>

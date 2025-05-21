@@ -188,17 +188,9 @@ public class SummaryChartFragment extends Fragment {
 
     void addGraphs(){
 
-        createChartWithDateFromIndex(1);
-
-        createChartWithDateFromIndex(2);
-        createChartWithDateFromIndex(3);
-        createChartWithDateFromIndex(7);
-        createChartWithDateFromIndex(8);
-        createChartWithDateFromIndex(9);
-        createChartWithDateFromIndex(10);
-        createChartWithDateFromIndex(11);
-        createChartWithDateFromIndex(12);
-
+        for(int i = 1; i < summaryTitles.length-2; i++) {
+            createChartWithDateFromIndex(i);
+        }
 
     }
 

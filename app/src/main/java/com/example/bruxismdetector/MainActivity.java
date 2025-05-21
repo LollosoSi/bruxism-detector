@@ -327,6 +327,11 @@ private static final String TAG = "Main activity";
 
 
     }
+    public void launchcameratest(View v){
+        Intent intent = new Intent(this, CameraTest.class);
+        startActivity(intent);
+
+    }
 
     private boolean launchActivityforPermissionsIfNecessary() {
         if (!PermissionsActivity.hasAllPermissions(this)) {

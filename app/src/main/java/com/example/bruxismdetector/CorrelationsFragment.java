@@ -1,9 +1,13 @@
 package com.example.bruxismdetector;
 
 import android.animation.LayoutTransition;
+import android.graphics.Color;
+import android.graphics.text.LineBreaker;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -16,6 +20,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.widget.TextViewCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.bruxismdetector.bruxism_grapher2.Correlations;
@@ -27,9 +32,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 public class CorrelationsFragment extends Fragment {
+    boolean show_error = false;
 
     View root;
 
@@ -52,6 +61,10 @@ public class CorrelationsFragment extends Fragment {
             public void run() {
                 readSummary();
                 prepareCorrelationArrays();
+                if(show_error){
+                    ((TextView)root.findViewById(R.id.errortext)).setText("There was an error while interpreting the data.\nAre you up to date?");
+                    ((TextView)root.findViewById(R.id.errortext)).setTextColor(getResources().getColor(R.color.material_red_500, requireContext().getTheme()));
+                }
             }
         }).start();
 
@@ -81,35 +94,44 @@ public class CorrelationsFragment extends Fragment {
 
     double threshold = 0.2;
     static final byte PositiveCorr = 1, NegativeCorr = 2, NeutralCorr = 0;
-    byte[] positiveIfIncreased = {
-            NeutralCorr,   // Longer sleep. Not necessarily
-            NegativeCorr,  // Clenching Rate (per hour) → lower is better
-            NegativeCorr,  // Jaw Events → fewer events is better
-            NegativeCorr,  // Alarm Triggers → fewer alarms = better
-            NegativeCorr,  // Beep Count → fewer beeps = better
-            PositiveCorr,   // Button Presses → user actively responded
-            PositiveCorr,   // Stopped after beep → good, indicates awareness
-            NegativeCorr,  // Avg beeps per event → lower is better (faster response)
-            NegativeCorr,  // Alarm % → fewer alarm-level events is better
-            PositiveCorr,   // Average clenching event pause → longer gaps between events = better
-            NegativeCorr,  // Average clenching duration → shorter clenches = better
-            NegativeCorr,  // Total clench time → less overall clenching = better
-            NegativeCorr   // Active time (permille) → lower activity during sleep = better
-    };
 
-    byte isGoingToBetter(double correlation, int index) throws IndexOutOfBoundsException {
-        if(index < positiveIfIncreased.length){
+    ArrayList<String> positiveIncreased = new ArrayList<>(Arrays.asList(
+            "Stopped after beep %",
+            "Average clenching event pause (minutes)",
+            "Stopped after beep"
+    ));
+    ArrayList<String> negativeIncreased = new ArrayList<>(Arrays.asList(
+            "Total clench time (seconds)",
+            "Active time (permille)",
+            "Clenching Rate (per hour)",
+            "Avg beeps per event",
+            "Average clenching duration (seconds)",
+            "Jaw Events",
+            "Beep Count",
+            "Alarm Triggers",
+            "Alarm %"
+    ));
+    byte isGoingToBetter(double correlation, String tablelabel) throws IndexOutOfBoundsException {
+
+
+            boolean cc1 = (positiveIncreased.contains(tablelabel));
+            boolean cc2 = (negativeIncreased.contains(tablelabel));
 
             boolean c1 = (correlation>0);
             boolean c2 = (correlation<0);
 
-            boolean b1 = c1 && (positiveIfIncreased[index]==PositiveCorr);
-            boolean b2 = c2 && (positiveIfIncreased[index]==NegativeCorr);
+            boolean b1 = c1 && cc1;
+            boolean b2 = c2 && cc2;
 
-            return positiveIfIncreased[index]==NeutralCorr ? NeutralCorr : (b1 || b2 ? PositiveCorr : NegativeCorr);
-        }else{
-            throw new IndexOutOfBoundsException();
-        }
+            byte res = !(cc1||cc2) ? NeutralCorr : (b1 || b2 ? PositiveCorr : NegativeCorr);
+            String[] debugres = {"Neutral","Positive","Negative"};
+
+            Log.i("Filter", "Label: " + tablelabel + " Corr: " + correlation + " c1: "+c1+" c2: "+c2 + " cc1: " + cc1 + " cc2: " + cc2 + " b1: " + b1 + " b2: " + b2 + " Result: " + debugres[res]);
+
+
+
+            return res;
+
     }
 
 
@@ -338,29 +360,32 @@ public class CorrelationsFragment extends Fragment {
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(0, 8, 0, 8);  // Vertical spacing
 
-                String finaltext = summaryTitles[i + startcolumn];
+                String finaltext = summaryTitles[i+startcolumn];
                 if (finaltext.contains("(")) {
                     finaltext = finaltext.substring(0, finaltext.indexOf("(") - 1);
                 }
 
                 TextView label = new TextView(requireContext());
                 label.setText(finaltext);
-                label.setTextSize(12);
+                label.setTextSize(11);
                 label.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1));
                 label.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
                 label.setPadding(0, 0, 16, 0);
-                //label.setMaxLines(3); // Optional: allow wrapping to a few lines
-                //label.setEllipsize(TextUtils.TruncateAt.END);
 
-                // Enable text justification if API >= 29
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    //label.setJustificationMode(LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
-                }
+                TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                        label,
+                        8,   // min size in SP
+                        14,  // max size in SP
+                        1,   // step size in SP
+                        TypedValue.COMPLEX_UNIT_SP
+                );
 
 
                 double corr = correlations[filter][i];
                 double absCorr = Math.min(1f, Math.abs(corr));
-                byte good = isGoingToBetter(corr, i);
+                //Log.i("filter", "F: "+i);
+                byte good = isGoingToBetter(corr, summaryTitles[i+startcolumn]);
+                //Log.i("filter", summaryTitles[i]);
                 if(Math.abs(correlations[filter][i])>=threshold)
                     posnegcount += good == PositiveCorr ? 1 : (good == NegativeCorr ? -1 : 0);
 

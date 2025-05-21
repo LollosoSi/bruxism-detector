@@ -112,21 +112,22 @@ public class Statistics {
 
 		// Calculate stop-after-beeps count
 		int stopAfterBeeps = 0;
-		int notStopAfterBeeps = 0;
 		for (int i = 0; i < events.size(); i++) {
 			Event e = events.get(i);
 			if (e.type.equals("Beep")) {
 				boolean foundAlarm = false;
+				boolean foundBeep = false;
 				for (int j = i + 1; j < events.size(); j++) {
 					Event next = events.get(j);
 					if (next.type.equals("Alarm") && next.millis - e.millis <= 10000) {
 						foundAlarm = true;
 						break;
-					} else if (next.type.equals("Beep")) {
+					} else if (next.type.equals("Beep") && next.millis - e.millis <= 10000) {
+						foundBeep = true;
 						break;
 					}
 				}
-				if (!foundAlarm)
+				if (!foundAlarm && !foundBeep)
 					stopAfterBeeps++;
 			}
 		}
@@ -134,18 +135,20 @@ public class Statistics {
 
 		sd.addData("Date", session_name);
 		sd.addData("Duration", String.valueOf(((int)sessionDuration + ":" + (int) ((sessionDuration % 1) * 60))));
-		sd.addData("Clenching Rate (per hour)", String.valueOf(((int)(clenchingRate*100.0))/100.0));
-		sd.addData("Jaw Events", String.valueOf(clenchCount));
-		sd.addData("Alarm Triggers", String.valueOf(alarmCount));
-		sd.addData("Beep Count", String.valueOf(beepCount));
-		sd.addData("Button Presses", String.valueOf(buttonCount));
-		sd.addData("Stopped after beep", String.valueOf(stopAfterBeeps));
-		sd.addData("Avg beeps per event", String.valueOf(beeps_per_event));
-		sd.addData("Alarm %", String.valueOf(alarm_percentage));
-		sd.addData("Average clenching event pause (minutes)", String.valueOf(avg_clench_pauses));
-		sd.addData("Average clenching duration (seconds)", String.valueOf(avg_clench_duration));
 		sd.addData("Total clench time (seconds)", String.valueOf(total_clench_duration));
 		sd.addData("Active time (permille)", String.valueOf(active_time_percentage));
+		sd.addData("Clenching Rate (per hour)", String.valueOf(((int)(clenchingRate*100.0))/100.0));
+		sd.addData("Stopped after beep %", String.valueOf(((int)(((double)stopAfterBeeps/(double)clenchCount)*10000.0))/100.0));
+		sd.addData("Avg beeps per event", String.valueOf(beeps_per_event));
+		sd.addData("Average clenching duration (seconds)", String.valueOf(avg_clench_duration));
+		sd.addData("Average clenching event pause (minutes)", String.valueOf(avg_clench_pauses));
+		sd.addData("Jaw Events", String.valueOf(clenchCount));
+		sd.addData("Beep Count", String.valueOf(beepCount));
+		sd.addData("Alarm Triggers", String.valueOf(alarmCount));
+		sd.addData("Stopped after beep", String.valueOf(stopAfterBeeps));
+		sd.addData("Alarm %", String.valueOf(alarm_percentage));
+		sd.addData("Button Presses", String.valueOf(buttonCount));
+
 		sd.addData("Mood", String.valueOf(mood));
 
 		return sd;
