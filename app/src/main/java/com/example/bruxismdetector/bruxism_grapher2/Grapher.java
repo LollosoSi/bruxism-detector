@@ -758,7 +758,7 @@ public class Grapher<Image, Color, Font> {
 	int columnOffset(int[] maxchars_row, int cc) {
 		int sum = 0;
 		for(int i = 1; i <= cc; i++) {
-			sum+=maxchars_row[i-1]*10;
+			sum+=maxchars_row[i-1]*7;
 		}
 		return sum;
 	}
