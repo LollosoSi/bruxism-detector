@@ -15,7 +15,7 @@ In case I missed any information, check this [Instructable](https://www.instruct
 </br>
 <sub>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.</sub>
 <hr></hr>
-<div height="500" hspace="20">
+<div height="300" hspace="20">
 <img align="left" src="https://github.com/user-attachments/assets/f6ab8171-b3ae-428b-a4ee-0c84f47bf78b" height="500">
    </br>
 
