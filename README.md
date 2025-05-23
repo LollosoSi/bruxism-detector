@@ -1,6 +1,7 @@
 # Bruxism Detector
 This small suite helps you detect bruxism and interrupt it, while trying to track down its triggers.</br>
-#### Overview
+
+## Overview
 Following this readme, you will build an Arduino based device that is able to detect bruxism.</br><sub><sup>Basic knowledge about electronics is advisable.</sup></sub></br></br>
 Bruxism detection is done through a Machine Learning algorithm and 3 electrodes placed on the forehead.
 </br>Bruxing events are interrupted in two ways:
@@ -13,10 +14,32 @@ Bruxism detection is done through a Machine Learning algorithm and 3 electrodes 
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
 </br>
 <sub>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.</sub>
+<hr></hr>
+<div height="500" hspace="20">
+<img align="left" src="https://github.com/user-attachments/assets/f6ab8171-b3ae-428b-a4ee-0c84f47bf78b" height="500">
+   </br>
 
-## Let's keep in touch!
+<p>
+A full assembly of the modular device,</br>featuring:
+
+</br>- The core module
+</br>- Wall mount
+</br>- Phone mount
+</br>- Battery module.
+</p>
+</br>
+<hr></hr>
+
+<h3>Let's keep in touch!</h3>
+
 Use [discussions](https://github.com/LollosoSi/bruxism-detector/discussions) for support and feature development
-</br>Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems within the code.
+
+Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems within the code.
+
+</br>
+</br>
+</div>
+<hr></hr>
 
 
 # Contents
@@ -54,7 +77,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings).
 - Detect correlations between your tagged sessions <sub>(Android)</sub>
 
-</br><sub>*You will need to export the tracker data to a compatible format</sub>
+<sub>*You will need to export the tracker data to a compatible format</sub>
 
 ## What **NOT** to expect
 - Magic
