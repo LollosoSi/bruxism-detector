@@ -15,19 +15,17 @@ In case I missed any information, check this [Instructable](https://www.instruct
 </br>
 <sub>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.</sub>
 <hr></hr>
-<div height="300" hspace="20">
-<img align="left" src="https://github.com/user-attachments/assets/f6ab8171-b3ae-428b-a4ee-0c84f47bf78b" height="500">
+<div hspace="20">
+<img align="left" src="https://github.com/user-attachments/assets/f6ab8171-b3ae-428b-a4ee-0c84f47bf78b" height="350">
    </br>
 
 <p>
-A full assembly of the modular device,</br>featuring:
-
+A full assembly of the modular device, featuring:
 </br>- The core module
 </br>- Wall mount
 </br>- Phone mount
 </br>- Battery module.
 </p>
-</br>
 <hr></hr>
 
 <h3>Let's keep in touch!</h3>
@@ -35,10 +33,8 @@ A full assembly of the modular device,</br>featuring:
 Use [discussions](https://github.com/LollosoSi/bruxism-detector/discussions) for support and feature development
 
 Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems within the code.
-
-</br>
-</br>
 </div>
+</br>
 <hr></hr>
 
 
