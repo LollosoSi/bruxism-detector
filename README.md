@@ -117,10 +117,10 @@ For more information, [see here](https://en.wikipedia.org/wiki/Classical_conditi
 ## **Electrode Placement**
 You must place 3 electrodes in total. One is ground and should be placed away from the muscle you want to monitor, the two others should be placed on the muscle.
 
-In this case we want to monitor the masseter activity, so the most practical placement is probably across the forehead. 
+In this case we want to monitor activity of the masticatory muscles. the most accessable of these muscles is the temporalis. This also leads to the most practical electrode placement - across the forehead. 
 
 Place:
-- The ground electrode around the center of your forehead (away from the masseter)
+- The ground electrode around the center of your forehead (away from the temples)
 - The other electrodes can be placed symmetrically near the temples. To find the exact spot: place a finger on your temples, clench your jaw slightly. The perfect position is where you feel the muscles contracting with your fingers. In some cases the muscle can even be seen contracting in that spot.
 - **NOTE:** move hair out of the way when placing the electrodes.
 - **NOTE:** do not use the electrodes without conductive gel or replacement. It's not going to work well if at all.
