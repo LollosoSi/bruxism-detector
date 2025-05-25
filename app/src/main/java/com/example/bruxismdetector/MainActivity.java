@@ -62,12 +62,18 @@ import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
 import com.google.android.material.elevation.SurfaceColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -77,6 +83,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
     public final static String LAUNCH_GRAPHER = "Launch_Grapher_Please";
@@ -653,6 +662,44 @@ private static final String TAG = "Main activity";
         }
     }
 
+    private void fetchLatestVersionFromGitHub(Consumer<Integer> callback) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://raw.githubusercontent.com/LollosoSi/bruxism-detector/main/Arduino/main/version.h");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                InputStream in = new BufferedInputStream(conn.getInputStream());
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                String line;
+                int version = -1;
+
+                while ((line = reader.readLine()) != null) {
+                    if (line.contains("VersionIncremental")) {
+                        // Example: const static uint16_t VersionIncremental = 123;
+                        Pattern pattern = Pattern.compile("VersionIncremental\\s*=\\s*(\\d+)");
+                        Matcher matcher = pattern.matcher(line);
+                        if (matcher.find()) {
+                            version = Integer.parseInt(matcher.group(1));
+                            break;
+                        }
+                    }
+                }
+
+                reader.close();
+                in.close();
+                conn.disconnect();
+
+                int finalVersion = version;
+                new Handler(Looper.getMainLooper()).post(() -> callback.accept(finalVersion));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                new Handler(Looper.getMainLooper()).post(() -> callback.accept(-1));
+            }
+        }).start();
+    }
+
     int min_result = 0, max_result = 0;
 
     public void receiveUDP() {
@@ -664,7 +711,8 @@ private static final String TAG = "Main activity";
         multicastLock.setReferenceCounted(true);
         multicastLock.acquire();
 
-
+        boolean check_version = true;
+        sendUDP(new byte[]{(byte)15});
         while (running) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -674,7 +722,48 @@ private static final String TAG = "Main activity";
                 //String message = new String(packet.getData(), 0, packet.getLength());
                 Log.d(TAG, "Received bytes: " + packet.getLength());
 
+                if(check_version){
+                    sendUDP(new byte[]{(byte)15});
+                }
+                if(length == 3){
+
+                    if(data[0] == 15){
+                        check_version=false;
+                        ByteBuffer bb = ByteBuffer.wrap(new byte[]{data[1], data[2]});
+                        bb.order(ByteOrder.LITTLE_ENDIAN); // match Arduino's byte order!
+                        int versionincremental =  bb.getShort();
+
+                        // Now compare:
+                        fetchLatestVersionFromGitHub(latestVersion -> {
+                            if (latestVersion == -1) {
+                                Log.e("VersionCheck", "Failed to fetch version from GitHub.");
+                            } else {
+                                if (versionincremental < latestVersion) {
+                                    Log.i("VersionCheck", "Update available! Arduino=" + versionincremental + ", GitHub=" + latestVersion);
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            new AlertDialog.Builder(MainActivity.this)
+                                                    .setTitle("Update Available")
+                                                    .setMessage("A new firmware version is available.\n\n" +
+                                                            "Please update your Arduino device.")
+                                                    .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                                                    .setCancelable(true)
+                                                    .show();
+                                        }
+                                    });
+
+                                } else {
+                                    Log.i("VersionCheck", "Arduino is up to date.");
+                                }
+                            }
+                        });
+
+                    }
+                }
+
                 if(length == 11) {
+
                     if (data[0] == 11 && data[5]==data[10]) {
 
                         runOnUiThread(new Runnable() {
@@ -798,8 +887,6 @@ private static final String TAG = "Main activity";
         // Set a completion listener
         task.setTaskCallback(callback);
         task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-
-
 
 
         // Release the WakeLock when the task is done

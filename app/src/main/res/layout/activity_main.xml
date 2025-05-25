@@ -265,6 +265,7 @@
             android:text="Camera test"
             app:icon="@drawable/trainer"
             android:layout_marginRight="5dp"
+            android:visibility="gone"
             />
 
     </LinearLayout>
