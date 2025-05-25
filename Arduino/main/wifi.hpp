@@ -1,16 +1,17 @@
 #pragma once
-// Uses debounce by Aaron Kimball
-#include <debounce.h>
+
 #include "user/WifiSettings.h"
 #include "user/Settings.h"
 #include "runtime_variables.hpp"
+
+#include "version.h"
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
 extern void trigger_alarm();
 extern void warning_beep();
-static void button_short_press(uint8_t btnId, uint8_t btnState);
+static void button_short_press(bool pressed, bool released);
 
 WiFiUDP udp;                                 // Define UDP object
 WiFiUDP read_udp;                            // Define UDP object
@@ -86,6 +87,18 @@ void send_to_udp() {
   udp.endPacket();
 }
 
+void send_version(){
+  udp.beginPacket(multicastAddress, multicastPort);
+
+  udp.write(CHECK_VERSION);
+
+  // Send as uint16_t (Little-Endian)
+  udp.write(lowByte(VersionIncremental));
+  udp.write(highByte(VersionIncremental));
+
+  udp.endPacket();
+}
+
 void read_from_udp() {
   char packetBuffer[255];  // Buffer to store incoming messages
   int packetSize = read_udp.parsePacket();
@@ -128,7 +141,7 @@ void read_from_udp() {
           break;
 
         case BUTTON_PRESS:
-          button_short_press(0, BTN_PRESSED);
+          button_short_press(true, false);
           break;
 
         case DO_NOT_BEEP_ARDUINO:
@@ -146,6 +159,10 @@ void read_from_udp() {
             tone(BUZZER, Notes::F6, Notes::DottedEighth / 4);
           }
           alarm_even_with_android = true;
+        break;
+
+        case CHECK_VERSION:
+          send_version();
         break;
       }
     }

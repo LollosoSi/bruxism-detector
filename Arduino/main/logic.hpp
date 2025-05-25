@@ -2,22 +2,27 @@
 
 #pragma once
 
+
 #include "user/WifiSettings.h"
 #include "user/Settings.h"
 #include "runtime_variables.hpp"
 
 #include "wifi.hpp"
 
-// Uses debounce by Aaron Kimball
-#include <debounce.h>
 
-static void button_longer_press(uint8_t btnId, uint8_t btnState);
-static void button_long_press(uint8_t btnId, uint8_t btnState);
-static void button_short_press(uint8_t btnId, uint8_t btnState);
+// Custom debounce class
+#include "debounce.hpp"
+const unsigned long updateInterval = 10;  // Debounce sampling interval: 10ms (100 Hz)
+unsigned long lastUpdate = 0;
 
-static Button button_input_short(0, button_short_press);
-static Button button_input_long(1, button_long_press);
-static Button button_input_longer(2, button_longer_press);
+
+static void button_longer_press(bool pressed, bool released);
+static void button_long_press(bool pressed, bool released);
+static void button_short_press(bool pressed, bool released);
+
+static ButtonDebounce button_input_short(50, button_short_press);
+static ButtonDebounce button_input_long(800, button_long_press);
+static ButtonDebounce button_input_longer(9000, button_longer_press);
 
 bool is_ema_procedure = false;
 bool is_calc_ema = false;
@@ -25,7 +30,7 @@ bool is_calc_b = true;
 float EMA_A = 0, EMA_B = 0;
 float min_b = 0;
 const float alpha = 0.1f;
-static void emacalc(float &EMA, float x) {
+static void emacalc(float& EMA, float x) {
   EMA = (alpha * x) + ((1 - alpha) * EMA);
 }
 
@@ -69,13 +74,13 @@ void trigger_alarm() {
 
 void warning_beep() {
   send_event(BEEP);
-  if(do_not_beep_if_android && is_using_android){
+  if (do_not_beep_if_android && is_using_android) {
     return;
   }
 
   tone(BUZZER, 2600, warning_beep_duration);
   delay(warning_beep_wait);
- // tone(BUZZER, 2600, warning_beep_duration);
+  // tone(BUZZER, 2600, warning_beep_duration);
 }
 
 inline void loop_alarm() {
@@ -176,7 +181,7 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
           }
           warning_beep();
           Serial.println("Beep!");
-          
+
 
           beepCounter++;
         } else if (!alarm_running) {
@@ -208,10 +213,6 @@ bool beep_incremental = false;
 
 void setup_logic() {
   pinMode(BUTTON, INPUT_PULLUP);
-
-  button_input_short.setPushDebounceInterval(10);
-  button_input_long.setPushDebounceInterval(800);
-  button_input_longer.setPushDebounceInterval(9000);
 }
 
 inline void loop_logic() {
@@ -234,8 +235,13 @@ inline void loop_logic() {
 
   loop_alarm();
 
-  bool btread = digitalRead(BUTTON);
-  do {
+
+
+
+  unsigned long now = millis();
+  if (now - lastUpdate >= updateInterval) {
+    lastUpdate = now;
+    bool btread = !digitalRead(BUTTON);
     button_input_short.update(btread);
     if (millis() < 120000) {
       button_input_long.update(btread);
@@ -246,11 +252,11 @@ inline void loop_logic() {
         delay(100);
       }
     }
-  } while (!(btread = digitalRead(BUTTON)));
+  }
 }
 
-static void button_short_press(uint8_t btnId, uint8_t btnState) {
-  if (btnState == BTN_PRESSED) {
+static void button_short_press(bool pressed, bool released) {
+  if (pressed) {
 
     if (is_ema_procedure) {
       tone(BUZZER, 1000, 100);
@@ -364,8 +370,8 @@ static void button_short_press(uint8_t btnId, uint8_t btnState) {
   }
 }
 
-static void button_longer_press(uint8_t btnId, uint8_t btnState) {
-  if (btnState == BTN_PRESSED) {
+static void button_longer_press(bool pressed, bool released) {
+  if (pressed) {
     tone(BUZZER, Notes::Ds6, 250);
     delay(100);
     tone(BUZZER, Notes::Gs6, 250);
@@ -380,14 +386,14 @@ static void button_longer_press(uint8_t btnId, uint8_t btnState) {
     beep_incremental = false;
   }
 }
-static void button_long_press(uint8_t btnId, uint8_t btnState) {
-  if (btnState == BTN_OPEN && !is_ema_procedure) {
+static void button_long_press(bool pressed, bool released) {
+  if (released && !is_ema_procedure) {
     stream_FFT = !stream_FFT;
     tone(BUZZER, stream_FFT ? 2000 : 2400, 50);
     delay(100);
     tone(BUZZER, !stream_FFT ? 2000 : 2400, 50);
     beep_incremental = false;
-  } else if (btnState == BTN_PRESSED) {
+  } else if (pressed) {
     beep_incremental = true;
     tone(BUZZER, Notes::Ds6, 150);
     delay(100);

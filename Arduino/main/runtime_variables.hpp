@@ -35,6 +35,7 @@ const uint8_t EVALUATION_RESULT = 11;
 const uint8_t SET_EVALUATION_THRESHOLD = 12;
 const uint8_t DO_NOT_BEEP_ARDUINO = 13;
 const uint8_t ALARM_ARDUINO_EVEN_WITH_ANDROID = 14;
+const uint8_t CHECK_VERSION = 15;
 
 bool is_using_android = false;
 bool do_not_beep_if_android = false;
