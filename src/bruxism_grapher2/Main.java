@@ -25,6 +25,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
+import grapher_interfaces.DesktopTaskRunner;
 import grapher_interfaces.GrapherDesktop;
 import grapher_interfaces.IconManagerDesktop;
 
@@ -231,7 +232,7 @@ public class Main {
 	            
 	            gg.setSleepData(FileSleepReader.readCSV("Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
 	            
-	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop());
+	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop(), new DesktopTaskRunner());
 
 	           
 
