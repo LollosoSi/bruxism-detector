@@ -245,6 +245,8 @@ public class SessionTracker {
     }
 
     public static final int dataelementbytes = 9;
+    long last_millis_raw = 0, sync_millis = 0, local_sync_millis = 0;
+    long timestamp_difference_add = 0;
     // Central function to process data from both UDP and Serial sources
     public void processData(byte[] data, int length) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
@@ -270,9 +272,23 @@ public class SessionTracker {
                 for (int i = 0; i < count; i++) {
                     int offset = i * dataelementbytes;
 
-                    long timestamp = ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
+                    long timestamp = (ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL) + timestamp_difference_add;
                     boolean value = (data[offset + 4] != 0);
                     float fvalue = ByteBuffer.wrap(data, offset + 5, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+
+                    if(timestamp < last_millis_raw){
+                        long offstart = (sync_millis+(last_millis_raw-local_sync_millis));
+                        long offtime = millisforsync-offstart;
+                        timestamp_difference_add = (last_millis_raw)+(offtime);
+                        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetected", "Looks like arduino was reset here. It was down for approximately "+offtime+"ms."}, file_out);
+                        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetectedStartMs", String.valueOf(offstart)}, file_out);
+                        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetectedEndMs", String.valueOf(offstart+offtime)}, file_out);
+                        timestamp += timestamp_difference_add;
+                    }
+
+                    if(i==count-1){
+                        last_millis_raw = timestamp;
+                    }
 
                     append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value), String.valueOf((int)fvalue)}, file_raw_out);
                     Log.d(TAG, "Received RAW:\t" + timestamp + "\t" + value + "\t" + ((int)fvalue));
@@ -280,7 +296,9 @@ public class SessionTracker {
 
                 if (!did_print_sync) {
                     did_print_sync = true;
-                    append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(ByteBuffer.wrap(data, (count-1) * dataelementbytes, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL)}, file_out);
+                    sync_millis=millisforsync;
+                    local_sync_millis = ByteBuffer.wrap(data, (count-1) * dataelementbytes, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
+                    append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(local_sync_millis)}, file_out);
                 }
             } else if (length==1) {
                 int val = (data[0] & 0xFF);

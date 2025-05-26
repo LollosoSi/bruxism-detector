@@ -743,6 +743,7 @@ private static final String TAG = "Main activity";
                                     runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
+
                                             new AlertDialog.Builder(MainActivity.this)
                                                     .setTitle("Update Available")
                                                     .setMessage("A new firmware version is available.\n\n" +
@@ -755,6 +756,11 @@ private static final String TAG = "Main activity";
 
                                 } else {
                                     Log.i("VersionCheck", "Arduino is up to date.");
+                                    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                                    if(prefs.getInt("lastversionarduino", 0) != versionincremental){
+                                        prefs.edit().putInt("lastversionarduino", versionincremental).apply();
+                                        ((TextView)findViewById(R.id.updatedtextnotification)).setVisibility(View.VISIBLE);
+                                    }
                                 }
                             }
                         });

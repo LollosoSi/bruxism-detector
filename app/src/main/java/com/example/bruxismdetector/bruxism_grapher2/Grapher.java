@@ -725,6 +725,17 @@ public class Grapher<Image, Color, Font> {
 
 	}
 
+	void drawResets(boolean use_dark_mode){
+		long lastmillis = 0;
+		for(Event e : events){
+			if(e.type.equals("ResetDetectedStartMs")){
+				lastmillis = Long.parseLong(e.notes);
+			}else if(e.type.equals("ResetDetectedEndMs")){
+				long endmillis = Long.parseLong(e.notes);
+				drawDurationRectangle(lastmillis, endmillis, 1, "Arduino down", gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),2);
+			}
+		}
+	}
 	void drawInfoStats(ArrayList<String> values, int rows, boolean use_dark_mode) {
 		boolean ignoredate = true;
 
@@ -964,6 +975,8 @@ public class Grapher<Image, Color, Font> {
 				side_info_margin, graph_height - 32);
 		gi.drawString("Clenching events which lasted less than 1s are only drawn as red lines.", side_info_margin,
 				graph_height - 16);
+
+		drawResets(use_dark_mode);
 
 		return gi.getImage();
 	}

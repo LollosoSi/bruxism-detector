@@ -2,7 +2,7 @@ package com.example.bruxismdetector.bruxism_grapher2;
 public class Colours {
 
 	static enum Color_element {
-		Background, Text, Button, Clenching, Alarm, Warning, Clenchfill, Clenchline, Clenchline_guide, Hrline, Spoline, Stressline;
+		Background, Text, Button, Clenching, Alarm, Warning, Clenchfill, Clenchline, Clenchline_guide, Hrline, Spoline, Stressline, ResetBlock;
 	};
 
 	static String[] light_mode = {
@@ -17,7 +17,8 @@ public class Colours {
 			"#808080",  // GRAY
 			"#F44336", // RED
 			"#40C4FF", // BLUE
-			"#00E676" // GREEN
+			"#00E676", // GREEN
+			"#000000"  // Reset is black (or white)
 	};
 
 	static String[] dark_mode = {
@@ -32,7 +33,8 @@ public class Colours {
 			"#808080",  // GRAY
 			"#F44336", // RED
 			"#40C4FF", // BLUE
-			"#00E676" // GREEN
+			"#00E676", // GREEN
+			"#ffffff"  // Reset is black (or white)
 	};
 
 	static String getColor(Color_element element, boolean use_dark_mode) {

@@ -1,5 +1,7 @@
 package com.example.bruxismdetector.bruxism_grapher2;
 
+import android.util.Log;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -39,19 +41,23 @@ public class FileEventReader {
 				if (parts.length < 3)
 					continue;
 
-
-				long millis = Long.parseLong(parts[0]);
-				String time = parts[1];
-				String type = parts[2];
-				String notes = parts.length > 3 ? parts[3] : "";
-				double duration = 0;
 				try {
-					duration = parts.length > 4 ? Double.parseDouble(parts[4]) : 0;
-				}catch(Exception e) {
-					
+					long millis = Long.parseLong(parts[0]);
+					String time = parts[1];
+					String type = parts[2];
+					String notes = parts.length > 3 ? parts[3] : "";
+					double duration = 0;
+					try {
+						duration = parts.length > 4 ? Double.parseDouble(parts[4]) : 0;
+					} catch (Exception e) {
+
+					}
+					events.add(new Event(millis, time, type, notes, duration));
+				}catch (Exception e){
+					Log.e("FileEventReader", "Error parsing line: " + line + " in file " + fileName);
 				}
 
-				events.add(new Event(millis, time, type, notes, duration));
+
 			}
 		} catch (IOException e) {
 			System.err.println("Error reading file: " + fileName);
