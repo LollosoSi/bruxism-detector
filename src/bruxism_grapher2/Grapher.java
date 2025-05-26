@@ -15,6 +15,7 @@ import bruxism_grapher2.Colours.Color_element;
 
 import java.util.Arrays;
 import java.util.Calendar;
+
 public class Grapher<Image, Color, Font> {
 
 	public void setPlatformSpecificAbstractions(GrapherInterface<Color, Image, Font> g, IconManager<Color, Image> im) {
@@ -77,7 +78,7 @@ public class Grapher<Image, Color, Font> {
 		Image icon;
 		String niceness = Neutral;
 	};
-	
+
 	public Grapher(ArrayList<Event> event_list, String file_name, int width, int height) {
 		events = event_list;
 		this.file_name = file_name;
@@ -610,14 +611,14 @@ public class Grapher<Image, Color, Font> {
 	public void drawIcons(int graphX, int graphY) {
 		int incremental = 0;
 		int sessionincremental = 0;
-		
+
 		// Collect these to print by niceness
 		ArrayList<IconAndNiceness> infoicons = new ArrayList<>();
-		
+
 		Image androidIcon = null;
 		Image moodIcon = null;
 		ArrayList<IconAndNiceness> sessionicons = new ArrayList<>();
-		
+
 		for (Event e : events) {
 			if (e.type.equals("ANDROID") && androidIcon==null) {
 				androidIcon =  icons.get("android").icon;
@@ -630,11 +631,11 @@ public class Grapher<Image, Color, Font> {
 					continue;
 				}
 				infoicons.add(icons.get(e.notes.toLowerCase()));
-				
+
 			}
 
 			if (e.type.equals("SESSION")) {
-				
+
 				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
 				if(ian==null) {
 					System.out.println("Session icon is null: " + e.notes.toLowerCase());
@@ -652,77 +653,88 @@ public class Grapher<Image, Color, Font> {
 				}
 				moodIcon = ian.icon;
 
-				
+
 			}
 		}
-		
+
 		if(androidIcon!=null) {
 			drawIconToSessionGrid(sessionincremental++, androidIcon, graph_width - 60, 30);
 		}
 		if(moodIcon!=null) {
 			drawIconToSessionGrid(sessionincremental++, moodIcon, graph_width - 60, 30);
 		}
-		
+
 		String [] nicenesses = {Bad, Mediocre, Neutral, Nice};
 		// Loop for niceness levels
 		for(int i = nicenesses.length-1; i>=0; i--)
 			for(IconAndNiceness e : sessionicons) {
 				if(!e.niceness.equals(nicenesses[i])) {continue;}
-					drawIconToSessionGrid(sessionincremental++, e.icon, graph_width - 60, 30);
+				drawIconToSessionGrid(sessionincremental++, e.icon, graph_width - 60, 30);
 			}
-		
+
 		// Loop for niceness levels
 		for(int i = nicenesses.length-1; i>=0; i--)
-		for(IconAndNiceness e : infoicons) {
-			if(!e.niceness.equals(nicenesses[i])) {continue;}
-			
-			Image icon = e.icon;
+			for(IconAndNiceness e : infoicons) {
+				if(!e.niceness.equals(nicenesses[i])) {continue;}
 
-			drawIconToGrid(incremental++, icon, graphX-(20), graphY);
-		}
+				Image icon = e.icon;
+
+				drawIconToGrid(incremental++, icon, graphX-(20), graphY);
+			}
 	}
-	
+
 	void drawIconToGrid(int iconincremental, Image icon, int graphX, int graphY) {
 		int iconSize = 32;
 		int spacing = 10;
 		int startY = graphY;
 		int startX = graphX;
-		
-		
+
+
 		int numcolumns = 6;
-		
+
 		int row = iconincremental/numcolumns;
 		int column = iconincremental%numcolumns;
-		
+
 		int x = startX-(column*(spacing+iconSize));
 		int y = startY+(row*(spacing+iconSize));
-		
+
 		if (icon != null) {
 			gi.drawImage(icon, x, y, iconSize, iconSize);
 		}
-		
+
 	}
-	
+
 	void drawIconToSessionGrid(int iconincremental, Image icon, int graphX, int graphY) {
 		int iconSize = 40;
 		int spacing = 10;
 		int startY = graphY;
 		int startX = graphX-spacing;
-		
+
 		int numcolumns = 1;
-		
+
 		int row = iconincremental/numcolumns;
 		int column = iconincremental%numcolumns;
-		
+
 		int x = startX-(column*(spacing+iconSize));
 		int y = startY+(row*(spacing+iconSize));
-		
+
 		if (icon != null) {
 			gi.drawImage(icon, x, y, iconSize, iconSize);
 		}
-		
+
 	}
 
+	void drawResets(boolean use_dark_mode){
+		long lastmillis = 0;
+		for(Event e : events){
+			if(e.type.equals("ResetDetectedStartMs")){
+				lastmillis = Long.parseLong(e.notes);
+			}else if(e.type.equals("ResetDetectedEndMs")){
+				long endmillis = Long.parseLong(e.notes);
+				drawDurationRectangle(lastmillis, endmillis, 1, "Arduino down", gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),2);
+			}
+		}
+	}
 	void drawInfoStats(ArrayList<String> values, int rows, boolean use_dark_mode) {
 		boolean ignoredate = true;
 
@@ -756,7 +768,7 @@ public class Grapher<Image, Color, Font> {
 	int columnOffset(int[] maxchars_row, int cc) {
 		int sum = 0;
 		for(int i = 1; i <= cc; i++) {
-			sum+=maxchars_row[i-1]*10;
+			sum+=maxchars_row[i-1]*7;
 		}
 		return sum;
 	}
@@ -775,7 +787,7 @@ public class Grapher<Image, Color, Font> {
 		String session_name = startnote[startnote.length-1]; // It's a string date YYYY-MM-DD
 		return session_name;
 	}
-	
+
 	public Image generateGraph(boolean use_dark_mode) {
 
 		if(gi==null)
@@ -962,6 +974,8 @@ public class Grapher<Image, Color, Font> {
 				side_info_margin, graph_height - 32);
 		gi.drawString("Clenching events which lasted less than 1s are only drawn as red lines.", side_info_margin,
 				graph_height - 16);
+
+		drawResets(use_dark_mode);
 
 		return gi.getImage();
 	}
