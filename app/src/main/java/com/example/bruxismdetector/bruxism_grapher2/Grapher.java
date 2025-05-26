@@ -7,6 +7,7 @@ import android.util.Log;
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.GrapherInterface;
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.IconManager;
 import com.example.bruxismdetector.bruxism_grapher2.Colours.Color_element;
+import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.TaskRunner;
 
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -15,17 +16,18 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 
 public class Grapher<Image, Color, Font> {
 
-	public void setPlatformSpecificAbstractions(GrapherInterface<Color, Image, Font> g, IconManager<Color, Image> im) {
+	public void setPlatformSpecificAbstractions(GrapherInterface<Color, Image, Font> g, IconManager<Color, Image> im, TaskRunner tr) {
 		gi = g;
 		icm = im;
-
+		taskRunner = tr;
 		calculateGraphParameters();
 	}
-
 
 	StatData sd = null;
 	SleepData sleepData = null;
@@ -69,6 +71,7 @@ public class Grapher<Image, Color, Font> {
 
 	GrapherInterface<Color, Image, Font> gi = null;
 	IconManager<Color, Image> icm = null;
+	TaskRunner taskRunner = null;
 	Map<String, IconAndNiceness> icons = new HashMap<String, IconAndNiceness>();
 
 	public class IconAndNiceness{
@@ -108,12 +111,12 @@ public class Grapher<Image, Color, Font> {
 			}
 		}
 
-		if(!sleepData.heartrate.isEmpty()) {
+		if(!sleepData.heartrate.isEmpty() || !sleepData.stress.isEmpty()) {
 			heartrate_height_low = (line_height_temp -= 25);
 			heartrate_height_high = (line_height_temp -= 30);
 		}
 
-		if(!sleepData.spo2.isEmpty() || !sleepData.stress.isEmpty()) {
+		if(!sleepData.spo2.isEmpty() ) {
 			spo2_height_low = (line_height_temp -= 25);
 			spo2_height_high = (line_height_temp -= 30);
 		}
@@ -239,7 +242,229 @@ public class Grapher<Image, Color, Font> {
 		gi.drawString(text_top, xtimescale(millis_stop) - (xcharsize * text_top.length()),
 				getBaseYslot(slot) - (16 * text_slot));
 	}
+public class Sample_Correlation {
+		long time;
+		double value;
+		public Sample_Correlation(long time, double value){
+			this.time = time;
+			this.value = value;
+		}
 
+};
+ArrayList<Sample_Correlation> samples_clench = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_hr = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_spo2 = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_stress = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_sleepstages = new ArrayList<Sample_Correlation>();
+
+int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
+	int samples = (int)Math.ceil((double) (maxtime - mintime) /1000.0);
+	long step = (maxtime - mintime)/samples;
+
+	return (int) ((time-mintime)/step);
+}
+double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsamples){
+
+	double[] result = new double[numsamples];
+	for(int i = 0; i<samples.size()-1; i++){
+
+		int startfill = findIndexFromTime(min_time, max_time, samples.get(i).time, numsamples), endfill = findIndexFromTime(min_time, max_time, samples.get(i+1).time, numsamples);
+
+		for(int j = startfill; j<endfill; j++){
+			result[j] = samples.get(i).value;
+		}
+
+	}
+	return result;
+}
+
+	public double findValueForTime(ArrayList<Sample_Correlation> samples, long time){
+		Sample_Correlation psc = samples.get(0);
+		for(Sample_Correlation sc : samples){
+			if(time <= sc.time && time >= psc.time){
+				return psc.value;
+			}
+		}
+		return -1;
+	}
+
+	void drawSamplesLineDebug(double[] samples, String name, double floor, double scale){
+		int height_low =  getBaseYslot(0)-((int) ((slot_height+slot_spacing) * floor));
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		gi.drawString(name, xtimescale(min_time) - 9 * 4, height_low + 7);
+		ArrayList<Color> colors = new ArrayList<Color>();
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Spoline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Clenchline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Alarm, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Stressline, true)));
+
+		for(int i = 1; i < samples.length; i++) {
+			if(samples[i]<0 || samples[i]>=colors.size()){
+				gi.setColor(colors.get(0));
+			}else {
+				gi.setColor(colors.get((int) samples[i]));
+			}
+
+			gi.drawLine(xtimescale(min_time+((i-1)*1000L)), height_low-(int)((slot_spacing/scale)*samples[i-1]), xtimescale((long) min_time+(i*1000L)), height_low-(int)((slot_spacing/scale)*samples[i]));
+		}
+
+
+	}
+	void drawSamplesArraysLineDebug(ArrayList<Sample_Correlation> samples, String name, double floor, double scale){
+		int height_low =  getBaseYslot(0)-((int) ((slot_height+slot_spacing) * floor));
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		gi.drawString(name, xtimescale(min_time) - 9 * 4, height_low + 7);
+		ArrayList<Color> colors = new ArrayList<Color>();
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Spoline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Clenchline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Alarm, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Stressline, true)));
+
+		Sample_Correlation psc = samples.get(0);
+		for(Sample_Correlation sc : samples) {
+			if(sc.value<0 || sc.value>=colors.size()){
+				gi.setColor(colors.get(0));
+			}else {
+				gi.setColor(colors.get((int) sc.value));
+			}
+
+			gi.drawLine(xtimescale(psc.time), height_low-(int)((slot_spacing/scale)*psc.value), xtimescale(sc.time), height_low-(int)((slot_spacing/scale)*sc.value));
+		}
+
+
+	}
+
+	double clenching_spo2_corr = 0, clenching_hr_corr = 0, clenching_stress_corr = 0, clenching_sleep_stage_deep_corr = 0, clenching_sleep_stage_light_corr = 0, clenching_sleep_stage_rem_corr = 0, clenching_sleep_stage_awake_corr = 0;
+	void calculateCorrelations(){
+		int samples = (int)Math.ceil((double) (max_time - min_time) /1000.0);
+
+		Future<double[]> clenchFuture = taskRunner.submit(() -> createSampledArray(samples_clench, samples));
+		Future<double[]> hrFuture = taskRunner.submit(() -> createSampledArray(samples_hr, samples));
+		Future<double[]> spo2Future = taskRunner.submit(() -> createSampledArray(samples_spo2, samples));
+		Future<double[]> stressFuture = taskRunner.submit(() -> createSampledArray(samples_stress, samples));
+		Future<double[]> sleepFuture = taskRunner.submit(() -> createSampledArray(samples_sleepstages, samples));
+
+
+		// Later: wait for results
+        try {
+            double[] clenching_night = clenchFuture.get();
+
+        	double[] hr_night = hrFuture.get();
+			double[] spo2_night = spo2Future.get();
+			double[] stress_night = stressFuture.get();
+
+			double[] sleepstages = sleepFuture.get();
+
+
+
+			double[] sleep_stage_rem_night = new double[samples];
+			double[] sleep_stage_light_night = new double[samples];
+			double[] sleep_stage_deep_night = new double[samples];
+			double[] sleep_stage_awake_night = new double[samples];
+
+			if (!samples_sleepstages.isEmpty()) {
+				for(int i = 0; i<samples; i++) {
+					double value = sleepstages[i];
+
+					sleep_stage_rem_night[i] = (SleepData.REM == (int) value) ? 1.0 : 0.0;
+					sleep_stage_awake_night[i] = (SleepData.AWAKE == (int) value) ? 1.0 : 0.0;
+					sleep_stage_light_night[i] = (SleepData.LIGHT_SLEEP == (int) value) ? 1.0 : 0.0;
+					sleep_stage_deep_night[i] = (SleepData.DEEP_SLEEP == (int) value) ? 1.0 : 0.0;
+				}
+			}
+
+			boolean draw_debug = false;
+			double debugline = 2.0;
+			double increment = 0.7;
+
+
+			Future<Double> hr_corr_future = null, spo2_corr_future= null, stress_corr_future= null, deep= null, light= null, rem= null, awake= null;
+			if (!samples_hr.isEmpty()) {
+				hr_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, hr_night));
+			}
+
+			if (!samples_spo2.isEmpty()){
+				spo2_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, spo2_night));
+			}
+
+			if (!samples_stress.isEmpty()){
+				stress_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, stress_night));
+			}
+
+			if (!samples_sleepstages.isEmpty()) {
+
+				deep = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_deep_night));
+				light = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_light_night));
+				rem = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_rem_night));
+				awake = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_awake_night));
+			}
+
+			if (!samples_hr.isEmpty()) {
+				clenching_hr_corr = hr_corr_future.get();
+			}
+
+			if (!samples_spo2.isEmpty()){
+				clenching_spo2_corr = spo2_corr_future.get();
+			}
+
+			if (!samples_stress.isEmpty()){
+				clenching_stress_corr = stress_corr_future.get();
+			}
+
+			if (!samples_sleepstages.isEmpty()) {
+
+				clenching_sleep_stage_deep_corr = deep.get();
+				clenching_sleep_stage_light_corr = light.get();
+				clenching_sleep_stage_rem_corr = rem.get();
+				clenching_sleep_stage_awake_corr = awake.get();
+
+			}
+
+
+
+			if(draw_debug) {
+				drawSamplesLineDebug(clenching_night, "Clench", debugline += increment, 1);
+				//drawSamplesArraysLineDebug(samples_clench, "Clench", debugline+=increment, 1);
+
+				if (!samples_hr.isEmpty()) {
+					drawSamplesLineDebug( hr_night, "HR", debugline+=increment, 100);
+				}
+
+				if (!samples_spo2.isEmpty()){
+					drawSamplesLineDebug( spo2_night, "SpO2", debugline+=increment, 100);
+					//drawSamplesArraysLineDebug(samples_spo2, "SPO2", debugline+=increment, 100.0);
+
+				}
+
+				if (!samples_stress.isEmpty()){
+					drawSamplesLineDebug( stress_night, "Stress", debugline+=increment, 100);
+					//drawSamplesArraysLineDebug(samples_stress, "Stress", debugline+=increment, 100.0);
+
+				}
+
+				if (!samples_sleepstages.isEmpty()) {
+					//drawSamplesArraysLineDebug(samples_sleepstages, "Sleep", debugline+=increment, 5);
+
+					drawSamplesLineDebug( sleep_stage_deep_night, "Deep", debugline+=increment, 1);
+					drawSamplesLineDebug( sleep_stage_light_night, "Light", debugline+=increment, 1);
+					drawSamplesLineDebug( sleep_stage_rem_night, "REM", debugline+=increment, 1);
+					drawSamplesLineDebug( sleep_stage_awake_night, "AWAKE", debugline+=increment, 1);
+
+				}
+
+			}
+
+			taskRunner.shutdown();
+
+		} catch (ExecutionException e) {
+			throw new RuntimeException(e);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
 
 	public float calculatePercentage(int value, int maxValue, int minValue) {
 		// Calculate percentage of value from the baseline relative to minAverage
@@ -344,6 +569,9 @@ public class Grapher<Image, Color, Font> {
 		int prev_stage_height = sleepYstart-(sleepStageHeightConvert(prev_value)*sleepstagespacing);
 		int cur_stage_height = sleepYstart-(sleepStageHeightConvert(current_stage.value)*sleepstagespacing);
 
+		samples_sleepstages.add(new Sample_Correlation(prev_end_ms,current_stage.value));
+
+
 		Color colorA, colorB = gi.convertColor(sleepcolors[current_stage.value]);
 		colorA = sleepStageHeightConvert(prev_value)>sleepStageHeightConvert(current_stage.value) ? gi.convertColor(sleepcolors[prev_value]) : colorB;
 
@@ -373,20 +601,25 @@ public class Grapher<Image, Color, Font> {
 		// Let's adjust the first item
 		data.get(0).unix_sec = 0;
 
+		samples_sleepstages.add(new Sample_Correlation(min_time, SleepData.AWAKE));
+
 		SleepData.SleepStage previous = null;
 		for(SleepData.SleepStage ss : data) {
-			if(drawSleepStageOutline(previous, ss, unixcorrection))
-				if(previous==null)
+			if(drawSleepStageOutline(previous, ss, unixcorrection)) {
+				if (previous == null)
 					continue;
 				else
 					break;
-
+			}
 			previous = ss;
+
+
+
 		}
 
 	}
 
-	void drawSleepRecords(String name, ArrayList<SleepData.Record> data, int height_high, int height_low, boolean use_dark_mode, Color_element linecolor, int standard_minval, int standard_maxval, boolean drawRight) {
+	void drawSleepRecords(String name, ArrayList<SleepData.Record> data, int height_high, int height_low, boolean use_dark_mode, ColorBands colorbands, int standard_minval, int standard_maxval, boolean drawRight, ArrayList<Sample_Correlation> fillsamples_array, boolean use_previous_color_if_increased) {
 
 		if(data.isEmpty())
 			return;
@@ -439,7 +672,7 @@ public class Grapher<Image, Color, Font> {
 			gi.drawString(String.valueOf(avgFvalue), xtimescale(min_time) - 9 * 4, height_low - ((height_low-height_high)/2) + 7);
 			gi.drawString(String.valueOf(maxFvalue), xtimescale(min_time) - 9 * 4, height_high + 7);
 
-			gi.setColor(gi.convertColor(Colours.getColor(linecolor, use_dark_mode)));
+			gi.setColor(colorbands.getDefaultcolor());
 			gi.drawString(name, xtimescale(min_time) - 9 * 10, height_low - ((height_low-height_high)/2) + 7);
 
 		}else {
@@ -447,7 +680,7 @@ public class Grapher<Image, Color, Font> {
 			gi.drawString(String.valueOf(avgFvalue), xtimescale(max_time) + 9, height_low - ((height_low-height_high)/2) + 7);
 			gi.drawString(String.valueOf(maxFvalue), xtimescale(max_time) + 9, height_high + 7);
 
-			gi.setColor(gi.convertColor(Colours.getColor(linecolor, use_dark_mode)));
+			gi.setColor(colorbands.getDefaultcolor());
 			gi.drawString(name, xtimescale(max_time) + (9*4), height_low - ((height_low-height_high)/2) + 7);
 
 		}
@@ -458,7 +691,7 @@ public class Grapher<Image, Color, Font> {
 		if(standard_minval>0)
 			minFvalue = standard_minval;
 
-		gi.setColor(gi.convertColor(Colours.getColor(linecolor, use_dark_mode)));
+
 		SleepData.Record last_event = null;
 		for (SleepData.Record re : data) {
 
@@ -484,13 +717,18 @@ public class Grapher<Image, Color, Font> {
 				continue;
 			}
 
+			gi.setColor(colorbands.getColorFromValue(use_previous_color_if_increased && re.value>last_event.value ? last_event.value : re.value));
 			gi.drawLine(xtimescale(((last_event.unix_sec+unixcorrection)*1000)),
 					calculateHeightFromPercentage(calculatePercentage(last_event.value, maxFvalue, minFvalue), height_low, height_high),
 					xtimescale(((re.unix_sec+unixcorrection)*1000)),
 					calculateHeightFromPercentage(calculatePercentage(re.value, maxFvalue, minFvalue), height_low, height_high));
 
+			fillsamples_array.add(new Sample_Correlation((re.unix_sec+unixcorrection)*1000, re.value));
+
 			if (stop_drawing)
 				break;
+
+
 
 			last_event = re;
 		}
@@ -785,9 +1023,46 @@ public class Grapher<Image, Color, Font> {
 
 	public String findSessionName(){
 		String[] startnote = findStart().notes.split(" ");
-		String session_name = startnote[startnote.length-1]; // It's a string date YYYY-MM-DD
-		return session_name;
+		return startnote[startnote.length-1]; // It's a string date YYYY-MM-DD;
 	}
+
+	class ColorBands{
+		public ColorBands(Color defaultcolor){
+		this.defaultcolor=defaultcolor;
+		}
+
+		Color defaultcolor;
+
+		public void addColorBand(BandColor bc){
+			colors.add(bc);
+		}
+		ArrayList<BandColor> colors = new ArrayList<>();
+		public Color getDefaultcolor(){return defaultcolor;}
+		public Color getColorFromValue(int value){
+			for(BandColor bc : colors) {
+				if (value >= bc.min && value <= bc.max)
+					return bc.getColor();
+			}
+			return defaultcolor;
+		}
+
+	};
+	class BandColor{
+		public BandColor(int min, int max, Color_element color, boolean use_dark_mode){
+			this.min = min;
+			this.max = max;
+			this.color = color;
+			this.use_dark_mode = use_dark_mode;
+		}
+		public Color getColor(){return gi.convertColor(Colours.getColor(color, use_dark_mode));}
+		int min, max;
+		boolean use_dark_mode;
+		Color_element color;
+	};
+	ColorBands spocolors;
+	ColorBands hrcolors;
+	ColorBands stresscolors;
+
 
 	public Image generateGraph(boolean use_dark_mode) {
 
@@ -806,11 +1081,6 @@ public class Grapher<Image, Color, Font> {
 
 		gi.drawLine(xtimescale(min_time), timeline_height, xtimescale(max_time), timeline_height);
 
-		drawRaw(use_dark_mode);
-		drawSleepRecords("BPM", sleepData.heartrate,heartrate_height_high, heartrate_height_low, use_dark_mode, Color_element.Hrline, 30, -1,false);
-		drawSleepRecords("SpO2", sleepData.spo2,spo2_height_high, spo2_height_low, use_dark_mode, Color_element.Spoline, 0, 100,false);
-		drawSleepRecords("Stress", sleepData.stress,spo2_height_high, spo2_height_low, use_dark_mode, Color_element.Stressline, 0, 100,true);
-
 		drawTimeTick(events.get(0).millis, events.get(0).time, 0, false,
 				gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)),
 				gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
@@ -821,48 +1091,6 @@ public class Grapher<Image, Color, Font> {
 
 		drawTimeBaseTick(events.get(0).millis, events.get(0).time, events.get(events.size() - 1).millis);
 
-
-		// Session info table
-
-		sd = getStats();
-		ArrayList<String> infostats = new ArrayList<>(Arrays.asList(new String[]{
-				"Date: " + session_name + " Filename: " + file_name,
-				"Duration: " + sd.getItem("Duration").split(":")[0] + "h " + sd.getItem("Duration").split(":")[1] + "m",
-				"Warnings: " + sd.getItem("Beep Count"),
-				"Alarms: " + sd.getItem("Alarm Triggers"),
-				"Stop After Beeps: " + sd.getItem("Stopped after beep"),
-				"Clenching Events: " + sd.getItem("Jaw Events"),
-				"Avg beeps per event: " + sd.getItem("Avg beeps per event") + (Double.parseDouble(sd.getItem("Avg beeps per event")) <= 2.0 ? " <-- Cool!" : ""),
-
-				"Total clenching time: " + sd.getItem("Total clench time (seconds)") + "s",
-				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
-				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
-				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s" + (Double.parseDouble(sd.getItem("Average clenching duration (seconds)")) <= 5.0 ? " <-- Remarkable!" : ""),
-				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
-				"Stop After Beeps %: " + sd.getItem("Stopped after beep %") + "%" + (Double.parseDouble(sd.getItem("Stopped after beep %")) > 95.0 ? " <-- Awesome!" : ""),
-
-				"Active time: " + sd.getItem("Active time (permille)") + "‰"
-		}));
-
-
-		if(!sleepData.sleep_stages.isEmpty()) {
-
-			int p1 = (int)(100.0f*calculatePercentage(sleepData.duration_lightsleep, sleepData.duration_sleep, 0)), p2 = (int)(100.0f*calculatePercentage(sleepData.duration_deepsleep, sleepData.duration_sleep, 0)), p3 = (int)(100.0f*calculatePercentage(sleepData.duration_rem, sleepData.duration_sleep, 0));
-
-			infostats.add("Sleep duration: " + sleepData.duration_sleep/60 + "h "+ sleepData.duration_sleep%60 +"m");
-			infostats.add("Light sleep: " + sleepData.duration_lightsleep/60 + "h "+ sleepData.duration_lightsleep%60 +"m (" + (p1) +"%)");
-			infostats.add("Deep sleep: " + sleepData.duration_deepsleep/60 + "h "+ sleepData.duration_deepsleep%60 +"m (" + (p2) +"%)");
-			infostats.add("REM: " + sleepData.duration_rem/60 + "h "+ sleepData.duration_rem%60 +"m (" + (p3) +"%)");
-			infostats.add("Awake: " + sleepData.duration_awake/60 + "h "+ sleepData.duration_awake%60 +"m ("+sleepData.awake_count+")");
-
-			infostats.add("Average BPM: " + sleepData.average_hr);
-			infostats.add("Breath Quality: " + sleepData.average_breath_quality + "%" );
-
-			drawSleepStages(sleepData.sleep_stages);
-
-		}
-
-		drawInfoStats(infostats, 7, use_dark_mode);
 
 		int startx_legend = graph_width / 8;
 		int y_legend = legend_height;
@@ -886,6 +1114,8 @@ public class Grapher<Image, Color, Font> {
 
 		drawIcons(graph_width - 100, 35);
 
+		// Mark not clenching initially for correlations later
+		samples_clench.add(new Sample_Correlation(min_time, 0.0));
 
 		int c = 0, cc = 1;
 		long last_beep = 0, last_button = 0, last_alarm = 0, last_clench = 0, last_alarm_stop = 0;
@@ -946,6 +1176,10 @@ public class Grapher<Image, Color, Font> {
 						if (e.millis - last_clench > 60000 * 10)
 							c = 0;
 						last_clench = e.millis;
+
+						// Mark clenching for correlations later
+						samples_clench.add(new Sample_Correlation(e.millis, 1.0));
+
 						//drawEventLine(e.millis, "", 2, 1, false,
 						//		gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)),
 						//		gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
@@ -955,6 +1189,9 @@ public class Grapher<Image, Color, Font> {
 						duration = (int) (duration * 10.0) / 10.0;
 						// double duration = e.duration;
 						String d = duration + "s";
+
+						// Mark not clenching for correlations later
+						samples_clench.add(new Sample_Correlation(e.millis, 0.0));
 
 						drawDurationRectangle(last_clench, e.millis, clenching_slot, (duration < 1) ? "" : d,
 								gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)),
@@ -977,6 +1214,77 @@ public class Grapher<Image, Color, Font> {
 				graph_height - 16);
 
 		drawResets(use_dark_mode);
+
+
+		// Session info table
+
+		sd = getStats();
+		ArrayList<String> infostats = new ArrayList<>(Arrays.asList(new String[]{
+				"Date: " + session_name + " Filename: " + file_name,
+				"Duration: " + sd.getItem("Duration").split(":")[0] + "h " + sd.getItem("Duration").split(":")[1] + "m",
+				"Warnings: " + sd.getItem("Beep Count"),
+				"Alarms: " + sd.getItem("Alarm Triggers"),
+				"Stop After Beeps: " + sd.getItem("Stopped after beep"),
+				"Clenching Events: " + sd.getItem("Jaw Events"),
+				"Avg beeps per event: " + sd.getItem("Avg beeps per event") + (Double.parseDouble(sd.getItem("Avg beeps per event")) <= 2.0 ? " <-- Cool!" : ""),
+
+				"Total clenching time: " + sd.getItem("Total clench time (seconds)") + "s",
+				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
+				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
+				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s" + (Double.parseDouble(sd.getItem("Average clenching duration (seconds)")) <= 5.0 ? " <-- Remarkable!" : ""),
+				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
+				"Stop After Beeps %: " + sd.getItem("Stopped after beep %") + "%" + (Double.parseDouble(sd.getItem("Stopped after beep %")) > 95.0 ? " <-- Awesome!" : ""),
+
+				"Active time: " + sd.getItem("Active time (permille)") + "‰"
+		}));
+
+		drawRaw(use_dark_mode);
+
+		if(!sleepData.sleep_stages.isEmpty()) {
+			drawSleepStages(sleepData.sleep_stages);
+
+			spocolors = new ColorBands(gi.convertColor(Colours.getColor(Color_element.Spoline, use_dark_mode)));
+			hrcolors = new ColorBands(gi.convertColor(Colours.getColor(Color_element.Hrline, use_dark_mode)));
+			stresscolors = new ColorBands(gi.convertColor(Colours.getColor(Color_element.Stressline, use_dark_mode)));
+
+			spocolors.addColorBand(new BandColor(95,100,Color_element.Spoline, use_dark_mode));
+			spocolors.addColorBand(new BandColor(88,95,Color_element.Spoline_warning, use_dark_mode));
+			spocolors.addColorBand(new BandColor(0,88,Color_element.Spoline_danger, use_dark_mode));
+
+			hrcolors.addColorBand(new BandColor(0,300,Color_element.Hrline, use_dark_mode));
+
+			stresscolors.addColorBand(new BandColor(0,30,Color_element.Stressline, use_dark_mode));
+			stresscolors.addColorBand(new BandColor(30,100,Color_element.Spoline_warning, use_dark_mode));
+
+			drawSleepRecords("BPM", sleepData.heartrate,heartrate_height_high, heartrate_height_low, use_dark_mode, hrcolors, 30, -1,false, samples_hr, true);
+			drawSleepRecords("SpO2", sleepData.spo2,spo2_height_high, spo2_height_low, use_dark_mode, spocolors, 0, 100,false, samples_spo2, true);
+			drawSleepRecords("Stress", sleepData.stress,heartrate_height_high, heartrate_height_low, use_dark_mode, stresscolors, 0, 100,true, samples_stress, true);
+
+			calculateCorrelations();
+
+			int p1 = (int)(100.0f*calculatePercentage(sleepData.duration_lightsleep, sleepData.duration_sleep, 0)), p2 = (int)(100.0f*calculatePercentage(sleepData.duration_deepsleep, sleepData.duration_sleep, 0)), p3 = (int)(100.0f*calculatePercentage(sleepData.duration_rem, sleepData.duration_sleep, 0));
+
+			infostats.add("Sleep duration: " + sleepData.duration_sleep/60 + "h "+ sleepData.duration_sleep%60 +"m");
+			infostats.add("Light sleep: " + sleepData.duration_lightsleep/60 + "h "+ sleepData.duration_lightsleep%60 +"m (" + (p1) +"%)");
+			infostats.add("Deep sleep: " + sleepData.duration_deepsleep/60 + "h "+ sleepData.duration_deepsleep%60 +"m (" + (p2) +"%)");
+			infostats.add("REM: " + sleepData.duration_rem/60 + "h "+ sleepData.duration_rem%60 +"m (" + (p3) +"%)");
+			infostats.add("Awake: " + sleepData.duration_awake/60 + "h "+ sleepData.duration_awake%60 +"m ("+sleepData.awake_count+")");
+
+			infostats.add("Average BPM: " + sleepData.average_hr);
+			infostats.add("Breath Quality: " + sleepData.average_breath_quality + "%" );
+
+			infostats.add("Correlation with BPM: " + ((int)(clenching_hr_corr*100.0))/100.0);
+			infostats.add("Correlation with SpO2: " + ((int)(clenching_spo2_corr*100.0))/100.0);
+			infostats.add("Correlation with Stress: " + ((int)(clenching_stress_corr*100.0))/100.0);
+
+			infostats.add("Correlation with Awake: " + ((int)(clenching_sleep_stage_awake_corr*100.0))/100.0);
+			infostats.add("Correlation with Light Sleep: " + ((int)(clenching_sleep_stage_light_corr*100.0))/100.0);
+			infostats.add("Correlation with Deep Sleep: " + ((int)(clenching_sleep_stage_deep_corr*100.0))/100.0);
+			infostats.add("Correlation with REM: " + ((int)(clenching_sleep_stage_rem_corr*100.0))/100.0);
+
+		}
+
+		drawInfoStats(infostats, 7, use_dark_mode);
 
 		return gi.getImage();
 	}

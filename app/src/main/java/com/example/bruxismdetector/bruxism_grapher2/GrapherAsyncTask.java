@@ -12,6 +12,7 @@ import android.util.Log;
 import com.example.bruxismdetector.MainActivity;
 import com.example.bruxismdetector.ProgressingDialog;
 import com.example.bruxismdetector.TrackFilesMerger;
+import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.AndroidTaskRunner;
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.GrapherAndroid;
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.IconManagerAndroid;
 
@@ -21,6 +22,11 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import android.app.UiModeManager;
 
@@ -104,58 +110,62 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
         }
 
         ArrayList<StatData> sda = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        List<Future<StatData>> futures = new ArrayList<>();
 
-        // Check if the directory exists
         if (recordingsDir.exists() && recordingsDir.isDirectory()) {
-            // Get all files in the directory
             File[] files = recordingsDir.listFiles();
 
             if (files != null && files.length > 0) {
 
-                Arrays.sort(files, new Comparator<File>() {
-                    @Override
-                    public int compare(File file1, File file2) {
-                        return Long.compare(file2.lastModified(), file1.lastModified());
-                    }
-                });
+                Arrays.sort(files, (file1, file2) -> Long.compare(file2.lastModified(), file1.lastModified()));
 
-                count = 0;
-                // Return the most recent file
-                for(File f : files)
-                    if(!f.isDirectory() && f.getName().contains(".csv")) {
+                AtomicInteger processedCount = new AtomicInteger(0);
 
-                        ctx.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                asyncDialog.updateProgress((int)((Double.parseDouble(String.valueOf(count))/Double.parseDouble(String.valueOf(files.length))*100.0)));
-                            }
-                        });
+                for (File f : files) {
+                    if (!f.isDirectory() && f.getName().contains(".csv")) {
+                        futures.add(executor.submit(() -> {
+                            int currentCount = processedCount.getAndIncrement();
 
-
-                        try {
-
-                            Log.i("Async", "Processing: " + f.getName());
+                            // Update progress on UI thread
+                            ctx.runOnUiThread(() -> {
+                                int percent = (int) ((currentCount / (float) files.length) * 100.0f);
+                                asyncDialog.updateProgress(percent);
+                            });
 
                             try {
-                                StatData sd = makeGraph(f, new File(String.valueOf(f.getParent()+"/Graphs/"+f.getName().replace(".csv",".png"))).exists() && count!=0);
-                                if (sd != null) sda.add(sd);
+                                Log.i("Async", "Processing: " + f.getName());
+                                boolean skipRedraw = new File(f.getParent() + "/Graphs/" + f.getName().replace(".csv", ".png")).exists() && currentCount != 0;
+                                StatData sd = makeGraph(f, skipRedraw);
+                                return sd;
                             } catch (Exception e) {
                                 e.printStackTrace();
+                                return null;
                             }
-                        } catch (Exception e) {
-                            //e.printStackTrace();
-                        }
-                        count++;
+                        }));
                     }
+                }
 
-                if(sda.size()>2) {
+                executor.shutdown();
 
+                for (Future<StatData> future : futures) {
+                    try {
+                        StatData sd = future.get();  // Wait for each result
+                        if (sd != null) {
+                            sda.add(sd);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                if (sda.size() > 2) {
                     sda.sort(Comparator.naturalOrder());
 
                     File summaryDir = new File(recordingsDir, "Summary");
                     summaryDir.mkdirs();
 
-                    try (PrintWriter pw = new PrintWriter(summaryDir.getParent() + "/Summary/Summary.csv")) {
+                    try (PrintWriter pw = new PrintWriter(new File(summaryDir, "Summary.csv"))) {
                         pw.println(sda.get(0).produce_csv_header());
                         for (StatData sd : sda) {
                             pw.println(sd.produce_csv_line());
@@ -163,13 +173,10 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
-
                 }
-
             }
-
-
         }
+
 
 
 
@@ -249,7 +256,7 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
                 Log.i(TAG, "Rawevents size " + rawevents.size());
                 gg.addRawData(rawevents);
             }
-            gg.setPlatformSpecificAbstractions(new GrapherAndroid(gg.graph_width, gg.graph_height), new IconManagerAndroid(ctx));
+            gg.setPlatformSpecificAbstractions(new GrapherAndroid(gg.graph_width, gg.graph_height), new IconManagerAndroid(ctx), new AndroidTaskRunner());
             gg.writeImage(gg.generateGraph(isDarkModeActive(ctx)), file.getParent() + "/Graphs/" + file.getName());
         }
 

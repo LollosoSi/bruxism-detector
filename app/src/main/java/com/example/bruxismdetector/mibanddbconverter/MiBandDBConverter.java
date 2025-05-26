@@ -225,7 +225,7 @@ public class MiBandDBConverter {
         cursor.close();
 
         if (entries.isEmpty()){
-            Log.i("FitnessDbExtractor", "No entries found");
+            //Log.i("FitnessDbExtractor", "No entries found");
             return;
         }
 
@@ -266,191 +266,195 @@ public class MiBandDBConverter {
             }
         }
 
-        // Now open it safely
-        SQLiteDatabase db = SQLiteDatabase.openDatabase(internalCopy.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+            SQLiteDatabase db = SQLiteDatabase.openDatabase(internalCopy.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
 
-        Log.i("DBParser", "Parsing objects");
+            Cursor cursor = db.query("sleep_segment", new String[]{"value"}, null, null, null, null, null);
+            Map<LocalDate, List<JSONObject>> groupedSegments = new HashMap<>();
 
-        Map<LocalDate, List<JSONObject>> groupedSegments = new HashMap<>();
+            while (cursor.moveToNext()) {
+                String jsonString = cursor.getString(0);
+                try {
+                    JSONObject segment = new JSONObject(jsonString);
+                    long wakeupTime = Math.max(
+                            segment.optLong("wake_up_time", 0),
+                            Math.max(
+                                    segment.optLong("device_wake_up_time", 0),
+                                    segment.optLong("protoTime", 0)
+                            )
+                    );
 
-        Cursor cursor = db.query(false, "sleep_segment", new String[]{"value"}, null, null, null, null, null, null);
-        while (cursor.moveToNext()) {
-            String jsonString = cursor.getString(0);
-            try {
-                JSONObject dataJson = new JSONObject(jsonString);
-                long earliestTime = Math.min(
-                        dataJson.optLong("bedtime", Long.MAX_VALUE),
-                        Math.min(
-                                dataJson.optLong("device_bedtime", Long.MAX_VALUE),
-                                Math.min(
-                                        dataJson.optLong("device_wake_up_time", Long.MAX_VALUE),
-                                        Math.min(
-                                                dataJson.optLong("wake_up_time", Long.MAX_VALUE),
-                                                dataJson.optLong("protoTime", Long.MAX_VALUE)
-                                        )
-                                )
-                        )
-                );
+                    if (wakeupTime > 0) {
+                        LocalDate utcDate = Instant.ofEpochSecond(wakeupTime).atZone(ZoneOffset.UTC).toLocalDate();
+                        groupedSegments.computeIfAbsent(utcDate, k -> new ArrayList<>()).add(segment);
+                    }
 
-                if (earliestTime != Long.MAX_VALUE) {
-                    LocalDate utcDate = Instant.ofEpochSecond(earliestTime).atZone(ZoneOffset.UTC).toLocalDate();
-                    groupedSegments.computeIfAbsent(utcDate, k -> new ArrayList<>()).add(dataJson);
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
-
-            } catch (JSONException e) {
-                e.printStackTrace();
             }
-        }
-        cursor.close();
+            cursor.close();
 
-        Log.i("DBParser", "Parsing sessions");
+            File baseDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "RECORDINGS/Sleep");
+            int count = 0;
+            int maxsize = groupedSegments.size();
+            for (Map.Entry<LocalDate, List<JSONObject>> entry : groupedSegments.entrySet()) {
+                LocalDate date = entry.getKey();
+                List<JSONObject> sessions = entry.getValue();
 
-        int cur = 0, max = groupedSegments.entrySet().size();
-        for (Map.Entry<LocalDate, List<JSONObject>> entry : groupedSegments.entrySet()) {
-
-            pr.setProgress((int) (((float)cur++/(float)max)*100));
 
 
-            LocalDate sessionDate = entry.getKey();
-            List<JSONObject> segments = entry.getValue();
+                pr.setProgress((int) (((double)count++/(double)maxsize)*100.0));
 
-            // Sort segments by earliest_time
-            segments.sort(Comparator.comparingLong(s -> {
-                return Math.min(
-                        s.optLong("bedtime", Long.MAX_VALUE),
-                        s.optLong("device_bedtime", Long.MAX_VALUE)
-                );
-            }));
+                File dddateDir = new File(baseDir, date.toString());
+                if (!dddateDir.exists()) dddateDir.mkdirs();
 
-            // Initialize accumulators
-            double sleepDeep = 0, sleepLight = 0, sleepRem = 0, totalDuration = 0, awakeDuration = 0;
-            int awakeCount = 0;
-            List<Double> avgHrValues = new ArrayList<>();
-            List<Double> breathQualityValues = new ArrayList<>();
-            List<SleepStage> sleepStages = new ArrayList<>();
+                String testfileName = date+"_sleepdata.csv";
+                File testoutFile = new File(dddateDir, testfileName);
 
-            for (JSONObject segment : segments) {
-                sleepDeep += segment.optDouble("sleep_deep_duration", 0);
-                sleepLight += segment.optDouble("sleep_light_duration", 0);
-                sleepRem += segment.optDouble("sleep_rem_duration", 0);
-                totalDuration += segment.optDouble("duration", 0);
-                awakeCount += segment.optInt("awake_count", 0) + 1;
-                awakeDuration += segment.optDouble("sleep_awake_duration", 0);
-
-                if (segment.has("avg_hr")) {
-                    avgHrValues.add(segment.optDouble("avg_hr"));
-                }
-                if (segment.has("breath_quality")) {
-                    breathQualityValues.add(segment.optDouble("breath_quality"));
+                // Skip entire session if output file already exists
+                if (testoutFile.exists()) {
+                    // Optionally log or print skipping message
+                    // System.out.println("Skipping existing session file: " + outFile.getAbsolutePath());
+                    continue;  // Skip to next session
                 }
 
-                JSONArray items = segment.optJSONArray("items");
-                if (items != null) {
-                    for (int i = 0; i < items.length(); i++) {
-                        JSONObject item = items.optJSONObject(i);
-                        long start = item.optLong("start_time", -1);
-                        long end = item.optLong("end_time", -1);
-                        int state = item.optInt("state", 0);
-                        if (start > 0 && end > 0) {
-                            sleepStages.add(new SleepStage(start, end, state));
+                // Sort sessions by bedtime to keep consistency
+                sessions.sort(Comparator.comparingLong(s -> s.optLong("bedtime", Long.MAX_VALUE)));
+
+                for (int i = 0; i < sessions.size(); i++) {
+                    JSONObject session = sessions.get(i);
+
+                    long sessionStart = Math.min(session.optLong("bedtime", Long.MAX_VALUE), session.optLong("device_bedtime", Long.MAX_VALUE));
+                    long sessionEnd = Math.max(session.optLong("wake_up_time", 0), session.optLong("device_wake_up_time", 0));
+
+                    File dateDir = new File(baseDir, date.toString());
+                    if (!dateDir.exists()) dateDir.mkdirs();
+
+                    double sleepDeep = 0, sleepLight = 0, sleepRem = 0, totalDuration = 0, awakeDuration = 0;
+                    int awakeCount = 0;
+                    List<Double> avgHrValues = new ArrayList<>();
+                    List<Double> breathQualityValues = new ArrayList<>();
+                    List<SleepStage> sleepStages = new ArrayList<>();
+
+
+                    List<JSONObject> segments = entry.getValue();
+
+                    // Sort segments by earliest of bedtime or device_bedtime
+                    segments.sort(Comparator.comparingLong(s -> {
+                        return Math.min(
+                                s.optLong("bedtime", Long.MAX_VALUE),
+                                s.optLong("device_bedtime", Long.MAX_VALUE)
+                        );
+                    }));
+
+                    for (int j = 1; j < segments.size(); j++) {
+                        JSONObject prev = segments.get(j - 1);
+                        JSONObject curr = segments.get(j);
+
+                        long prevEnd = Math.max(
+                                prev.optLong("wake_up_time", 0),
+                                prev.optLong("device_wake_up_time", 0)
+                        );
+                        long currStart = Math.min(
+                                curr.optLong("bedtime", Long.MAX_VALUE),
+                                curr.optLong("device_bedtime", Long.MAX_VALUE)
+                        );
+                        if (currStart > prevEnd) {
+                            sleepStages.add(new SleepStage(prevEnd, currStart, 1));  // 1 = Awake
                         }
                     }
-                }
-            }
-
-            // Add awake segments between parts
-            for (int i = 1; i < segments.size(); i++) {
-                JSONObject prev = segments.get(i - 1);
-                JSONObject curr = segments.get(i);
-
-                long prevEnd = Math.max(
-                        prev.optLong("wake_up_time", 0),
-                        prev.optLong("device_wake_up_time", 0)
-                );
-                long currStart = Math.min(
-                        curr.optLong("bedtime", Long.MAX_VALUE),
-                        curr.optLong("device_bedtime", Long.MAX_VALUE)
-                );
-                if (currStart > prevEnd) {
-                    sleepStages.add(new SleepStage(prevEnd, currStart, 1));
-                }
-            }
-
-            sleepStages.removeIf(stage -> stage.startUnix <= 0 || stage.endUnix <= 0);
-            sleepStages.sort(Comparator.comparingLong(s -> s.startUnix));
-
-            if (sleepStages.isEmpty()) continue;
-
-            long referenceStart = sleepStages.get(0).startUnix;
-            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-            File recordingsDir = new File(documentsDir, "RECORDINGS");
 
 
-            File outputDir = new File(recordingsDir.getParent()+"/RECORDINGS/Sleep/" + sessionDate.toString());
-            if (!outputDir.exists()) {
-                outputDir.mkdirs();
-            }
-            File csvFile = new File(outputDir, sessionDate + "_sleepdata.csv");
+                    sleepStages.removeIf(stage -> stage.startUnix <= 0 || stage.endUnix <= 0);
+                    sleepStages.sort(Comparator.comparingLong(s -> s.startUnix));
 
+// Extract values and stages from all segments in this session
+                    for (JSONObject segment : segments) {
+                        sleepDeep += segment.optDouble("sleep_deep_duration", 0);
+                        sleepLight += segment.optDouble("sleep_light_duration", 0);
+                        sleepRem += segment.optDouble("sleep_rem_duration", 0);
+                        totalDuration += segment.optDouble("duration", 0);
+                        awakeCount += segment.optInt("awake_count", 0);
+                        awakeDuration += segment.optDouble("sleep_awake_duration", 0);
 
-                Log.i("DBParser", "Writing " + csvFile.getAbsolutePath());
-                if(!csvFile.exists())
-                    try (FileWriter writer = new FileWriter(csvFile)) {
-                        // Write summary
+                        if (segment.has("avg_hr")) {
+                            avgHrValues.add(segment.optDouble("avg_hr"));
+                        }
+                        if (segment.has("breath_quality")) {
+                            breathQualityValues.add(segment.optDouble("breath_quality"));
+                        }
+
+                        JSONArray items = segment.optJSONArray("items");
+                        if (items != null) {
+                            for (int j = 0; j < items.length(); j++) {
+                                JSONObject item = items.optJSONObject(j);  // <-- use j here
+                                if (item == null) continue;
+                                long start = item.optLong("start_time", -1);
+                                long end = item.optLong("end_time", -1);
+                                int state = item.optInt("state", 0);
+                                if (start > 0 && end > 0) {
+                                    sleepStages.add(new SleepStage(start, end, state));
+                                }
+                            }
+                        }
+
+                    }
+
+                    if(sleepStages.isEmpty())
+                        continue;
+
+                    String fileName = sessions.size() == 1 ? date+"_sleepdata.csv" : "_sleepdata_" + i + ".csv";
+                    File outFile = new File(dateDir, fileName);
+
+                    try (FileWriter writer = new FileWriter(outFile)) {
+                        // Write CSV header line 1 (summary columns)
                         writer.write("Sleep Deep Duration (m);Sleep Light Duration (m);Sleep REM Duration (m);Total Duration (m);Awake Count;Sleep Awake Duration (m)");
+
+// Add optional columns if data exists
                         if (!avgHrValues.isEmpty()) writer.write(";Average Heart Rate");
                         if (!breathQualityValues.isEmpty()) writer.write(";Breath Quality");
                         writer.write("\n");
 
-                        writer.write(String.format(Locale.US, "%.1f;%.1f;%.1f;%.1f;%d;%.1f",
+// Write CSV summary values or "N/A" if no data
+                        writer.write(String.format(Locale.US,
+                                "%.0f;%.0f;%.0f;%.0f;%d;%.0f",
                                 sleepDeep, sleepLight, sleepRem, totalDuration, awakeCount, awakeDuration
                         ));
 
                         if (!avgHrValues.isEmpty()) {
-                            double meanHr = avgHrValues.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-                            writer.write(";" + String.format(Locale.US, "%.1f", meanHr));
+                            double meanHr = avgHrValues.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
+                            writer.write(";" + (Double.isNaN(meanHr) ? "N/A" : String.format(Locale.US, "%.1f", meanHr)));
                         }
 
                         if (!breathQualityValues.isEmpty()) {
-                            double meanBq = breathQualityValues.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-                            writer.write(";" + String.format(Locale.US, "%.1f", meanBq));
+                            double meanBq = breathQualityValues.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
+                            writer.write(";" + (Double.isNaN(meanBq) ? "N/A" : String.format(Locale.US, "%.1f", meanBq)));
                         }
                         writer.write("\n");
 
-                        // Write sleep stages
+// Write CSV header line 2 for sleep stages
                         writer.write("Start (Unix in seconds or seconds from start);End (Seconds from start);State # 1=Awake, 2=Light Sleep, 3=Deep Sleep, 4=REM Sleep\n");
+
+                        long referenceStart = sleepStages.get(0).startUnix;
+
+                        // Write all sleep stages using toCsvString(referenceStart)
                         for (SleepStage stage : sleepStages) {
                             writer.write(stage.toCsvString(referenceStart) + "\n");
                         }
+
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
 
-
-            // Determine session start and end (±1 day buffer)
-            List<Long> startTimes = segments.stream().map(s ->
-                    Math.min(s.optLong("bedtime", Long.MAX_VALUE), s.optLong("device_bedtime", Long.MAX_VALUE))
-            ).collect(Collectors.toList());
-
-            List<Long> endTimes = segments.stream().map(s ->
-                    Math.max(s.optLong("wake_up_time", 0), s.optLong("device_wake_up_time", 0))
-            ).collect(Collectors.toList());
-
-            if (!startTimes.isEmpty() && !endTimes.isEmpty()) {
-                long sessionStart = Collections.min(startTimes) - 86400;
-                long sessionEnd = Collections.max(endTimes);
-
-                exportTimeSeries(db, outputDir, sessionDate, sessionStart, sessionEnd, "hr_record", "bpm", "hr");
-                exportTimeSeries(db, outputDir, sessionDate, sessionStart, sessionEnd, "stress_record", "stress", "stress");
-                exportTimeSeries(db, outputDir, sessionDate, sessionStart, sessionEnd, "spo2_record", "spo2", "spo2");
+                    // Export HR, SpO2, and stress time series
+                    exportTimeSeries(db, dateDir, date, sessionStart - 86400, sessionEnd, "hr_record", "bpm", "hr");
+                    exportTimeSeries(db, dateDir, date, sessionStart - 86400, sessionEnd, "stress_record", "stress", "stress");
+                    exportTimeSeries(db, dateDir, date, sessionStart - 86400, sessionEnd, "spo2_record", "spo2", "spo2");
+                }
             }
 
+            db.close();
         }
 
 
-
-
-        db.close();
     }
-
-}

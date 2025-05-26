@@ -4,6 +4,8 @@ import java.util.ArrayList;
 
 public class SleepData {
 
+	final static int REM = 4, LIGHT_SLEEP = 2, DEEP_SLEEP = 3, AWAKE = 1;
+
 	public class SleepStage {
 		public SleepStage(long u_s, long u_s_end, int val) {
 			unix_sec = u_s;
