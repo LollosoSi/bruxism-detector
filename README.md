@@ -110,7 +110,7 @@ For more information, [see here](https://en.wikipedia.org/wiki/Classical_conditi
 - (optional) a sleep tracker
 
 ## **Software you need**
-- Arduino IDE with libraries "debounce" by Aaron Kimball, "CMSIS-DSP"
+- Arduino IDE with "CMSIS-DSP" Library
 - Processing with "Sound" Library
 - Python with numpy, pandas, sklearn, openpyxl libraries. Use pip to install these.
 
