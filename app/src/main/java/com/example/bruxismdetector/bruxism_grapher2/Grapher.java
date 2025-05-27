@@ -258,6 +258,9 @@ ArrayList<Sample_Correlation> samples_stress = new ArrayList<Sample_Correlation>
 ArrayList<Sample_Correlation> samples_sleepstages = new ArrayList<Sample_Correlation>();
 
 int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
+	if(time < mintime) time = mintime;
+	if(time > maxtime) time = maxtime;
+
 	int samples = (int)Math.ceil((double) (maxtime - mintime) /1000.0);
 	long step = (maxtime - mintime)/samples;
 
@@ -266,9 +269,13 @@ int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
 double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsamples){
 
 	double[] result = new double[numsamples];
+	Arrays.fill(result, 0);
 	for(int i = 0; i<samples.size()-1; i++){
 
 		int startfill = findIndexFromTime(min_time, max_time, samples.get(i).time, numsamples), endfill = findIndexFromTime(min_time, max_time, samples.get(i+1).time, numsamples);
+
+		if(startfill >= numsamples) startfill = numsamples;
+		if(endfill >= numsamples) endfill = numsamples;
 
 		for(int j = startfill; j<endfill; j++){
 			result[j] = samples.get(i).value;
