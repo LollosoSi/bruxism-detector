@@ -31,6 +31,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -259,16 +262,48 @@ public class Tracker2 extends Service {
     private Vibrator vibrator;
     boolean vibrating = false;
     private void vibrate() {
-        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         if (vibrator.hasVibrator()) {
-            vibrating = true;
-            long[] pattern = {0, 500, 500}; // Vibrate for 500ms, pause for 500ms, repeat
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                VibrationEffect effect = VibrationEffect.createWaveform(pattern, 0); // 0: repeat indefinitely
-                vibrator.vibrate(effect);
-            } else {
-                vibrator.vibrate(pattern, 0); // 0: repeat indefinitely
+
+            Random random = new Random();
+            List<Long> timings = new ArrayList<>();
+            List<Integer> amplitudes = new ArrayList<>();
+
+            // Initial delay
+            timings.add(0L);
+            amplitudes.add(0);
+
+            long vibrationDuration = 50; // Starting vibration duration
+            long pauseDuration = 50;     // Starting pause duration
+
+            // Generate many short irregular vibrations
+            for (int i = 0; i < 20; i++) {
+                // Randomize vibration and pause durations with gradual increase
+                vibrationDuration += random.nextInt(10);  // increase gradually
+                pauseDuration += random.nextInt(10);
+
+                timings.add(vibrationDuration);
+                amplitudes.add(VibrationEffect.DEFAULT_AMPLITUDE); // Full power
+
+                timings.add(pauseDuration);
+                amplitudes.add(0); // Pause (no vibration)
             }
+
+            // Final long vibration (5 seconds)
+            timings.add(5000L);
+            amplitudes.add(VibrationEffect.DEFAULT_AMPLITUDE);
+
+            // Convert to arrays
+            long[] timingArray = new long[timings.size()];
+            int[] amplitudeArray = new int[amplitudes.size()];
+            for (int i = 0; i < timings.size(); i++) {
+                timingArray[i] = timings.get(i);
+                amplitudeArray[i] = amplitudes.get(i);
+            }
+
+            VibrationEffect effect = VibrationEffect.createWaveform(timingArray, amplitudeArray, 0);
+            vibrator.vibrate(effect);
+
         }
     }
 
