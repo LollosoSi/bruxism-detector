@@ -27,6 +27,8 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
@@ -76,11 +78,13 @@ import java.net.MulticastSocket;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -287,8 +291,6 @@ private static final String TAG = "Main activity";
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
         setupUDP(4001, 4000);
-
-
 
         Intent launchintent = getIntent();
         if(launchintent!=null){
@@ -903,6 +905,50 @@ private static final String TAG = "Main activity";
     }
 
 
+    private void vibrate() {
+        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator.hasVibrator()) {
 
+            Random random = new Random();
+            List<Long> timings = new ArrayList<>();
+            List<Integer> amplitudes = new ArrayList<>();
+
+            // Initial delay
+            timings.add(0L);
+            amplitudes.add(0);
+
+            long vibrationDuration = 50; // Starting vibration duration
+            long pauseDuration = 50;     // Starting pause duration
+
+            // Generate many short irregular vibrations
+            for (int i = 0; i < 20; i++) {
+                // Randomize vibration and pause durations with gradual increase
+                vibrationDuration += random.nextInt(10);  // increase gradually
+                pauseDuration += random.nextInt(10);
+
+                timings.add(vibrationDuration);
+                amplitudes.add(VibrationEffect.DEFAULT_AMPLITUDE); // Full power
+
+                timings.add(pauseDuration);
+                amplitudes.add(0); // Pause (no vibration)
+            }
+
+            // Final long vibration (5 seconds)
+            timings.add(5000L);
+            amplitudes.add(VibrationEffect.DEFAULT_AMPLITUDE);
+
+            // Convert to arrays
+            long[] timingArray = new long[timings.size()];
+            int[] amplitudeArray = new int[amplitudes.size()];
+            for (int i = 0; i < timings.size(); i++) {
+                timingArray[i] = timings.get(i);
+                amplitudeArray[i] = amplitudes.get(i);
+            }
+
+            VibrationEffect effect = VibrationEffect.createWaveform(timingArray, amplitudeArray, 0);
+            vibrator.vibrate(effect);
+
+        }
+    }
 
 }

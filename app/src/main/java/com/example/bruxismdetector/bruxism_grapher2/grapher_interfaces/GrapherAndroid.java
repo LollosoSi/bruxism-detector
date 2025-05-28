@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.os.Environment;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -41,6 +42,16 @@ public class GrapherAndroid extends GrapherInterface<Color, Bitmap, Typeface> {
     public void drawString(String str, int x, int y) {
         canvas.drawText(str, x, y, paint);
     }
+
+    @Override
+    public void drawRotatedString(String str, int x, int y, int angleDegrees) {
+        canvas.save();
+        canvas.translate(x, y);
+        canvas.rotate(angleDegrees);
+        canvas.drawText(str, 0, 0, paint);
+        canvas.restore();
+    }
+
 
     @Override
     public void drawRect(int x, int y, int width, int height) {
@@ -99,6 +110,12 @@ public class GrapherAndroid extends GrapherInterface<Color, Bitmap, Typeface> {
     @Override
     public Color convertColor(String colorstring) {
         return Color.valueOf(Color.parseColor(colorstring));
+    }
+
+    @Override
+    public File getRecordingsPath(){
+        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        return new File(documentsDir, "RECORDINGS");
     }
 
 }

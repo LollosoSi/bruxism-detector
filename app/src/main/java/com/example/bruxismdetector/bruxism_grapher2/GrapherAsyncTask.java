@@ -173,13 +173,16 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
+
+
+
+                    HeatMapGraph<Bitmap, Color, Typeface> hmg = new HeatMapGraph<>();
+                    hmg.setPlatformSpecificAbstractions(new GrapherAndroid(hmg.graph_width, hmg.graph_height), new IconManagerAndroid(ctx), new AndroidTaskRunner());
+                    hmg.writeImage(hmg.generateGraphCorrelations(), summaryDir.getPath()+"/Heatmap.png");
+
                 }
             }
         }
-
-
-
-
 
         return null;
     }

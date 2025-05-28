@@ -1,5 +1,7 @@
 package com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces;
 
+import java.io.File;
+
 public abstract class GrapherInterface<Color, Image, Font> {
 
 	int width, height;
@@ -15,6 +17,9 @@ public abstract class GrapherInterface<Color, Image, Font> {
 
 	// Draw some text
 	public abstract void drawString(String str, int x, int y);
+	// Draw rotated text
+	public abstract void drawRotatedString(String str, int x, int y, int angleDegrees);
+
 
 	// Draw a rect
 	public abstract void drawRect(int x, int y, int width, int height);
@@ -33,4 +38,6 @@ public abstract class GrapherInterface<Color, Image, Font> {
 	public abstract void setFont(String fontname, int size);
 
 	public abstract Color convertColor(String colorstring);
+
+	public abstract File getRecordingsPath();
 }
