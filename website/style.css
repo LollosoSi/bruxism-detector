@@ -1,0 +1,303 @@
+:root {
+  --md-primary-light: #b2dfdb;
+  --md-primary: #009688;
+  --md-primary-dark: #00796b;
+
+  --md-accent: #ff9800;
+
+  --md-on-primary: #ffffff; /* For text/icons on primary backgrounds */
+
+  --md-text-primary: #212121;
+  --md-text-secondary: #757575;
+  --md-divider: #bdbdbd;
+
+  --md-background: #ffffff;
+  --md-surface: #ffffff;
+  --md-on-background: #212121;
+}
+
+/* Reset */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', sans-serif;
+  background: var(--md-background);
+  color: var(--md-on-background);
+  overflow-x: hidden; /* prevent horizontal scroll */
+}
+
+/* Layout */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* full viewport height */
+  /* No fixed height to allow natural flow */
+}
+
+/* Fixed header */
+header {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  padding: 1rem 1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+header .subtitle {
+  margin: 0.2rem 0 0 1.6rem;
+  font-size: 1rem;
+  opacity: 0.9;
+}
+
+/* Fixed nav */
+nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+  max-height: 200px;  /* or whatever height you want */
+  overflow-y: auto;
+  padding: 0.5rem 1rem;
+  background: var(--md-primary-dark);
+}
+
+nav a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  color: var(--md-on-primary);
+
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+nav a:hover {
+  background: var(--md-primary-light);
+  color: var(--md-primary-dark);
+}
+
+/* Main fills remaining space */
+main {
+  position: relative;
+  width: 100%;           /* full width of viewport */
+  min-height: 0;
+  overflow: visible;
+  flex: 1 0 auto;
+  background: var(--md-surface);
+  padding-bottom: 6rem;  /* space for footer */
+  box-sizing: border-box;
+}
+
+.main-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  box-sizing: border-box;
+  height: 100%;
+  position: relative;
+  overflow: hidden;  /* Hide content sliding out of bounds */
+  display: flex;     /* Use flex to center vertically if needed */
+  align-items: stretch; /* make children full height */
+}
+
+/* Each content container fills the main-inner */
+.content-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--md-surface);
+  box-sizing: border-box;
+	
+	padding:20px;
+  /* For animation */
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: opacity 0.5s ease;
+}
+
+/* Active content is visible */
+.content-container.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Start positions for animations */
+.content-container.slide-in-left {
+  animation: slideInLeft 0.4s forwards;
+  z-index: 2; /* on top */
+}
+
+.content-container.slide-out-left {
+  animation: slideOutLeft 0.4s forwards;
+  z-index: 1;
+}
+
+.content-container.slide-in-right {
+  animation: slideInRight 0.4s forwards;
+  z-index: 2;
+}
+
+.content-container.slide-out-right {
+  animation: slideOutRight 0.4s forwards;
+  z-index: 1;
+}
+
+/* Keyframes: use translateX relative to container width */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+
+
+/* Footer fixed at bottom */
+footer {
+  will-change: transform;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  padding: 0.5rem 1rem;
+  text-align: center;
+  z-index: 10;
+  box-sizing: border-box;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+
+
+/* Images */
+.image-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.image-row img {
+  width: 100%;
+  max-width: 300px;
+}
+
+section a {
+  color: var(--md-primary);
+}
+
+/* Links */
+footer a, footer a:visited {
+  color: var(--md-on-primary);
+  text-decoration: none;
+}
+
+footer a:hover {
+  color: var(--md-text-secondary);
+  text-decoration: underline;
+}
+
+.flex-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.step-image {
+  max-width: 150px;
+  height: auto;
+  flex-shrink: 0;
+  margin-right: 1em;
+  border-radius: 24px;
+}
+
+.flex-row > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  nav {
+    flex-direction: column;
+  }
+}
+
+
+header, footer {
+  transition: transform 0.3s ease;
+  will-change: transform;
+  /* ensure they stay above content */
+  z-index: 20;
+}
+
+/* generic hidden */
+.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* header and nav slide up */
+header.hidden,
+nav.hidden {
+  transform: translateY(-100%);
+}
+
+/* footer slides down */
+footer.hidden {
+  transform: translateY(100%);
+}
+
+
