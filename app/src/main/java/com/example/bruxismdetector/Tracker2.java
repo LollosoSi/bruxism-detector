@@ -1,5 +1,6 @@
 package com.example.bruxismdetector;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.Notification;
@@ -12,21 +13,29 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.icu.util.Calendar;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.os.Process;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
+import android.se.omapi.Session;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.fragment.app.FragmentManager;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -67,6 +76,8 @@ public class Tracker2 extends Service {
 
     public Tracker2() {
     }
+
+    //AudioLogger audioLogger = null;
 
     @Override
     public void onCreate() {
@@ -122,6 +133,22 @@ public class Tracker2 extends Service {
         Notification n = buildNotification();
         n.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
         startForeground(NOTIFICATION_ID, n);
+
+
+        if(PermissionsActivity.isMicrophonePermissionGranted(this) && prefs.getBoolean("record_noise", false)) {
+            //audioLogger = new Tracker2.AudioLogger();
+            String filename3 = sessionTracker.getNewFilename(sessionTracker.formattedDate, "_NOISE.csv", sessionTracker.csv_folder_path + "NOISE/");
+            Intent startRecorderIntent = new Intent(this, Recorder.class);
+            startRecorderIntent.putExtra("filename3", filename3);
+            startService(startRecorderIntent);
+        }
+
+        if(PermissionsActivity.isBackgroundLocationGranted(this) && prefs.getBoolean("record_accel", false)) {
+            String filename4 = sessionTracker.getNewFilename(sessionTracker.formattedDate, "_ACCEL.csv", sessionTracker.csv_folder_path + "ACCEL/");
+            Intent startRecorderIntent = new Intent(this, MovementDetectorService.class);
+            startRecorderIntent.putExtra("filename4", filename4);
+            startService(startRecorderIntent);
+        }
     }
 
     @Override
@@ -137,7 +164,7 @@ public class Tracker2 extends Service {
             // Now you can easily pass this object around:
             Log.d("Tracker2", logData.toString());
             // Example: pass to a logger, writer, or processor
-            sessionTracker.writeDailyLog(logData, sessionTracker.file_out, this);
+            SessionTracker.writeDailyLog(logData, sessionTracker.file_out, this);
         }
 
 
@@ -201,20 +228,33 @@ public class Tracker2 extends Service {
         }
 
 
+        if(PermissionsActivity.isMicrophonePermissionGranted(this) && prefs.getBoolean("record_noise", false)){
+            // Intent with action stop
+            Intent stopRecorderIntent = new Intent(this, Recorder.class);
+            stopRecorderIntent.setAction(Recorder.ACTION_STOP);
+            startService(stopRecorderIntent);
+        }
+
+        if(PermissionsActivity.isBackgroundLocationGranted(this) && prefs.getBoolean("record_accel", false)) {
+            Intent stopRecorderIntent = new Intent(this, MovementDetectorService.class);
+            stopRecorderIntent.setAction(MovementDetectorService.ACTION_STOP);
+            startService(stopRecorderIntent);
+        }
 
 
-        super.onDestroy();
+
+            super.onDestroy();
     }
 
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "Tracker Channel";
-            String description = "Bruxism notifications";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-            notificationManager.createNotificationChannel(channel);
-        }
+
+        CharSequence name = "Tracker Channel";
+        String description = "Bruxism notifications";
+        int importance = NotificationManager.IMPORTANCE_DEFAULT;
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+        channel.setDescription(description);
+        notificationManager.createNotificationChannel(channel);
+
     }
 
     private Notification buildNotification() {
@@ -259,11 +299,13 @@ public class Tracker2 extends Service {
                 .build();
     }
 
-    private Vibrator vibrator;
+    private Vibrator vibrator = null;
     boolean vibrating = false;
     private void vibrate() {
-        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         if (vibrator.hasVibrator()) {
+
+            vibrating=true;
 
             Random random = new Random();
             List<Long> timings = new ArrayList<>();
@@ -307,13 +349,10 @@ public class Tracker2 extends Service {
         }
     }
 
-    private void dismissVibrator() {
-        if (vibrator != null) {
+    public void dismissVibrator() {
+        if (vibrator != null && vibrating) {
             vibrator.cancel();
-            if(vibrating){
-                vibrating=false;
-                sendUDP(new byte[]{SessionTracker.BUTTON_PRESS});
-            }
+            vibrating=false;
         }
     }
 
@@ -355,7 +394,9 @@ public void exit(){
             }
             if(Intent.ACTION_SCREEN_ON.equals(intent.getAction()) || Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){
                 Log.d(TAG, "Screen on/off received");
-                dismissVibrator();
+                if(vibrating)
+                    sendUDP(new byte[]{SessionTracker.BUTTON_PRESS});
+
             }
         }
     };
@@ -463,5 +504,7 @@ public void exit(){
     public void runAlarm() {
         vibrate();
     }
+
+
 
 }

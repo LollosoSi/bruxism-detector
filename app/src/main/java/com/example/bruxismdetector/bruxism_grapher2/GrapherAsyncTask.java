@@ -159,7 +159,7 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
                     }
                 }
 
-                if (sda.size() > 2) {
+                if (sda.size() >= 2) {
                     sda.sort(Comparator.naturalOrder());
 
                     File summaryDir = new File(recordingsDir, "Summary");
@@ -246,6 +246,9 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
 
         String path = file.getPath();
         File rawfile = new File(String.valueOf(new File(file.getParent() + "/RAW/" + file.getName().replace(".csv", "_RAW.csv") )));
+        File noisefile = new File(String.valueOf(new File(file.getParent() + "/NOISE/" + file.getName().replace(".csv", "_NOISE.csv") )));
+        File accelfile = new File(String.valueOf(new File(file.getParent() + "/ACCEL/" + file.getName().replace(".csv", "_ACCEL.csv") )));
+
 
         Grapher<Bitmap, Color, Typeface> gg = new Grapher<>(FileEventReader.readCSV(file.getAbsolutePath()), file.getName(), 1280,720);
 
@@ -258,6 +261,16 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
                 ArrayList<RawEvent> rawevents = FileRawEventReader.readCSV(rawfile.getAbsolutePath());
                 Log.i(TAG, "Rawevents size " + rawevents.size());
                 gg.addRawData(rawevents);
+            }
+            if(noisefile.exists()){
+                ArrayList<NoiseEvent> noises = FileNoiseReader.readCSV(noisefile.getAbsolutePath());
+                Log.i(TAG, "Noise event size " + noises.size());
+                gg.addNoiseData(noises);
+            }
+            if(accelfile.exists()){
+                ArrayList<NoiseEvent> accel = FileNoiseReader.readCSV(accelfile.getAbsolutePath());
+                Log.i(TAG, "Accel event size " + accel.size());
+                gg.addAccelData(accel);
             }
             gg.setPlatformSpecificAbstractions(new GrapherAndroid(gg.graph_width, gg.graph_height), new IconManagerAndroid(ctx), new AndroidTaskRunner());
             gg.writeImage(gg.generateGraph(isDarkModeActive(ctx)), file.getParent() + "/Graphs/" + file.getName());

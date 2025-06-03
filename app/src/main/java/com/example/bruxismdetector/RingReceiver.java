@@ -32,7 +32,24 @@ public class RingReceiver extends BroadcastReceiver {
     private static final String cancel_action_notif = "cancel_action_notif";
     public static final String beep_once = "beep_once";
 
+    public static class SoundState {
+        private static final SoundState instance = new SoundState();
+        private volatile boolean isRinging = false;
 
+        private SoundState() {}
+
+        public static SoundState getInstance() {
+            return instance;
+        }
+
+        public void setRinging(boolean ringing) {
+            isRinging = ringing;
+        }
+
+        public boolean isRinging() {
+            return isRinging;
+        }
+    }
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -148,6 +165,8 @@ public class RingReceiver extends BroadcastReceiver {
         int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
         if (volume == 0) return;
 
+        SoundState.getInstance().setRinging(true);
+
         // Play sound
         AudioTrack audioTrack = new AudioTrack(
                 AudioManager.STREAM_ALARM,
@@ -162,7 +181,11 @@ public class RingReceiver extends BroadcastReceiver {
         audioTrack.play();
 
         // Auto release after playing
-        new Handler(Looper.getMainLooper()).postDelayed(audioTrack::release, (long) (durationSeconds * 1000));
+        new Handler(Looper.getMainLooper()).postDelayed(()->{
+            SoundState.getInstance().setRinging(false);
+            audioTrack.release();
+            },
+                (long) (durationSeconds * 1000));
     }
 
 

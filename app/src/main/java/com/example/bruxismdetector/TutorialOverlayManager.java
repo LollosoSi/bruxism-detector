@@ -20,6 +20,11 @@ import java.util.List;
 
 public class TutorialOverlayManager {
 
+    public interface TutorialCompleted{
+        void onTutorialCompleted();
+    }
+
+    TutorialCompleted completed_callback = null;
     private final Activity activity;
     private final FrameLayout overlay;
     private final SpotlightView spotlightView;
@@ -51,7 +56,8 @@ public class TutorialOverlayManager {
         overlay.setOnClickListener(v -> nextStep());
     }
 
-    public void start() {
+    public void start(TutorialCompleted callback) {
+        completed_callback = callback;
         FrameLayout root = (FrameLayout) activity.getWindow().getDecorView();
         root.addView(overlay);
         nextStep();
@@ -60,6 +66,8 @@ public class TutorialOverlayManager {
     private void nextStep() {
         if (currentStep >= steps.size()) {
             ((ViewGroup) overlay.getParent()).removeView(overlay);
+            if (completed_callback!=null)
+                completed_callback.onTutorialCompleted();
             return;
         }
 

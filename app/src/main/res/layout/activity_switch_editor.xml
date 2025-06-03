@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".SwitchEditor"
+    android:animateLayoutChanges="true">
+
+
+    <ScrollView
+        android:id="@+id/scrollview_editor"
+        android:animateLayoutChanges="true"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+    <include layout="@layout/switches_content"/>
+</ScrollView>
+
+<com.google.android.material.card.MaterialCardView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    app:cardElevation="1dp"
+    app:cardUseCompatPadding="true">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+<LinearLayout
+    android:animateLayoutChanges="true"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+<EditText
+    android:id="@+id/switch_name_edittext"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:hint="Macrocategory: Category"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="8dp"
+    />
+<Button
+    android:id="@+id/add_switch"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:theme="@android:style/Widget.Material.Button"
+    android:onClick="addLabel"
+    android:text="Add new"
+    android:layout_marginEnd="16dp"/>
+    </LinearLayout>
+
+<Button
+    android:animateLayoutChanges="true"
+    android:id="@+id/save_switches"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="10dp"
+    android:layout_marginEnd="10dp"
+    android:layout_marginBottom="10dp"
+    android:layout_marginTop="4dp"
+    android:onClick="Save"
+    android:text="Save"
+    />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+    </LinearLayout>

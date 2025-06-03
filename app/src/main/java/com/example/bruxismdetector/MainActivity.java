@@ -3,6 +3,7 @@ package com.example.bruxismdetector;
 import static androidx.core.app.PendingIntentCompat.getActivity;
 
 import android.Manifest;
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -14,6 +15,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -31,6 +33,8 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.transition.TransitionManager;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Pair;
 import android.view.Gravity;
@@ -53,6 +57,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -244,12 +250,30 @@ private static final String TAG = "Main activity";
             }
         });
         swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
-        // Override - feature not ready
-        //((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setEnabled(false);
-        //((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).setChecked(true);
 
 
-        
+
+        MaterialSwitch swrecordnoise = (MaterialSwitch)findViewById(R.id.switch_recordnoise).findViewById(R.id.switch_item);
+        swrecordnoise.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_noise", swrecordnoise.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordnoise.setChecked(prefs.getBoolean("record_noise", false));
+
+
+        MaterialSwitch swrecordaccel = (MaterialSwitch)findViewById(R.id.switch_recordaccel).findViewById(R.id.switch_item);
+        swrecordaccel.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_accel", swrecordaccel.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
+
+
+
         SeekBar sbar = (SeekBar)findViewById(R.id.reception);
         sbar.setMax(100);
         sbar.setMin(0);
@@ -287,7 +311,7 @@ private static final String TAG = "Main activity";
 
         setSwitchThreshold_sharedpref_text();
 
-        switchManager = new SwitchManager(findViewById(android.R.id.content), this);
+        switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
         setupUDP(4001, 4000);
@@ -306,37 +330,46 @@ private static final String TAG = "Main activity";
             }
 
         if(prefs.getBoolean("tutorial",true)) {
-            prefs.edit().putBoolean("tutorial",false).apply();
-            new Handler(Looper.getMainLooper()).post(() -> {
-                List<Pair<View, String>> steps = Arrays.asList(
-                        new Pair<>(findViewById(R.id.menu_content), "Set the switches that best describe your day"),
-                        new Pair<>(findViewById(R.id.sessioncard), "These settings affect your user experience, it's recommended to leave as is."),
-                        new Pair<>(findViewById(R.id.switch_sharedpref_use_threshold), "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device."),
-                        new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
-                        new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service."),
+            playTutorial();
 
-
-                        new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
-                        new Pair<>(findViewById(R.id.switch_sharedpref_only_alarm), "Select this if you only want to have alarms and not beeps."),
-                        new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
-
-
-                        new Pair<>(findViewById(R.id.button), "Tap this button to start tracking"),
-                        new Pair<>(findViewById(R.id.button2), "Send all data to the grapher application on your computer."),
-                        new Pair<>(findViewById(R.id.button_makegraphs), "Generate and see your graphs."),
-                        new Pair<>(findViewById(R.id.button_makecharts), "See your stats and data correlations\n(if any)"),
-                        new Pair<>(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from a Mi Fitness database."),
-
-                        new Pair<>(findViewById(R.id.button_extractdb), "Have fun!\nRefer to GitHub should you have any issues.")
-
-
-                );
-
-                new TutorialOverlayManager(MainActivity.this, steps).start();
-            });
         }
 
+        setupSessionToggle();
+    }
 
+    public void playTutorial(){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        new Handler(Looper.getMainLooper()).post(() -> {
+            List<Pair<View, String>> steps = Arrays.asList(
+                    new Pair<>(findViewById(R.id.menu_content), "Set the switches that best describe your day"),
+                    new Pair<>(findViewById(R.id.sessioncard), "These settings affect your user experience, it's recommended to leave as is."),
+                    new Pair<>(findViewById(R.id.session_settings_textview_handle), "Tap here to expand/collapse the session settings.\n\nLong press to replay this tutorial."),
+
+                    new Pair<>(findViewById(R.id.switch_sharedpref_use_threshold), "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device."),
+                    new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
+                    new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service."),
+
+
+                    new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
+                    new Pair<>(findViewById(R.id.switch_sharedpref_only_alarm), "Select this if you only want to have alarms and not beeps."),
+                    new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
+
+
+                    new Pair<>(findViewById(R.id.button), "Tap this button to start tracking"),
+                    new Pair<>(findViewById(R.id.button2), "Send all data to the grapher application on your computer."),
+                    new Pair<>(findViewById(R.id.button_makegraphs), "Generate and see your graphs."),
+                    new Pair<>(findViewById(R.id.button_makecharts), "See your stats and data correlations\n(if any)"),
+                    new Pair<>(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from a Mi Fitness database."),
+                    new Pair<>(findViewById(R.id.button_tageditor), "Edit your session tags"),
+
+                    new Pair<>(findViewById(R.id.button_tageditor), "Have fun!\nRefer to GitHub should you have any issues.")
+
+
+            );
+
+
+            new TutorialOverlayManager(MainActivity.this, steps).start(() -> prefs.edit().putBoolean("tutorial", false).apply());
+        });
     }
     public void launchcameratest(View v){
         Intent intent = new Intent(this, CameraTest.class);
@@ -485,6 +518,12 @@ private static final String TAG = "Main activity";
         switchLabelMap.put(R.id.switch_sharedpref_only_alarm, "Only Alarms");
         switchLabelMap.put(R.id.switch_sharedpref_alarm_on_device, "Alarm on device");
         switchLabelMap.put(R.id.switch_autostart_listener, "Autostart Service");
+        switchLabelMap.put(R.id.switch_recordnoise, "Record noise");
+        switchLabelMap.put(R.id.switch_recordaccel, "Record movement");
+
+
+
+
 
 
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
@@ -948,6 +987,94 @@ private static final String TAG = "Main activity";
             VibrationEffect effect = VibrationEffect.createWaveform(timingArray, amplitudeArray, 0);
             vibrator.vibrate(effect);
 
+        }
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+
+        switchManager.ReloadAll();
+    }
+
+    public void LaunchSwitchEditor(View v){
+        startActivity(new Intent(MainActivity.this, SwitchEditor.class));
+
+    }
+
+
+
+    private boolean isSessionExpanded = true;
+    private ConstraintLayout rootLayout;
+    private ConstraintSet expandedSet = new ConstraintSet();
+    private ConstraintSet collapsedSet = new ConstraintSet();
+
+    private void setupSessionToggle() {
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        rootLayout = findViewById(R.id.session_card_root); // the root ConstraintLayout inside your CardView
+
+        // Clone current layout as "expanded" state
+        expandedSet.clone(rootLayout);
+
+        // Define collapsed layout
+        collapsedSet.clone(rootLayout);
+
+
+        // Hide other buttons (optional)
+        collapsedSet.setVisibility(R.id.button_extractdb, View.GONE);
+        collapsedSet.setVisibility(R.id.button_tageditor, View.GONE);
+        collapsedSet.setVisibility(R.id.right_column_switches, View.GONE);
+        collapsedSet.setVisibility(R.id.left_column_switches, View.GONE);
+        collapsedSet.setVisibility(R.id.button2, View.GONE);
+        collapsedSet.setVisibility(R.id.button_start_trainer, View.GONE);
+
+        View toggleHandle = findViewById(R.id.session_settings_textview_handle);
+
+        toggleHandle.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+
+                playTutorial();
+
+                return true;
+            }
+        });
+
+        toggleHandle.setOnClickListener(v -> {
+            isSessionExpanded = !isSessionExpanded;
+
+            //TransitionManager.beginDelayedTransition(rootLayout);
+
+            if (isSessionExpanded) {
+                expandedSet.applyTo(rootLayout);
+            } else {
+                collapsedSet.applyTo(rootLayout);
+            }
+            prefs.edit().putBoolean("session_collapsed", !isSessionExpanded).apply();
+            vibrateHaptic();
+
+        });
+
+        if(prefs.getBoolean("session_collapsed", false)) {
+            collapsedSet.applyTo(rootLayout);
+        } else {
+            expandedSet.applyTo(rootLayout);
+        }
+    }
+
+
+    void vibrateHaptic(){
+        Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator.hasVibrator()) {
+            VibrationEffect ve = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ve = VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK);
+            }else{
+                ve = VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE);
+            }
+            vibrator.vibrate(ve);
         }
     }
 

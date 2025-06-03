@@ -98,10 +98,6 @@ public class HeatMapGraph<Image, Color, Font> {
             }
         }
 
-
-
-
-
         // Draw heatmap grid and evaluation labels
         for (int r = 0; r < rows; r++) {
             int y = offsetY + topLabelHeight + r * cellSize;
@@ -146,7 +142,7 @@ public class HeatMapGraph<Image, Color, Font> {
         }
 
         // Draw left row labels last (to stay on top)
-        int wordsPerLineSide = 3;
+        int wordsPerLineSide = 2;
 
         gi.setFont("Arial", fontSize);
         for (int r = 0; r < rows; r++) {

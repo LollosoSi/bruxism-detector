@@ -45,13 +45,14 @@ public class PermissionsActivity extends AppCompatActivity {
     }
 
     public void checkset(){
-        int coolperms = 0;
+        int uncoolperms = 0;
         if(hasExternalPerm()){
-            coolperms++;
+
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.ext_storage));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.ext_storage)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -62,11 +63,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(hasStorage(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.Storage));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.Storage)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -77,11 +78,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(hasFloatingPermission(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.floatview));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.floatview)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -92,11 +93,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(isExactAlarmPermissionGranted(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.alms));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.alms)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -107,11 +108,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(isExactAlarmPermissionGranted(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.alms));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.alms)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -122,11 +123,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(hasNotificationPermission(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.nts));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.nts)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -137,11 +138,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(isMicrophonePermissionGranted(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.microphonep));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.microphonep)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -152,11 +153,11 @@ public class PermissionsActivity extends AppCompatActivity {
         }
 
         if(isCameraPermissionGranted(this)){
-            coolperms++;
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.camerap));
             sw.setChecked(true);
             sw.setEnabled(false);
         }else{
+            uncoolperms++;
             ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.camerap)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -166,12 +167,69 @@ public class PermissionsActivity extends AppCompatActivity {
             });
         }
 
+        if(isForegroundLocationGranted(this)){
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.foreloc));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            uncoolperms++;
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.foreloc)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestForegroundLocationPermission(PermissionsActivity.this, 10000);
+                    checkset();
+                }
+            });
+        }
 
-        if(coolperms==8){
+        if(isBackgroundLocationGranted(this)){
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.backloc));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            uncoolperms++;
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.backloc)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestBackgroundLocationPermission(PermissionsActivity.this, 10000);
+                    checkset();
+                }
+            });
+        }
+
+
+        if(uncoolperms==0){
             // restart the application
             //Intent intent = new Intent(this, MainActivity.class);
             //startActivity(intent);
             finish();
+        }
+    }
+
+
+    public static boolean isForegroundLocationGranted(Context context) {
+        return (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) || isBackgroundLocationGranted(context);
+    }
+
+    public static boolean isBackgroundLocationGranted(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true; // No need for background location before Android 10
+    }
+
+
+    public static void requestForegroundLocationPermission(Activity activity, int requestCode) {
+        ActivityCompat.requestPermissions(activity,
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                requestCode);
+    }
+
+    public static void requestBackgroundLocationPermission(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ActivityCompat.requestPermissions(activity,
+                    new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                    requestCode);
         }
     }
 
@@ -219,7 +277,11 @@ public class PermissionsActivity extends AppCompatActivity {
 
 
     public static boolean hasAllPermissions(Context ct){
-        return hasExternalPerm() && hasStorage(ct) && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct) && hasNotificationPermission(ct) && isCameraPermissionGranted(ct) && isMicrophonePermissionGranted(ct);
+        return hasExternalPerm() && hasStorage(ct)
+                && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct)
+                && hasNotificationPermission(ct) && isCameraPermissionGranted(ct)
+                && isMicrophonePermissionGranted(ct)
+                && isBackgroundLocationGranted(ct) && isForegroundLocationGranted(ct);
     }
 
     public void askNotificationPerm(){

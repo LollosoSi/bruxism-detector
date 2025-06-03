@@ -37,6 +37,9 @@ public class BootReceiver extends BroadcastReceiver {
                 AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
             }
+        }else if (!PermissionsActivity.isExactAlarmPermissionGranted(context)){
+            Log.d(TAG, "Permission denied, could not schedule UDPCatcher");
+
         }
     }
 }

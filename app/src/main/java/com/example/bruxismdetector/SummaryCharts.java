@@ -61,11 +61,16 @@ public class SummaryCharts extends AppCompatActivity {
             int selectedItemId = item.getItemId();
             int a = id.tab_charts;
             int b = id.tab_correlations;
+            int c = id.tab_heatmap;
             if(selectedItemId==a)
-                    viewPager.setCurrentItem(0);
-            if (selectedItemId==b)
                     viewPager.setCurrentItem(1);
+            if (selectedItemId==b)
+                    viewPager.setCurrentItem(2);
+            if (selectedItemId==c)
+                viewPager.setCurrentItem(0);
 
+
+            SwitchManager.vibrateHaptic(this);
 
             return true;
         });

@@ -55,6 +55,18 @@
         android:text="Notifications" />
 
     <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/foreloc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Location" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/backloc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Always Access Location" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/floatview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

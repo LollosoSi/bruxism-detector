@@ -47,7 +47,7 @@ public class SwitchDialogFragment extends DialogFragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_data_collect, container, false);
-        switchManager = new SwitchManager(root, requireContext());
+        switchManager = new SwitchManager(root, requireContext(), false);
         new MoodSeekbarClass(root, requireContext());
         ((TextView)root.findViewById(R.id.mood_label)).setText("How was yesterday?\n");
         ((TextView)root.findViewById(R.id.mood_label)).setTypeface(Typeface.MONOSPACE);

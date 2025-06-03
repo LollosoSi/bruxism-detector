@@ -18,15 +18,20 @@ public class ChartsPagerAdapter extends FragmentStateAdapter {
     public Fragment createFragment(int position) {
         Log.i("Pos",position+"");
         switch (position) {
+            default:
+            case 0:
+                return new HeatMapFragment();
             case 1:
+                return new SummaryChartFragment();
             case 2:
                 return new CorrelationsFragment();
-            default: return new SummaryChartFragment();
+
+
         }
     }
 
     @Override
     public int getItemCount() {
-        return 2;
+        return 3;
     }
 }

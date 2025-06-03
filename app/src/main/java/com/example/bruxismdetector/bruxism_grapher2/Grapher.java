@@ -9,6 +9,7 @@ import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.IconManag
 import com.example.bruxismdetector.bruxism_grapher2.Colours.Color_element;
 import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.TaskRunner;
 
+import java.lang.reflect.Array;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -58,6 +59,8 @@ public class Grapher<Image, Color, Font> {
 	int spo2_height_low, spo2_height_high;
 	int stress_height_low, stress_height_high;
 
+	int noise_height_low, noise_height_high;
+
 	static final int
 			alarm_slot = 0, alarm_slot_length = 3,
 			clenching_slot = 4, clenching_slot_length = 1,
@@ -68,11 +71,23 @@ public class Grapher<Image, Color, Font> {
 
 	ArrayList<Event> events;
 	ArrayList<RawEvent> raw_events = null;
+	ArrayList<NoiseEvent> noise_events = null;
+
+	ArrayList<NoiseEvent> accel_mag_events = null;
+
 
 	GrapherInterface<Color, Image, Font> gi = null;
 	IconManager<Color, Image> icm = null;
 	TaskRunner taskRunner = null;
 	Map<String, IconAndNiceness> icons = new HashMap<String, IconAndNiceness>();
+
+	public void addNoiseData(ArrayList<NoiseEvent> noises) {
+		noise_events = noises;
+	}
+
+	public void addAccelData(ArrayList<NoiseEvent> acceldata) {
+		accel_mag_events = acceldata;
+	}
 
 	public class IconAndNiceness{
 		public IconAndNiceness(Image ic, String nice) {
@@ -125,6 +140,11 @@ public class Grapher<Image, Color, Font> {
 		//	stress_height_low = (line_height_temp -= 25);
 		//	stress_height_high = (line_height_temp -= 30);
 		//}
+
+		if(noise_events != null || accel_mag_events != null) {
+			noise_height_low = (line_height_temp -= 25);
+			noise_height_high = (line_height_temp -= 30);
+		}
 
 		timeline_height = (line_height_temp -= 80);
 
@@ -256,6 +276,13 @@ ArrayList<Sample_Correlation> samples_hr = new ArrayList<Sample_Correlation>();
 ArrayList<Sample_Correlation> samples_spo2 = new ArrayList<Sample_Correlation>();
 ArrayList<Sample_Correlation> samples_stress = new ArrayList<Sample_Correlation>();
 ArrayList<Sample_Correlation> samples_sleepstages = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_noise = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_accel = new ArrayList<Sample_Correlation>();
+
+
+ArrayList<Correlations.CorrelationPair> delayed_corrs_spo2 = null;
+ArrayList<Correlations.CorrelationPair> delayed_corrs_accel = null;
+
 
 int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
 	if(time < mintime) time = mintime;
@@ -343,7 +370,7 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 	}
 
-	double clenching_spo2_corr = 0, clenching_hr_corr = 0, clenching_stress_corr = 0, clenching_sleep_stage_deep_corr = 0, clenching_sleep_stage_light_corr = 0, clenching_sleep_stage_rem_corr = 0, clenching_sleep_stage_awake_corr = 0;
+	double clenching_spo2_corr = 0, clenching_hr_corr = 0, clenching_stress_corr = 0, noise_corr = 0, clenching_sleep_stage_deep_corr = 0, clenching_sleep_stage_light_corr = 0, clenching_sleep_stage_rem_corr = 0, clenching_sleep_stage_awake_corr = 0, accel_corr = 0;
 	void calculateCorrelations(){
 		int samples = (int)Math.ceil((double) (max_time - min_time) /1000.0);
 
@@ -352,7 +379,9 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 		Future<double[]> spo2Future = taskRunner.submit(() -> createSampledArray(samples_spo2, samples));
 		Future<double[]> stressFuture = taskRunner.submit(() -> createSampledArray(samples_stress, samples));
 		Future<double[]> sleepFuture = taskRunner.submit(() -> createSampledArray(samples_sleepstages, samples));
+		Future<double[]> noiseFuture = taskRunner.submit(() -> createSampledArray(samples_noise, samples));
 
+		Future<double[]> accelFuture = taskRunner.submit(() -> createSampledArray(samples_accel, samples));
 
 		// Later: wait for results
         try {
@@ -364,7 +393,9 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 			double[] sleepstages = sleepFuture.get();
 
+			double[] noise_night = noiseFuture.get();
 
+			double[] accel_night = accelFuture.get();
 
 			double[] sleep_stage_rem_night = new double[samples];
 			double[] sleep_stage_light_night = new double[samples];
@@ -387,7 +418,7 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 			double increment = 0.7;
 
 
-			Future<Double> hr_corr_future = null, spo2_corr_future= null, stress_corr_future= null, deep= null, light= null, rem= null, awake= null;
+			Future<Double> hr_corr_future = null, spo2_corr_future= null, stress_corr_future= null, noise_corr_future = null, deep= null, light= null, rem= null, awake= null, accel_corr_future = null;
 			if (!samples_hr.isEmpty()) {
 				hr_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, hr_night));
 			}
@@ -398,6 +429,14 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 			if (!samples_stress.isEmpty()){
 				stress_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, stress_night));
+			}
+
+			if(!samples_noise.isEmpty()){
+				noise_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, noise_night));
+			}
+
+			if (!samples_accel.isEmpty()){
+				accel_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, accel_night));
 			}
 
 			if (!samples_sleepstages.isEmpty()) {
@@ -414,10 +453,31 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 			if (!samples_spo2.isEmpty()){
 				clenching_spo2_corr = spo2_corr_future.get();
+
+				// We want a maximum delay of 60 mins for correlations.
+				// Samples are 1 per second, so we want 60*60 samples
+
+
+				delayed_corrs_spo2 = Correlations.calculateDelayedCorrelations(clenching_night, spo2_night, 0, 30*60, true);
+				if(delayed_corrs_spo2!=null){
+					System.out.println("The highest correlation for spo2 is at " + delayed_corrs_spo2.get(0).delay + " seconds ("+ delayed_corrs_spo2.get(0).correlation + "). While the lowest is at " + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay + " seconds (" + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation+").");
+				}
 			}
 
 			if (!samples_stress.isEmpty()){
 				clenching_stress_corr = stress_corr_future.get();
+			}
+
+			if(!samples_noise.isEmpty()){
+				noise_corr=noise_corr_future.get();
+			}
+
+			if (!samples_accel.isEmpty()){
+				accel_corr = accel_corr_future.get();
+
+				delayed_corrs_accel = Correlations.calculateDelayedCorrelations(clenching_night, accel_night, 0, 30*60, true);
+
+
 			}
 
 			if (!samples_sleepstages.isEmpty()) {
@@ -624,6 +684,106 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 		}
 
+	}
+
+	void drawNoise(String name, ArrayList<NoiseEvent> data, int height_high, int height_low, boolean use_dark_mode, ColorBands colorbands, int standard_minval, int standard_maxval, boolean drawRight, ArrayList<Sample_Correlation> fillsamples_array, boolean use_previous_color_if_increased) {
+
+		if(data==null)
+			return;
+
+		if(data.isEmpty())
+			return;
+
+
+		// Initialize the baseline with a large value or Integer.MAX_VALUE
+		double baseline = Integer.MAX_VALUE;
+		double minFvalue = Integer.MAX_VALUE; // To store the minimum fvalue
+		double maxFvalue = Integer.MIN_VALUE; // To store the maximum fvalue
+
+		// Minimum average
+		double avgFvalue = 0;
+		double countValues = 0;
+
+		// Iterate through the events array
+		for (NoiseEvent event : data) {
+
+			avgFvalue += event.db;
+			countValues++;
+
+			// Track the minimum and maximum value for events where value is false
+			if (event.db < minFvalue) {
+				minFvalue = event.db;
+			}
+			if (event.db > maxFvalue) {
+				maxFvalue = event.db;
+			}
+
+		}
+		if(countValues!=0)
+			avgFvalue = avgFvalue/countValues;
+		baseline = avgFvalue;
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenchline_guide, use_dark_mode)));
+		gi.drawLine(xtimescale(min_time), height_high, xtimescale(max_time), height_high);
+		gi.drawLine(xtimescale(min_time), height_low, xtimescale(max_time), height_low);
+
+		if(!drawRight) {
+			gi.drawString(String.valueOf(minFvalue), xtimescale(min_time) - 9 * 4, height_low + 7);
+			gi.drawString(String.valueOf(avgFvalue), xtimescale(min_time) - 9 * 4, height_low - ((height_low-height_high)/2) + 7);
+			gi.drawString(String.valueOf(maxFvalue), xtimescale(min_time) - 9 * 4, height_high + 7);
+
+			gi.setColor(colorbands.getDefaultcolor());
+			gi.drawString(name, xtimescale(min_time) - 9 * 10, height_low - ((height_low-height_high)/2) + 7);
+
+		}else {
+			gi.drawString(String.valueOf(minFvalue), xtimescale(max_time) + 9, height_low + 7);
+			gi.drawString(String.valueOf(avgFvalue), xtimescale(max_time) + 9, height_low - ((height_low-height_high)/2) + 7);
+			gi.drawString(String.valueOf(maxFvalue), xtimescale(max_time) + 9, height_high + 7);
+
+			gi.setColor(colorbands.getDefaultcolor());
+			gi.drawString(name, xtimescale(max_time) + (9*4), height_low - ((height_low-height_high)/2) + 7);
+
+		}
+
+
+		if(standard_maxval>0)
+			maxFvalue = standard_maxval;
+		if(standard_minval>0)
+			minFvalue = standard_minval;
+
+
+		NoiseEvent last_event = null;
+		for (NoiseEvent re : data) {
+
+			if (re.millis > max_time)
+				continue;
+
+			if (re.millis < min_time)
+				continue;
+
+
+			if (last_event == null) {
+				last_event = re;
+				continue;
+			}
+
+			gi.setColor(colorbands.getColorFromValue((int) (use_previous_color_if_increased && re.db>last_event.db ? last_event.db : re.db)));
+			gi.drawLine(xtimescale(last_event.millis),
+					calculateHeightFromPercentage(calculatePercentage((int)last_event.db, (int)maxFvalue, (int)minFvalue), height_low, height_high),
+					xtimescale(re.millis),
+					calculateHeightFromPercentage(calculatePercentage((int) re.db, (int)maxFvalue, (int)minFvalue), height_low, height_high));
+
+			fillsamples_array.add(new Sample_Correlation(re.millis, re.db));
+
+
+			last_event = re;
+		}
+
+		if(baseline != maxFvalue) {
+			gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)));
+			int baseline_line = calculateHeightFromPercentage(calculatePercentage((int) baseline, (int)maxFvalue, (int)minFvalue), height_low, height_high);
+			//gi.drawLine(xtimescale(min_time), baseline_line, xtimescale(max_time), baseline_line);
+		}
 	}
 
 	void drawSleepRecords(String name, ArrayList<SleepData.Record> data, int height_high, int height_low, boolean use_dark_mode, ColorBands colorbands, int standard_minval, int standard_maxval, boolean drawRight, ArrayList<Sample_Correlation> fillsamples_array, boolean use_previous_color_if_increased) {
@@ -1247,6 +1407,9 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 		drawRaw(use_dark_mode);
 
+		drawNoise("Noise", noise_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Spoline, use_dark_mode))),-50,0,false, samples_noise, true);
+		drawNoise("Accel", accel_mag_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Stressline, use_dark_mode))),0,1,true, samples_accel, true);
+
 		if(!sleepData.sleep_stages.isEmpty()) {
 			drawSleepStages(sleepData.sleep_stages);
 
@@ -1289,6 +1452,25 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 			infostats.add("Correlation with Deep Sleep: " + ((int)(clenching_sleep_stage_deep_corr*100.0))/100.0);
 			infostats.add("Correlation with REM: " + ((int)(clenching_sleep_stage_rem_corr*100.0))/100.0);
 
+			if(delayed_corrs_spo2 != null){
+				infostats.add("Highest SpO2 corr: " + delayed_corrs_spo2.get(0).correlation + " at " + (delayed_corrs_spo2.get(0).delay/60) + " minutes.");
+				infostats.add("Highest negative SpO2 corr: " + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation + " at " + (delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay/60) + " minutes.");
+
+			}
+
+		}
+
+		if(noise_corr!=0){
+			infostats.add("Noise: " + ((int)(noise_corr*100.0))/100.0);
+		}
+
+		if(accel_corr!=0){
+			infostats.add("Accel: " + ((int)(accel_corr*100.0))/100.0);
+			if(delayed_corrs_accel != null){
+				infostats.add("Highest accel corr: " + delayed_corrs_accel.get(0).correlation + " at " + (delayed_corrs_accel.get(0).delay/60) + " minutes.");
+				infostats.add("Highest negative accel corr: " + delayed_corrs_accel.get(delayed_corrs_accel.size()-1).correlation + " at " + (delayed_corrs_accel.get(delayed_corrs_accel.size()-1).delay/60) + " minutes.");
+
+			}
 		}
 
 		drawInfoStats(infostats, 7, use_dark_mode);

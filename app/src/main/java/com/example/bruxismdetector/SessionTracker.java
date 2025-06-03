@@ -21,7 +21,7 @@ import java.util.function.BiConsumer;
 
 public class SessionTracker {
 
-    String filename1, filename2;
+    String filename1, filename2, filename3;
     public Tracker2 servicereference;
     public static final byte CLENCH_START = 0;
     public static final byte CLENCH_STOP = 1;
@@ -40,10 +40,11 @@ public class SessionTracker {
     public static final byte DO_NOT_BEEP_ARDUINO = 13;
     public static final byte ALARM_ARDUINO_EVEN_WITH_ANDROID = 14;
 
-
     private static final String TAG = "BruxismTracker:SessionTracker";
-    String csv_folder_path = "RECORDINGS/";
+    public String csv_folder_path = "RECORDINGS/";
     Context ctx;
+
+    public String formattedDate;
     static long startmillis = 0;
     public static long millis(){
         return System.currentTimeMillis() - startmillis;
@@ -56,7 +57,7 @@ public class SessionTracker {
 
         Date currentDate = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-        String formattedDate = formatter.format(currentDate);
+        formattedDate = formatter.format(currentDate);
 
 
         filename1 = getNewFilename(formattedDate, ".csv", csv_folder_path);
@@ -67,6 +68,9 @@ public class SessionTracker {
 
         file_raw_out = createWriter(filename2);
         append_csv(new String[]{"Millis", "Classification", "Classification int"}, file_raw_out);
+
+
+
 
         Log.d(TAG, "Creating files: " + filename1 + " " + filename2);
 
@@ -134,6 +138,8 @@ public class SessionTracker {
 
         file_raw_out.flush();
         file_raw_out.close();
+
+
     }
 
 
@@ -142,6 +148,10 @@ public class SessionTracker {
 
     private File recordingsDirectory;
     private File rawRecordingsDirectory;
+
+    private File noisedir;
+
+    private File acceldir;
 
     public static PrintWriter createWriter(String filename) {
         try {
@@ -163,7 +173,7 @@ public class SessionTracker {
     boolean confirmed_udp_alarm = false;
 
     long cstart = 0;
-    boolean alarmed = false;
+    public boolean alarmed = false;
     boolean clenching=false;
 
 
@@ -194,6 +204,8 @@ public class SessionTracker {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         recordingsDirectory = new File(documentsDir, "RECORDINGS");
         rawRecordingsDirectory = new File(recordingsDirectory, "RAW");
+        noisedir = new File(recordingsDirectory, "NOISE");
+        acceldir = new File(recordingsDirectory, "ACCEL");
 
         if (!recordingsDirectory.exists()) {
             if (!recordingsDirectory.mkdirs()) {
@@ -205,6 +217,11 @@ public class SessionTracker {
                 Log.e(TAG, "Failed to create RAW directory");
             }
         }
+        if (!noisedir.exists()) {
+            if (!noisedir.mkdirs()) {
+                Log.e(TAG, "Failed to create NOISE directory");
+            }
+        }
     }
 
     public String getNewFilename(String baseName, String extension, String folderName) {
@@ -213,6 +230,10 @@ public class SessionTracker {
             storageDir = recordingsDirectory;
         } else if (folderName.equals("RECORDINGS/RAW/")) {
             storageDir = rawRecordingsDirectory;
+        } else if (folderName.equals("RECORDINGS/NOISE/")){
+            storageDir = noisedir;
+        } else if (folderName.equals("RECORDINGS/ACCEL/")){
+            storageDir = acceldir;
         } else {
             Log.e("FileHelper", "Invalid folder name");
             return null;
@@ -326,13 +347,13 @@ public class SessionTracker {
                             append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STOPPED", String.valueOf((millis()-cstart)/1000.0)}, file_out);
                         }
                         alarmed=false;
-                        //servicereference.runAlarm();
+
                         break;
                     case ALARM_START:
                         if (!alarmed) {
                             append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STARTED"}, file_out);
                             alarmed=true;
-                            if(!prefs.getBoolean("alarm_on_device", true)) {
+                            if(prefs.getBoolean("alarm_on_device", true)) {
                                 servicereference.runAlarm();
                                 servicereference.sendUDP(new byte[]{UDP_ALARM_CONFIRMED});
                             }
@@ -340,7 +361,8 @@ public class SessionTracker {
                         break;
                     case ALARM_STOP:
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STOPPED"}, file_out);
-                        alarmed=true;
+                        alarmed=false;
+                        servicereference.dismissVibrator();
                         break;
                     case BEEP:
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Beep", "WARNING BEEP"}, file_out);
