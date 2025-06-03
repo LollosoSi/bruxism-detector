@@ -1193,6 +1193,12 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 		return startnote[startnote.length-1]; // It's a string date YYYY-MM-DD;
 	}
 
+	void printInfoIfMeaningful(ArrayList<String> info, String beforevalue, Double value, Double threshold_abs, String aftervalue){
+		if(Math.abs(value) >= threshold_abs){
+			info.add(beforevalue + ((int)(value*100.0))/100.0 + aftervalue);
+		}
+	}
+
 	class ColorBands{
 		public ColorBands(Color defaultcolor){
 		this.defaultcolor=defaultcolor;
@@ -1407,8 +1413,8 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 		drawRaw(use_dark_mode);
 
-		drawNoise("Noise", noise_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Spoline, use_dark_mode))),-50,0,false, samples_noise, true);
-		drawNoise("Accel", accel_mag_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Stressline, use_dark_mode))),0,1,true, samples_accel, true);
+		drawNoise("Noise", noise_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Spoline, use_dark_mode))),-1,-1,false, samples_noise, true);
+		drawNoise("Accel", accel_mag_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Stressline, use_dark_mode))),-1,-1,true, samples_accel, true);
 
 		if(!sleepData.sleep_stages.isEmpty()) {
 			drawSleepStages(sleepData.sleep_stages);
@@ -1443,32 +1449,31 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 			infostats.add("Average BPM: " + sleepData.average_hr);
 			infostats.add("Breath Quality: " + sleepData.average_breath_quality + "%" );
 
-			infostats.add("Correlation with BPM: " + ((int)(clenching_hr_corr*100.0))/100.0);
-			infostats.add("Correlation with SpO2: " + ((int)(clenching_spo2_corr*100.0))/100.0);
-			infostats.add("Correlation with Stress: " + ((int)(clenching_stress_corr*100.0))/100.0);
-
-			infostats.add("Correlation with Awake: " + ((int)(clenching_sleep_stage_awake_corr*100.0))/100.0);
-			infostats.add("Correlation with Light Sleep: " + ((int)(clenching_sleep_stage_light_corr*100.0))/100.0);
-			infostats.add("Correlation with Deep Sleep: " + ((int)(clenching_sleep_stage_deep_corr*100.0))/100.0);
-			infostats.add("Correlation with REM: " + ((int)(clenching_sleep_stage_rem_corr*100.0))/100.0);
+			printInfoIfMeaningful(infostats, "Correlation with BPM: ", clenching_hr_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with SpO2: ", clenching_spo2_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Stress: ", clenching_stress_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Awake: ", clenching_sleep_stage_awake_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Light Sleep: ", clenching_sleep_stage_light_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Deep Sleep: ", clenching_sleep_stage_deep_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with REM: ", clenching_sleep_stage_rem_corr, 0.2, "");
 
 			if(delayed_corrs_spo2 != null){
-				infostats.add("Highest SpO2 corr: " + delayed_corrs_spo2.get(0).correlation + " at " + (delayed_corrs_spo2.get(0).delay/60) + " minutes.");
-				infostats.add("Highest negative SpO2 corr: " + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation + " at " + (delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay/60) + " minutes.");
+				printInfoIfMeaningful(infostats, "Highest SpO2 corr: ", delayed_corrs_spo2.get(0).correlation , 0.2, " at " + (delayed_corrs_spo2.get(0).delay/60) + " minutes.");
+				printInfoIfMeaningful(infostats, "Highest negative SpO2 corr: ",  delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation, 0.2, " at " + (delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay/60) + " minutes.");
 
 			}
 
 		}
 
 		if(noise_corr!=0){
-			infostats.add("Noise: " + ((int)(noise_corr*100.0))/100.0);
+			printInfoIfMeaningful(infostats, "Noise corr: ", noise_corr, 0.2, "");
 		}
 
 		if(accel_corr!=0){
-			infostats.add("Accel: " + ((int)(accel_corr*100.0))/100.0);
+			printInfoIfMeaningful(infostats, "Accel corr: ", accel_corr, 0.2, "");
 			if(delayed_corrs_accel != null){
-				infostats.add("Highest accel corr: " + delayed_corrs_accel.get(0).correlation + " at " + (delayed_corrs_accel.get(0).delay/60) + " minutes.");
-				infostats.add("Highest negative accel corr: " + delayed_corrs_accel.get(delayed_corrs_accel.size()-1).correlation + " at " + (delayed_corrs_accel.get(delayed_corrs_accel.size()-1).delay/60) + " minutes.");
+				printInfoIfMeaningful(infostats, "Highest accel corr: ", delayed_corrs_accel.get(0).correlation, 0.2, " at " + (delayed_corrs_accel.get(0).delay/60) + " minutes.");
+				printInfoIfMeaningful(infostats, "Highest negative accel corr: ", delayed_corrs_accel.get(delayed_corrs_accel.size()-1).correlation, 0.2,  " at " + (delayed_corrs_accel.get(delayed_corrs_accel.size()-1).delay/60) + " minutes.");
 
 			}
 		}
