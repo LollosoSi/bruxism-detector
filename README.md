@@ -163,16 +163,19 @@ An experimental Android App is available for download and source can be found at
    - Tap `Smartband DB` if you are using a Mi Band to track your sleep with Mi Fitness, and you have either a rooted device or the database (`fitness_data`) file
 7. Spot correlations with tagged sessions in `Summary -> Correlations`. You will get an overview.
 
+
 <div style="display: flex; justify-content: space-between;">
-<img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" width="22%">
+<img src="https://github.com/user-attachments/assets/6cb34f1d-6877-4013-b543-780975eb5b38" width="22%">
 <img src="https://github.com/user-attachments/assets/6540fea7-7fa0-43f4-8ec4-44cf723825cd" width="22%">
 <img src="https://github.com/user-attachments/assets/4aea7393-ac43-4a46-8ecf-63a68c1f5d58" width="22%">
 
 <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="22%">
-<!-- <img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%"> -->
+<img src="https://github.com/user-attachments/assets/a203d53f-90f2-40be-b3c0-0d642c10d711" width="22%">
 
+<img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%">
 
 </div>
+
 
 
 ## **How to use**
