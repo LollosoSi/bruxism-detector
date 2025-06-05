@@ -136,7 +136,7 @@ An experimental graphing application is available for download and the source ca
     - If available, the data from the RAW folder will be included in your final graph.
     - If available, your sleep data (sleep phases, heart rate, stress, SpO2) will be included in your final graph.
 
-<img src="https://github.com/user-attachments/assets/48dd34e4-24ab-40f8-a6f0-b8d60f495f95" width="800">
+<img src="https://github.com/user-attachments/assets/5aa7a13f-8b68-4de8-a1e0-e659ea20a1b8" width="800">
 
  </br> </br>
  
