@@ -83,6 +83,9 @@ public class Tracker2 extends Service {
     public void onCreate() {
         super.onCreate();
 
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
+
+
         sessionTracker = new SessionTracker();
         sessionTracker.servicereference = this;
 
@@ -118,7 +121,7 @@ public class Tracker2 extends Service {
 
         }
 
-        if(!prefs.getBoolean("arduino_beep", true) || prefs.getBoolean("only_alarm", false)){
+        if(!prefs.getBoolean("arduino_beep", true)){
             sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
             Intent intent = new Intent(this, RingReceiver.class);
             intent.setAction(RingReceiver.beep_once); // Use the constant here
@@ -127,6 +130,13 @@ public class Tracker2 extends Service {
 
         if(!prefs.getBoolean("alarm_on_device", true)){
             sendUDP(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
+        }
+
+        if(prefs.getBoolean("do_not_beep", false)){
+            sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP});
+        }
+        if(prefs.getBoolean("do_not_alarm", false)){
+            sendUDP(new byte[]{SessionTracker.DO_NOT_ALARM});
         }
 
 
@@ -191,19 +201,7 @@ public class Tracker2 extends Service {
         }
 
         if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
-            Calendar calendar = Calendar.getInstance();
-            calendar.set(Calendar.HOUR_OF_DAY, 21);
-            calendar.set(Calendar.MINUTE, 0);
-            calendar.set(Calendar.SECOND, 0);
-
-            if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
-                calendar.add(Calendar.DATE, 1); // Next day if already passed
-            }
-
-            Intent intent = new Intent(this, UDPCatcher.class);
-            PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+            ServiceScheduler.scheduleUDPCatcherAtTime(this, prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
         }
 
         if(prefs.getBoolean("collect_data_on_end",false)) {
@@ -351,8 +349,8 @@ public class Tracker2 extends Service {
 
     public void dismissVibrator() {
         if (vibrator != null && vibrating) {
-            vibrator.cancel();
             vibrating=false;
+            vibrator.cancel();
         }
     }
 
@@ -394,8 +392,9 @@ public void exit(){
             }
             if(Intent.ACTION_SCREEN_ON.equals(intent.getAction()) || Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){
                 Log.d(TAG, "Screen on/off received");
-                if(vibrating)
+                if(vibrating) {
                     sendUDP(new byte[]{SessionTracker.BUTTON_PRESS});
+                }
 
             }
         }
@@ -446,11 +445,18 @@ public void exit(){
 
                 sendUDP(new byte[]{SessionTracker.USING_ANDROID});
 
-                if(!prefs.getBoolean("arduino_beep", true) || prefs.getBoolean("only_alarm", false)){
+                if(!prefs.getBoolean("arduino_beep", true)){
                     sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
                 }
                 if(!prefs.getBoolean("alarm_on_device", true)){
                     sendUDP(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
+                }
+
+                if(prefs.getBoolean("do_not_beep", false)){
+                    sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP});
+                }
+                if(prefs.getBoolean("do_not_alarm", false)){
+                    sendUDP(new byte[]{SessionTracker.DO_NOT_ALARM});
                 }
 
             }

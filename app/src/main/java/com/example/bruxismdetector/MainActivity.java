@@ -9,12 +9,14 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -47,6 +49,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -54,6 +57,7 @@ import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -115,6 +119,8 @@ private static final String TAG = "Main activity";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
+
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
 
 
@@ -149,9 +155,33 @@ private static final String TAG = "Main activity";
         launchActivityforPermissionsIfNecessary();
 
 
-        setupSwitchLabels();
 
+
+
+        setupUDP(4001, 4000);
+
+        Intent launchintent = getIntent();
+        if(launchintent!=null){
+            if(launchintent.getAction()!=null){
+            switch (launchintent.getAction()){
+                case LAUNCH_GRAPHER:
+                    tryGraphing(null);
+                    break;
+                default:
+                    break;
+            }
+        }
+            }
+
+
+        initialSetup();
+    }
+
+    public void initialSetup(){
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        setupSwitchLabels();
+        setupSessionToggle();
 
 
         MaterialSwitch swsh = (MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
@@ -182,24 +212,10 @@ private static final String TAG = "Main activity";
                 // If it exists, cancel it
                 if (existingIntent != null && !swshl.isChecked()) {
                     Log.i("Autostart Listener", "Autostart cancelled");
-                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                    alarmManager.cancel(existingIntent);
-                    existingIntent.cancel(); // Also cancel the PendingIntent itself
+                    ServiceScheduler.cancelUDPCatcherSchedule(MainActivity.this);
                 }else if(swshl.isChecked()){
                     Log.i("Autostart Listener", "Autostart set");
-                    Calendar calendar = Calendar.getInstance();
-                    calendar.set(Calendar.HOUR_OF_DAY, 21);
-                    calendar.set(Calendar.MINUTE, 0);
-                    calendar.set(Calendar.SECOND, 0);
-
-                    if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
-                        calendar.add(Calendar.DATE, 1); // Next day if already passed
-                    }
-
-                    Intent intent2 = new Intent(MainActivity.this, UDPCatcher.class);
-                    PendingIntent pendingIntent2 = PendingIntent.getService(MainActivity.this, 0, intent2, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent2);
+                    ServiceScheduler.scheduleUDPCatcherAtTime(MainActivity.this, prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
 
                 }
 
@@ -207,6 +223,16 @@ private static final String TAG = "Main activity";
             }
         });
         swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
+
+        View autostartListenerRow = findViewById(R.id.switch_autostart_listener);
+        autostartListenerRow.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                showAutostartTimePicker();
+                return true; // Consume the long click
+            }
+        });
+
 
         MaterialSwitch swthr = (MaterialSwitch)findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
         swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -227,19 +253,6 @@ private static final String TAG = "Main activity";
             }
         });
         swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
-
-
-        MaterialSwitch swonlyalarm = (MaterialSwitch)findViewById(R.id.switch_sharedpref_only_alarm).findViewById(R.id.switch_item);
-        swonlyalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("only_alarm", swonlyalarm.isChecked()).apply();  // or false when unchecked
-                swardubeep.setEnabled(!swonlyalarm.isChecked());
-                findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility( swonlyalarm.isChecked() ? View.GONE : View.VISIBLE);
-
-            }
-        });
-        swonlyalarm.setChecked(prefs.getBoolean("only_alarm", false));
 
         MaterialSwitch swoalarmondevice = (MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
         swoalarmondevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -271,6 +284,37 @@ private static final String TAG = "Main activity";
             }
         });
         swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
+
+
+        MaterialSwitch sw_notbeep = (MaterialSwitch)findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
+        sw_notbeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("do_not_beep", sw_notbeep.isChecked()).apply();  // or false when unchecked
+
+                if(sw_notbeep.isChecked()){
+                    findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.GONE);
+                }else{
+                    findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.VISIBLE);
+                }
+            }
+        });
+        sw_notbeep.setChecked(prefs.getBoolean("do_not_beep", false));
+
+        MaterialSwitch sw_notalarm = (MaterialSwitch)findViewById(R.id.switch_do_not_alarm).findViewById(R.id.switch_item);
+        sw_notalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("do_not_alarm", sw_notalarm.isChecked()).apply();  // or false when unchecked
+
+                if(sw_notalarm.isChecked()){
+                    findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.GONE);
+                }else{
+                    findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.VISIBLE);
+                }
+            }
+        });
+        sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
 
 
 
@@ -314,29 +358,49 @@ private static final String TAG = "Main activity";
         switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
-        setupUDP(4001, 4000);
-
-        Intent launchintent = getIntent();
-        if(launchintent!=null){
-            if(launchintent.getAction()!=null){
-            switch (launchintent.getAction()){
-                case LAUNCH_GRAPHER:
-                    tryGraphing(null);
-                    break;
-                default:
-                    break;
-            }
-        }
-            }
-
         if(prefs.getBoolean("tutorial",true)) {
             playTutorial();
 
         }
 
-        setupSessionToggle();
     }
 
+    private void showAutostartTimePicker() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        int currentHour = prefs.getInt("ServiceHour", 21);
+        int currentMinute = prefs.getInt("ServiceMinute", 0);
+
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                MainActivity.this,
+                // R.style.YourCustomTimePickerTheme, // Optional: Apply a custom theme
+                new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                        // Save the new time to SharedPreferences
+                        prefs.edit()
+                                .putInt("ServiceHour", hourOfDay)
+                                .putInt("ServiceMinute", minute)
+                                .apply();
+
+                        Log.i("Autostart Listener", "New time selected: " + hourOfDay + ":" + minute);
+
+                        // If the main switch is currently checked, reschedule with the new time
+                        MaterialSwitch swshl = findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item);
+                        if (swshl.isChecked()) {
+                            ServiceScheduler.scheduleUDPCatcherAtTime(MainActivity.this, hourOfDay, minute);
+                            Log.i("Autostart Listener", "Rescheduled with new time.");
+                        }
+                    }
+                },
+                currentHour,
+                currentMinute,
+                true // true for 24-hour view, false for 12-hour AM/PM view
+        );
+        timePickerDialog.setTitle("Set Autostart Time"); // Optional: Set a title
+        timePickerDialog.show();
+
+
+    }
     public void playTutorial(){
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         new Handler(Looper.getMainLooper()).post(() -> {
@@ -347,12 +411,15 @@ private static final String TAG = "Main activity";
 
                     new Pair<>(findViewById(R.id.switch_sharedpref_use_threshold), "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device."),
                     new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
-                    new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service."),
+                    new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time."),
 
+                    new Pair<>(findViewById(R.id.switch_do_not_beep), "Do not fire and record beeps during the session."),
+                    new Pair<>(findViewById(R.id.switch_do_not_alarm), "Do not fire and record alarms during the session."),
 
-                    new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
-                    new Pair<>(findViewById(R.id.switch_sharedpref_only_alarm), "Select this if you only want to have alarms and not beeps."),
                     new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
+                    new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
+
+
 
 
                     new Pair<>(findViewById(R.id.button), "Tap this button to start tracking"),
@@ -363,7 +430,6 @@ private static final String TAG = "Main activity";
                     new Pair<>(findViewById(R.id.button_tageditor), "Edit your session tags"),
 
                     new Pair<>(findViewById(R.id.button_tageditor), "Have fun!\nRefer to GitHub should you have any issues.")
-
 
             );
 
@@ -515,11 +581,12 @@ private static final String TAG = "Main activity";
         Map<Integer, String> switchLabelMap = new HashMap<>();
 
         switchLabelMap.put(R.id.switch_sharedpref, "Autostart Trainer");
-        switchLabelMap.put(R.id.switch_sharedpref_only_alarm, "Only Alarms");
         switchLabelMap.put(R.id.switch_sharedpref_alarm_on_device, "Alarm on device");
         switchLabelMap.put(R.id.switch_autostart_listener, "Autostart Service");
         switchLabelMap.put(R.id.switch_recordnoise, "Record noise");
         switchLabelMap.put(R.id.switch_recordaccel, "Record movement");
+        switchLabelMap.put(R.id.switch_do_not_alarm, "Do not alarm");
+        switchLabelMap.put(R.id.switch_do_not_beep, "Do not beep");
 
 
 
@@ -994,8 +1061,24 @@ private static final String TAG = "Main activity";
     protected void onPostResume() {
         super.onPostResume();
 
+        initialSetup();
+        switchManager.ReloadAll();
+
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // New configuration, window might have resized.
+        // You can get new dimensions here if needed.
+        int newWidth = newConfig.screenWidthDp;
+        int newHeight = newConfig.screenHeightDp;
+        Log.d("Resize", "onConfigurationChanged: New DpWidth=" + newWidth + ", New DpHeight=" + newHeight);
+
+        initialSetup();
         switchManager.ReloadAll();
     }
+
 
     public void LaunchSwitchEditor(View v){
         startActivity(new Intent(MainActivity.this, SwitchEditor.class));
@@ -1076,6 +1159,10 @@ private static final String TAG = "Main activity";
             }
             vibrator.vibrate(ve);
         }
+    }
+
+    public void scheduleUDPCatcher(View v){
+        ServiceScheduler.scheduleUDPCatcherAtTime(this, System.currentTimeMillis()+10000);
     }
 
 }

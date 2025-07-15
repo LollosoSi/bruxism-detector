@@ -23,19 +23,7 @@ public class BootReceiver extends BroadcastReceiver {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
             if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
                 Log.d(TAG, "Device booted, scheduling UDPCatcher");
-                Calendar calendar = Calendar.getInstance();
-                calendar.set(Calendar.HOUR_OF_DAY, 21);
-                calendar.set(Calendar.MINUTE, 0);
-                calendar.set(Calendar.SECOND, 0);
-
-                if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
-                    calendar.add(Calendar.DATE, 1); // Next day if already passed
-                }
-
-                Intent intent2 = new Intent(context, UDPCatcher.class);
-                PendingIntent pendingIntent = PendingIntent.getService(context, 0, intent2, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+                ServiceScheduler.scheduleUDPCatcherAtTime(context,prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
             }
         }else if (!PermissionsActivity.isExactAlarmPermissionGranted(context)){
             Log.d(TAG, "Permission denied, could not schedule UDPCatcher");

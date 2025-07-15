@@ -110,6 +110,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingStart="8dp"
+            android:animateLayoutChanges="true"
             app:layout_constraintTop_toBottomOf="@id/session_settings_textview_handle"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toStartOf="@id/right_column_switches">
@@ -127,8 +128,14 @@
                 layout="@layout/switch_row" />
 
             <include
-                android:id="@+id/switch_recordnoise"
+                android:id="@+id/switch_do_not_beep"
                 layout="@layout/switch_row" />
+
+            <include
+                android:id="@+id/switch_do_not_alarm"
+                layout="@layout/switch_row" />
+
+
 
         </LinearLayout>
 
@@ -138,16 +145,17 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingEnd="8dp"
+            android:animateLayoutChanges="true"
             app:layout_constraintTop_toTopOf="@id/left_column_switches"
             app:layout_constraintStart_toEndOf="@id/left_column_switches"
             app:layout_constraintEnd_toEndOf="parent">
 
             <include
-                android:id="@+id/switch_sharedpref_alarm_on_device"
+                android:id="@+id/switch_recordnoise"
                 layout="@layout/switch_row" />
 
             <include
-                android:id="@+id/switch_sharedpref_only_alarm"
+                android:id="@+id/switch_recordaccel"
                 layout="@layout/switch_row" />
 
             <include
@@ -155,7 +163,7 @@
                 layout="@layout/switch_row" />
 
             <include
-                android:id="@+id/switch_recordaccel"
+                android:id="@+id/switch_sharedpref_alarm_on_device"
                 layout="@layout/switch_row" />
 
 
@@ -259,6 +267,17 @@
             android:onClick="startTrainer"
             android:text="Start trainer"
             app:icon="@drawable/trainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/button2" />
+
+        <Button
+            android:id="@+id/button_startcatcher"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="scheduleUDPCatcher"
+            android:text="Schedule UDPCatcher"
+            android:visibility="gone"
+            app:icon="@drawable/start_recording"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/button2" />
 

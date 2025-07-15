@@ -39,6 +39,13 @@ public class SessionTracker {
     public static final byte SET_EVALUATION_THRESHOLD = 12;
     public static final byte DO_NOT_BEEP_ARDUINO = 13;
     public static final byte ALARM_ARDUINO_EVEN_WITH_ANDROID = 14;
+    public static final byte CHECK_VERSION = 15;
+
+    public static final byte CONFIRM_ANDROID_ALARM_STOPPED = 16;
+
+    public static final byte DO_NOT_ALARM = 17;
+    public static final byte DO_NOT_BEEP = 18;
+
 
     private static final String TAG = "BruxismTracker:SessionTracker";
     public String csv_folder_path = "RECORDINGS/";
@@ -119,13 +126,20 @@ public class SessionTracker {
                 }
             }
 
-
-            if(prefs.getBoolean("only_alarm", false)){
+            if(prefs.getBoolean("do_not_beep", false)){
                 append_csv(new String[]{
                         String.valueOf(ms),
                         time,
                         "SESSION",
-                        "OnlyAlarm"
+                        "DoNotBeep"
+                }, file_out);
+            }
+            if(prefs.getBoolean("do_not_alarm", false)){
+                append_csv(new String[]{
+                        String.valueOf(ms),
+                        time,
+                        "SESSION",
+                        "DoNotAlarm"
                 }, file_out);
             }
         }
@@ -347,6 +361,7 @@ public class SessionTracker {
                             append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STOPPED", String.valueOf((millis()-cstart)/1000.0)}, file_out);
                         }
                         alarmed=false;
+                        servicereference.dismissVibrator();
 
                         break;
                     case ALARM_START:
@@ -394,6 +409,15 @@ public class SessionTracker {
 
                     case TRACKING_STOP:
                         servicereference.exit();
+                        break;
+
+                    case CONFIRM_ANDROID_ALARM_STOPPED:
+                        if(alarmed){
+                            append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STOPPED"}, file_out);
+                            alarmed=false;
+                        }
+                        servicereference.dismissVibrator();
+                        servicereference.sendUDP(new byte[]{CONFIRM_ANDROID_ALARM_STOPPED});
                         break;
                 }
             } else {

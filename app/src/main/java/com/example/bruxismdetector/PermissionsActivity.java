@@ -3,6 +3,7 @@ package com.example.bruxismdetector;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlarmManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -14,12 +15,14 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.view.View;
 import android.widget.CompoundButton;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -28,6 +31,12 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 public class PermissionsActivity extends AppCompatActivity {
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+
+        checkset();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -220,16 +229,32 @@ public class PermissionsActivity extends AppCompatActivity {
 
 
     public static void requestForegroundLocationPermission(Activity activity, int requestCode) {
-        ActivityCompat.requestPermissions(activity,
-                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                requestCode);
+        if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_FINE_LOCATION) &&
+                ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // User has selected "Don't ask again" or permission is disabled by policy.
+            // Guide them to app settings.
+            showAppSettingsDialog(activity, "Precise location permission was denied with 'Don't ask again'. To use this feature, please enable the permission manually in app settings.");
+        }else {
+
+            ActivityCompat.requestPermissions(activity,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    requestCode);
+        }
+
     }
 
     public static void requestBackgroundLocationPermission(Activity activity, int requestCode) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ActivityCompat.requestPermissions(activity,
-                    new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION},
-                    requestCode);
+        if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) &&
+                ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // User has selected "Don't ask again" or permission is disabled by policy.
+            // Guide them to app settings.
+            showAppSettingsDialog(activity, "Background location permission was denied with 'Don't ask again'. To use this feature, please enable the permission manually in app settings.");
+        }else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ActivityCompat.requestPermissions(activity,
+                        new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                        requestCode);
+            }
         }
     }
 
@@ -330,7 +355,25 @@ public static boolean hasStorage(Context ct){
         checkset();
     }
 
-
+    public static void showAppSettingsDialog(Activity activity, String message) {
+        new AlertDialog.Builder(activity)
+                .setTitle("Permission Required")
+                .setMessage(message)
+                .setPositiveButton("Open Settings", (dialog, which) -> {
+                    // Intent to open app settings
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    Uri uri = Uri.fromParts("package", activity.getPackageName(), null);
+                    intent.setData(uri);
+                    try {
+                        activity.startActivity(intent);
+                    } catch (ActivityNotFoundException e) {
+                        Toast.makeText(activity, "Could not open app settings.", Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                .create()
+                .show();
+    }
 
     public static boolean hasFloatingPermission(Context ct){
         return Settings.canDrawOverlays(ct);

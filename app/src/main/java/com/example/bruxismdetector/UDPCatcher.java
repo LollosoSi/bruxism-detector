@@ -49,50 +49,45 @@ public class UDPCatcher extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
+        Log.i("UDPCatcher", "UDPCatcher is created!");
+
         createNotificationChannel();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        handleAction(intent);
-        startForeground(1, buildNotification());
-        setupUDP(4001, 4000);
+        if(handleAction(intent)) {
+            Log.i("UDPCatcher", "UDPCatcher is starting!");
+
+            startForeground(1, buildNotification());
+            setupUDP(4001, 4000);
+        }else{
+            stopSelf();
+        }
 
         return START_NOT_STICKY;
     }
 
-    @SuppressLint("ScheduleExactAlarm")
-    private void handleAction(Intent intent) {
+    private boolean handleAction(Intent intent) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if (intent == null || intent.getAction() == null) return;
+        if (intent == null || intent.getAction() == null)
+            return true;
+
         switch (intent.getAction()) {
             case ACTION_STOP:
                 if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
-                    Calendar calendar = Calendar.getInstance();
-                    calendar.set(Calendar.HOUR_OF_DAY, 21);
-                    calendar.set(Calendar.MINUTE, 0);
-                    calendar.set(Calendar.SECOND, 0);
-
-                    if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
-                        calendar.add(Calendar.DATE, 1); // Next day if already passed
-                    }
-
-                    Intent rsintent = new Intent(this, UDPCatcher.class);
-                    PendingIntent rspendingIntent = PendingIntent.getService(this, 0, rsintent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), rspendingIntent);
+                    ServiceScheduler.scheduleUDPCatcherAtTime(this, prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
                 }
-                    stopSelf();
-                break;
+                return false;
             case ACTION_RESCHEDULE_30:
                 scheduleSelfAfterMinutes(30);
-                stopSelf();
-                break;
+                return false;
             case ACTION_RESCHEDULE_60:
                 scheduleSelfAfterMinutes(60);
-                stopSelf();
-                break;
+                return false;
         }
+        return true;
     }
 
     private Notification buildNotification() {
@@ -119,12 +114,7 @@ public class UDPCatcher extends Service {
 
     @SuppressLint("ScheduleExactAlarm")
     private void scheduleSelfAfterMinutes(int minutes) {
-        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        Intent intent = new Intent(this, UDPCatcher.class);
-        PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-        long triggerAtMillis = System.currentTimeMillis() + minutes * 60 * 1000;
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+        ServiceScheduler.scheduleUDPCatcherAfterMinutes(this, minutes);
     }
 
     private void createNotificationChannel() {

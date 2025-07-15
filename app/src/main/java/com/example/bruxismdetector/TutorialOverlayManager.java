@@ -93,7 +93,7 @@ public class TutorialOverlayManager {
             int tempHeight = temp.getMeasuredHeight();
 
             // Decide new Y position: prefer above, fallback to below if not enough space
-            int spacing = 40;
+            int spacing = 100;
             float targetY;
 
             if (targetRect.top - spacing - tempHeight >= 0) {
