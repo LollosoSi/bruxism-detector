@@ -50,6 +50,11 @@ uint8_t indice_campione = campioniFiltraggio - 1;
 bool started_sent = false;
 
 bool alarm_running = 0;
+bool confirm_android_alarm_stopped = false;
+void alarm_stoppped_confirmed(){confirm_android_alarm_stopped=false;}
+
+bool do_not_alarm = false;
+bool do_not_beep = false;
 
 long last_tone_ms = 0, last_flash = 0;
 
@@ -73,6 +78,10 @@ void trigger_alarm() {
 }
 
 void warning_beep() {
+  if(do_not_beep)
+    return;
+  Serial.println("Beep!");
+
   send_event(BEEP);
   if (do_not_beep_if_android && is_using_android) {
     return;
@@ -106,8 +115,11 @@ inline void loop_alarm() {
       if ((millis() > (alarm_start + android_alarm_timeout))) {
         // Android failed, fallback to device only alarm
         is_using_android = false;
+        confirm_android_alarm_stopped = true;
       }
     }
+  }else if (confirm_android_alarm_stopped){
+    send_event(CONFIRM_ANDROID_ALARM_STOPPED);
   }
 }
 
@@ -172,15 +184,16 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
 
     if (tempoAttuale - inizioEvento > attesaFiltraggio) {
       if (tempoAttuale - inizioEvento > attesaPrimoBeep + beepCounter * attesaBeep) {
-        if (beepCounter < numeroMaxBeep) {
+        // do_not_alarm=true ensures alarm does not fire! So if beeps are enabled the device will continue beeping indefinitely
+        if (beepCounter < numeroMaxBeep || do_not_alarm) {
           if (beepCounter == 0) {
 
             send_event(CLENCH_START);
 
             started_sent = true;
           }
-          warning_beep();
-          Serial.println("Beep!");
+          warning_beep(); // This will beep only if do_not_beep = false
+          
 
 
           beepCounter++;

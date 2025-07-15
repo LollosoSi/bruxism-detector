@@ -11,7 +11,11 @@
 
 extern void trigger_alarm();
 extern void warning_beep();
+extern void alarm_stoppped_confirmed();
 static void button_short_press(bool pressed, bool released);
+
+extern bool do_not_alarm;
+extern bool do_not_beep;
 
 WiFiUDP udp;                                 // Define UDP object
 WiFiUDP read_udp;                            // Define UDP object
@@ -148,6 +152,16 @@ void read_from_udp() {
           do_not_beep_if_android = true;
         break;
 
+        case DO_NOT_BEEP:
+          do_not_beep = true;
+          send_event(DO_NOT_BEEP);
+        break;
+
+        case DO_NOT_ALARM:
+          do_not_alarm = true;
+          send_event(DO_NOT_ALARM);
+        break;
+
         case ALARM_ARDUINO_EVEN_WITH_ANDROID:
         if(!alarm_even_with_android){
             tone(BUZZER, Notes::C6, Notes::DottedEighth / 4);
@@ -163,6 +177,10 @@ void read_from_udp() {
 
         case CHECK_VERSION:
           send_version();
+        break;
+
+        case CONFIRM_ANDROID_ALARM_STOPPED:
+          alarm_stoppped_confirmed();
         break;
       }
     }
