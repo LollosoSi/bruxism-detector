@@ -106,7 +106,7 @@ For more information, [see here](https://en.wikipedia.org/wiki/Classical_conditi
 - A Push Button (12x12mm base). Connect one lead to Arduino Pin 3, the other end to GND.
 - [A way to fix everything in place, I designed a 3D printed model to do so](https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure)
 - Conductive gel. Ultrasound gel usually works too, alternatively saliva should work.
-- An elastic band to hold the electrodes together and make it reusable
+- An elastic band to hold the electrodes together and make it reusable. [Edit this model to the right size to hold your band together](https://www.thingiverse.com/thing:4264338).
 - (optional) a sleep tracker
 
 ## **Software you need**
