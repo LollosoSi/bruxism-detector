@@ -344,11 +344,13 @@ public class MainActivity extends AppCompatActivity {
                 prefs.edit().putBoolean("use_tcp", swtcp.isChecked()).apply();  // or false when unchecked
                 String ip = prefs.getString("tcp_address", "");
                 ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
+                swtcp.setEnabled(!ip.isEmpty());
             }
         });
         swtcp.setChecked(prefs.getBoolean("use_tcp", false));
         String ip = prefs.getString("tcp_address", "");
         ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
+        swtcp.setEnabled(!ip.isEmpty());
 
 
         SeekBar sbar = (SeekBar)findViewById(R.id.reception);

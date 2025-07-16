@@ -105,6 +105,7 @@ public class Tracker2 extends Service {
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
 SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
         useTcp = p.getBoolean("use_tcp",false);
+        p.edit().putBoolean("use_tcp",false).apply();
 
         sessionTracker = new SessionTracker();
         sessionTracker.servicereference = this;

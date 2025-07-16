@@ -30,13 +30,14 @@ public class WifiDialogHelper {
         }
 
         if (ssid == null || ssid.equals("<unknown ssid>")) {
-            ssid = "(SSID not available)";
+            ssid = "";
         }
 
-        TextView ssidLabel = new TextView(act.getApplicationContext());
-        ssidLabel.setText("Connected to: " + ssid);
-        ssidLabel.setPadding(32, 32, 32, 16);
-        ssidLabel.setTextSize(16);
+        EditText ssidText = new EditText(act.getApplicationContext());
+        ssidText.setHint("Enter Wi-Fi SSID");
+        ssidText.setText(ssid);
+        ssidText.setPadding(32, 32, 32, 32);
+        ssidText.setTextSize(16);
 
         EditText input = new EditText(act.getApplicationContext());
         input.setHint("Enter Wi-Fi Password");
@@ -45,7 +46,7 @@ public class WifiDialogHelper {
 
         LinearLayout layout = new LinearLayout(act.getApplicationContext());
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.addView(ssidLabel);
+        layout.addView(ssidText);
         layout.addView(input);
 
         final String finalSsid = ssid;
