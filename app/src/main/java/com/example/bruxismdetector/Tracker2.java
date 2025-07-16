@@ -34,12 +34,16 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.fragment.app.FragmentManager;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -47,6 +51,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Tracker2 extends Service {
+
+    int tcpServerPort = 9334;
+
 
     private static final String TAG = "BruxismTracker:TrackerService";
 
@@ -74,17 +81,30 @@ public class Tracker2 extends Service {
 
     private SessionTracker sessionTracker;
 
+
+    private Socket tcpSocket;
+    private DataOutputStream tcpOut;
+    private DataInputStream tcpIn;
+    private ExecutorService tcpExecutor = Executors.newSingleThreadExecutor();
+    private boolean tcpRunning = false;
+
+
+
+    boolean useTcp=false;
     public Tracker2() {
     }
 
     //AudioLogger audioLogger = null;
+
+
 
     @Override
     public void onCreate() {
         super.onCreate();
 
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
-
+SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        useTcp = p.getBoolean("use_tcp",false);
 
         sessionTracker = new SessionTracker();
         sessionTracker.servicereference = this;
@@ -109,34 +129,35 @@ public class Tracker2 extends Service {
 
         sessionTracker.setup(this);
 
-        setupUDP(4001, 4000);
+        if(useTcp)
+            setupTCP(p.getString("tcp_address", ""), tcpServerPort);
+            else
+            setupUDP(4001, 4000);
 
-        sendUDP(new byte[]{SessionTracker.USING_ANDROID});
+        sendBytes(new byte[]{SessionTracker.USING_ANDROID});
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         if(prefs.getBoolean("use_threshold", false)) {
-            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
-            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
-            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
-            sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendBytes(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendBytes(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendBytes(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+            sendBytes(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
 
         }
 
         if(!prefs.getBoolean("arduino_beep", true)){
-            sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
-            Intent intent = new Intent(this, RingReceiver.class);
-            intent.setAction(RingReceiver.beep_once); // Use the constant here
-            sendBroadcast(intent);
+            sendBytes(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
+            RingReceiver.testVolumeAndReportUser(this);
         }
 
         if(!prefs.getBoolean("alarm_on_device", true)){
-            sendUDP(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
+            sendBytes(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
         }
 
         if(prefs.getBoolean("do_not_beep", false)){
-            sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP});
+            sendBytes(new byte[]{SessionTracker.DO_NOT_BEEP});
         }
         if(prefs.getBoolean("do_not_alarm", false)){
-            sendUDP(new byte[]{SessionTracker.DO_NOT_ALARM});
+            sendBytes(new byte[]{SessionTracker.DO_NOT_ALARM});
         }
 
 
@@ -196,8 +217,7 @@ public class Tracker2 extends Service {
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         if(prefs.getBoolean("start_trainer_after_tracker_ends", false)){
-            Intent intent = new Intent(this, RingReceiver.class);
-            sendBroadcast(intent);
+            RingReceiver.schedule(this);
         }
 
         if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
@@ -367,6 +387,8 @@ public class Tracker2 extends Service {
         if (sendSocket != null && !sendSocket.isClosed()) {
             sendSocket.close();
         }
+
+        stopTCP();
     }
 
 
@@ -383,17 +405,17 @@ public void exit(){
             }
             if (ACTION_BUTTON_SERVICE.equals(intent.getAction()) || ALARMOFF_BUTTON_SERVICE.equals(intent.getAction())) {
                 Log.d(TAG, "Button received");
-                sendUDP(new byte[]{SessionTracker.BUTTON_PRESS});
+                sendBytes(new byte[]{SessionTracker.BUTTON_PRESS});
                 //processData(new byte[]{BUTTON_PRESS}, 1);
             }
             if (BEEP_BUTTON_SERVICE.equals(intent.getAction())) {
                 Log.d(TAG, "Beep button received");
-                sendUDP(new byte[]{SessionTracker.BEEP});
+                sendBytes(new byte[]{SessionTracker.BEEP});
             }
             if(Intent.ACTION_SCREEN_ON.equals(intent.getAction()) || Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){
                 Log.d(TAG, "Screen on/off received");
                 if(vibrating) {
-                    sendUDP(new byte[]{SessionTracker.BUTTON_PRESS});
+                    sendBytes(new byte[]{SessionTracker.BUTTON_PRESS});
                 }
 
             }
@@ -439,24 +461,24 @@ public void exit(){
                 last_system_broadcast_info = sessionTracker.millis();
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
                 if(prefs.getBoolean("use_threshold", false)) {
-                    sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
-                    sendUDP(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+                    sendBytes(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
+                    sendBytes(new byte[]{SessionTracker.SET_EVALUATION_THRESHOLD, (byte)(prefs.getInt("classification_threshold", 0) & 0xFF), (byte)((prefs.getInt("classification_threshold", 0) >> 8) & 0xFF)});
                 }
 
-                sendUDP(new byte[]{SessionTracker.USING_ANDROID});
+                sendBytes(new byte[]{SessionTracker.USING_ANDROID});
 
                 if(!prefs.getBoolean("arduino_beep", true)){
-                    sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
+                    sendBytes(new byte[]{SessionTracker.DO_NOT_BEEP_ARDUINO});
                 }
                 if(!prefs.getBoolean("alarm_on_device", true)){
-                    sendUDP(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
+                    sendBytes(new byte[]{SessionTracker.ALARM_ARDUINO_EVEN_WITH_ANDROID});
                 }
 
                 if(prefs.getBoolean("do_not_beep", false)){
-                    sendUDP(new byte[]{SessionTracker.DO_NOT_BEEP});
+                    sendBytes(new byte[]{SessionTracker.DO_NOT_BEEP});
                 }
                 if(prefs.getBoolean("do_not_alarm", false)){
-                    sendUDP(new byte[]{SessionTracker.DO_NOT_ALARM});
+                    sendBytes(new byte[]{SessionTracker.DO_NOT_ALARM});
                 }
 
             }
@@ -506,6 +528,77 @@ public void exit(){
         thread.start();
 
     }
+
+    public void setupTCP(String address, int port) {
+        tcpExecutor.execute(() -> {
+            try {
+                tcpSocket = new Socket();
+                tcpSocket.connect(new InetSocketAddress(address, port), 3000); // 3s timeout
+
+                tcpOut = new DataOutputStream(tcpSocket.getOutputStream());
+                tcpIn = new DataInputStream(tcpSocket.getInputStream());
+
+                tcpRunning = true;
+                Log.d(TAG, "TCP connected to " + address + ":" + port);
+
+                executor.execute(this::receiveTCP);
+            } catch (IOException e) {
+                Log.e(TAG, "Error setting up TCP", e);
+            }
+        });
+    }
+
+    public void receiveTCP() {
+        byte[] buffer = new byte[10000];
+
+        while (tcpRunning) {
+            try {
+                int length = tcpIn.read(buffer); // blocking read
+                if (length > 0) {
+                    Log.d(TAG, "Received TCP bytes: " + length);
+                    sessionTracker.processData(buffer, length);
+                }
+            } catch (IOException e) {
+                if (tcpRunning) {
+                    Log.e(TAG, "Error receiving TCP data", e);
+                    tcpRunning = false;
+                }
+            }
+        }
+    }
+
+
+    public void sendTCP(byte[] data) {
+        tcpExecutor.execute(() -> {
+            try {
+                if (tcpOut != null) {
+                    tcpOut.write(data);
+                    tcpOut.flush();
+                    Log.d(TAG, "Sent TCP data of length " + data.length);
+                }
+            } catch (IOException e) {
+                Log.e(TAG, "Error sending TCP data", e);
+            }
+        });
+    }
+
+
+    public void stopTCP() {
+        tcpRunning = false;
+        try {
+            if (tcpIn != null) tcpIn.close();
+            if (tcpOut != null) tcpOut.close();
+            if (tcpSocket != null && !tcpSocket.isClosed()) tcpSocket.close();
+            Log.d(TAG, "TCP connection closed.");
+        } catch (IOException e) {
+            Log.e(TAG, "Error closing TCP", e);
+        }
+    }
+
+public void sendBytes(byte[] data){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("use_tcp", false)){sendTCP(data);}else{sendUDP(data);}
+}
 
     public void runAlarm() {
         vibrate();

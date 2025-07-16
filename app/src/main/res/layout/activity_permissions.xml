@@ -72,4 +72,16 @@
         android:layout_height="wrap_content"
         android:text="Floating window" />
 
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/blue_scan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bluetooth Scanning" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/blue_connect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bluetooth Connect" />
+
 </LinearLayout>

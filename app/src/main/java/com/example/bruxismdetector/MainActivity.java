@@ -2,7 +2,6 @@ package com.example.bruxismdetector;
 
 import static androidx.core.app.PendingIntentCompat.getActivity;
 
-import android.Manifest;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -111,10 +110,29 @@ public class MainActivity extends AppCompatActivity {
     private int receivePort;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-private static final String TAG = "Main activity";
+    private static final String TAG = "Main activity";
 
+    Thread bleThread = null;
     SwitchManager switchManager;
     boolean is_user_editing_classification_thumb = false;
+
+    BLEWifiSender bleWifiSender = null;
+
+    BLEWifiSender.BLECallback blc = new BLEWifiSender.BLECallback() {
+        @Override
+        public void onIPReceived(String ip) {
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    ((MaterialSwitch)findViewById(R.id.switch_tcp).findViewById(R.id.switch_item)).setChecked(true);
+
+                }
+            });
+
+
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,7 +140,6 @@ private static final String TAG = "Main activity";
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-
 
 
 
@@ -152,7 +169,11 @@ private static final String TAG = "Main activity";
 
         getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
 
-        launchActivityforPermissionsIfNecessary();
+        if(!launchActivityforPermissionsIfNecessary()){
+            checkAndRequestBluetoothPermissions();
+
+
+        }
 
 
 
@@ -316,6 +337,18 @@ private static final String TAG = "Main activity";
         });
         sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
 
+        MaterialSwitch swtcp = (MaterialSwitch)findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
+        swtcp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("use_tcp", swtcp.isChecked()).apply();  // or false when unchecked
+                String ip = prefs.getString("tcp_address", "");
+                ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
+            }
+        });
+        swtcp.setChecked(prefs.getBoolean("use_tcp", false));
+        String ip = prefs.getString("tcp_address", "");
+        ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
 
 
         SeekBar sbar = (SeekBar)findViewById(R.id.reception);
@@ -413,8 +446,8 @@ private static final String TAG = "Main activity";
                     new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
                     new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time."),
 
-                    new Pair<>(findViewById(R.id.switch_do_not_beep), "Do not fire and record beeps during the session."),
-                    new Pair<>(findViewById(R.id.switch_do_not_alarm), "Do not fire and record alarms during the session."),
+                    new Pair<>(findViewById(R.id.switch_do_not_beep), "Don't fire and record beeps during the session."),
+                    new Pair<>(findViewById(R.id.switch_do_not_alarm), "Don't fire and record alarms during the session."),
 
                     new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
                     new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
@@ -590,9 +623,6 @@ private static final String TAG = "Main activity";
 
 
 
-
-
-
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
             View row = findViewById(entry.getKey());
             if (row != null) {
@@ -626,6 +656,74 @@ private static final String TAG = "Main activity";
         }
     }
 
+    // In your Activity, before creating BLEWifiSender or starting a scan:
+    private static final int BLEREQUEST_CODE = 123;
+
+    private void checkAndRequestBluetoothPermissions() {
+        List<String> permissionsToRequest = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_SCAN);
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_CONNECT);
+            }
+        } else { // Below Android 12
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH);
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_ADMIN);
+            }
+        }
+        // Location permission is always needed for scanning on API 23+ (unless using companion device pairing)
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(android.Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+
+
+        if (!permissionsToRequest.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toArray(new String[0]), BLEREQUEST_CODE);
+        } else {
+            // Permissions are already granted, proceed with BLE operations
+            bleThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    bleWifiSender = new BLEWifiSender(MainActivity.this, blc);
+
+                }
+            });
+            bleThread.start();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == BLEREQUEST_CODE) {
+            boolean allGranted = true;
+            for (int grantResult : grantResults) {
+                if (grantResult != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (allGranted) {
+                // All permissions granted, proceed
+                bleThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        bleWifiSender = new BLEWifiSender(MainActivity.this, blc);
+
+                    }
+                });
+                bleThread.start();
+            } else {
+                Toast.makeText(this, "Permissions denied. BLE scanning will not work.", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
     @Override
     protected void onDestroy() {
 
@@ -636,9 +734,15 @@ private static final String TAG = "Main activity";
             executor.shutdownNow(); // Shutdown the executor
         }
 
-        //reOpenApp();
-        //if(isServiceRunning(Tracker2.class))
-        //    Toast.makeText(this, "You closed the Bruxism app, the alarm will NOT fire!", Toast.LENGTH_LONG).show();
+        if(bleWifiSender!=null)
+             bleWifiSender.stop();
+
+        try {
+            bleThread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
         super.onDestroy();
     }
 

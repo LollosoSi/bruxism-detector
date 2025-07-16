@@ -206,6 +206,38 @@ public class PermissionsActivity extends AppCompatActivity {
             });
         }
 
+        // bluetooth scan
+        if(isBluetoothScanGranted(this)){
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.blue_scan));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            uncoolperms++;
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.blue_scan)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestBluetoothScanPermission(PermissionsActivity.this, 10000);
+                    checkset();
+                }
+            });
+        }
+
+        // bluetooth connect
+        if(isBluetoothConnectGranted(this)){
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.blue_connect));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            uncoolperms++;
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.blue_connect)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestBluetoothConnectPermission(PermissionsActivity.this, 10000);
+                    checkset();
+                }
+            });
+        }
+
 
         if(uncoolperms==0){
             // restart the application
@@ -215,6 +247,50 @@ public class PermissionsActivity extends AppCompatActivity {
         }
     }
 
+
+
+
+    public static boolean isBluetoothScanGranted(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true; // No runtime permission before Android 12
+    }
+
+    public static boolean isBluetoothConnectGranted(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true; // No runtime permission before Android 12
+    }
+
+    public static void requestBluetoothScanPermission(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.BLUETOOTH_SCAN) &&
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                // User selected "Don't ask again" or permission disabled by policy
+                showAppSettingsDialog(activity, "Bluetooth scan permission was denied with 'Don't ask again'. Please enable it manually in app settings.");
+            } else {
+                ActivityCompat.requestPermissions(activity,
+                        new String[]{Manifest.permission.BLUETOOTH_SCAN},
+                        requestCode);
+            }
+        }
+    }
+
+    public static void requestBluetoothConnectPermission(Activity activity, int requestCode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.BLUETOOTH_CONNECT) &&
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                // User selected "Don't ask again" or permission disabled by policy
+                showAppSettingsDialog(activity, "Bluetooth connect permission was denied with 'Don't ask again'. Please enable it manually in app settings.");
+            } else {
+                ActivityCompat.requestPermissions(activity,
+                        new String[]{Manifest.permission.BLUETOOTH_CONNECT},
+                        requestCode);
+            }
+        }
+    }
 
     public static boolean isForegroundLocationGranted(Context context) {
         return (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) || isBackgroundLocationGranted(context);
@@ -306,7 +382,8 @@ public class PermissionsActivity extends AppCompatActivity {
                 && hasFloatingPermission(ct) && isExactAlarmPermissionGranted(ct)
                 && hasNotificationPermission(ct) && isCameraPermissionGranted(ct)
                 && isMicrophonePermissionGranted(ct)
-                && isBackgroundLocationGranted(ct) && isForegroundLocationGranted(ct);
+                && isBackgroundLocationGranted(ct) && isForegroundLocationGranted(ct)
+                && isBluetoothScanGranted(ct) && isBluetoothConnectGranted(ct);
     }
 
     public void askNotificationPerm(){

@@ -1,5 +1,6 @@
 package com.example.bruxismdetector;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -51,6 +52,22 @@ public class RingReceiver extends BroadcastReceiver {
         }
     }
 
+    public static void testVolumeAndReportUser(Context context){
+        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
+        Log.d("RingReceiver", "Volume: " + volume);
+        if (volume <= 1 || volume >= 20) {
+            // Show volume picker if volume too low or too high
+            Intent volumeIntent = new Intent(Settings.ACTION_SOUND_SETTINGS);
+            volumeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(volumeIntent);
+            if (volume <= 1)
+                Toast.makeText(context, "Raise alarm volume to hear the next beeps", Toast.LENGTH_LONG).show();
+            else
+                Toast.makeText(context, "Your alarm volume might be too high for the next beeps", Toast.LENGTH_LONG).show();
+        }
+    }
+
     @Override
     public void onReceive(Context context, Intent intent) {
         if(intent.getAction()!=null) {
@@ -66,24 +83,8 @@ public class RingReceiver extends BroadcastReceiver {
 
         }
 
-        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
-        Log.d("RingReceiver", "Volume: " + volume);
-        if (volume <= 1 || volume >= 20) {
-            // Show volume picker if volume too low or too high
-            Intent volumeIntent = new Intent(Settings.ACTION_SOUND_SETTINGS);
-            volumeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(volumeIntent);
-            if(volume <= 1)
-                Toast.makeText(context, "Raise alarm volume to hear the next beeps", Toast.LENGTH_LONG).show();
-            else
-                Toast.makeText(context, "Your alarm volume might be too high for the next beeps", Toast.LENGTH_LONG).show();
+        play2600Hz(context);
 
-        } //else {
-            // Play the tone
-            play2600Hz(context);
-           
-       // }
         if(intent.getAction()!=null)
             if(intent.getAction().equals(beep_once)){
                 return;
@@ -189,8 +190,11 @@ public class RingReceiver extends BroadcastReceiver {
     }
 
 
+    @SuppressLint("ScheduleExactAlarm")
     public static void schedule(Context context) {
         cancel(context);
+
+        testVolumeAndReportUser(context);
 
         Calendar now = Calendar.getInstance();
         int hour = now.get(Calendar.HOUR_OF_DAY);

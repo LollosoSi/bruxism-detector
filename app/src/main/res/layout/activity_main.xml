@@ -159,6 +159,10 @@
                 layout="@layout/switch_row" />
 
             <include
+                android:id="@+id/switch_tcp"
+                layout="@layout/switch_row" />
+
+            <include
                 android:id="@+id/switch_sharedpref_arduino_beep"
                 layout="@layout/switch_row" />
 

@@ -370,7 +370,7 @@ public class SessionTracker {
                             alarmed=true;
                             if(prefs.getBoolean("alarm_on_device", true)) {
                                 servicereference.runAlarm();
-                                servicereference.sendUDP(new byte[]{UDP_ALARM_CONFIRMED});
+                                servicereference.sendBytes(new byte[]{UDP_ALARM_CONFIRMED});
                             }
                         }
                         break;
@@ -417,7 +417,7 @@ public class SessionTracker {
                             alarmed=false;
                         }
                         servicereference.dismissVibrator();
-                        servicereference.sendUDP(new byte[]{CONFIRM_ANDROID_ALARM_STOPPED});
+                        servicereference.sendBytes(new byte[]{CONFIRM_ANDROID_ALARM_STOPPED});
                         break;
                 }
             } else {
