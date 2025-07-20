@@ -214,7 +214,7 @@ public class SessionTracker {
 
 
 
-    private void createRecordingsDirectory() {
+    public void createRecordingsDirectory() {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         recordingsDirectory = new File(documentsDir, "RECORDINGS");
         rawRecordingsDirectory = new File(recordingsDirectory, "RAW");

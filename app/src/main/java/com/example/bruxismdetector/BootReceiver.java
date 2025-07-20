@@ -25,6 +25,9 @@ public class BootReceiver extends BroadcastReceiver {
                 Log.d(TAG, "Device booted, scheduling UDPCatcher");
                 ServiceScheduler.scheduleUDPCatcherAtTime(context,prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
             }
+
+            NoSessionNotificationReceiver.reschedulenotification(context);
+
         }else if (!PermissionsActivity.isExactAlarmPermissionGranted(context)){
             Log.d(TAG, "Permission denied, could not schedule UDPCatcher");
 

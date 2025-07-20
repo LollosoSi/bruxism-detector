@@ -199,6 +199,9 @@ SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
             SessionTracker.writeDailyLog(logData, sessionTracker.file_out, this);
         }
 
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        preferences.edit().putLong("last_tracker_start_ms", System.currentTimeMillis()).apply();
+
 
         return START_STICKY;
     }

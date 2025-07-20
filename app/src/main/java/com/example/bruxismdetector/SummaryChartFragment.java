@@ -28,7 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.example.bruxismdetector.bruxism_grapher2.Correlations;
+import com.example.bruxismdetector.bruxism_grapher2.SummaryReader;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.AxisBase;
 import com.github.mikephil.charting.components.Description;
@@ -41,13 +41,9 @@ import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.utils.ColorTemplate;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
 public class SummaryChartFragment extends Fragment {
@@ -330,17 +326,6 @@ public class SummaryChartFragment extends Fragment {
         return lc;
     }
 
-    ArrayList<String> filterNames = new ArrayList<>();
-
-    void addFilter(String[] names){
-        for(String s : names)
-            addFilter(s);
-    }
-    void addFilter(String name){
-        if(!filterNames.contains(name))
-            filterNames.add(name);
-    }
-
     ArrayList<LinearLayout> switchesbox = new ArrayList<>();
 
     int howManyBoxesAreChecked(){
@@ -429,46 +414,22 @@ public class SummaryChartFragment extends Fragment {
     }
 
     String[] summaryTitles;
-    ArrayList<String[]> summaryTuples = new ArrayList<>();
-    ArrayList<String> dateLabels = new ArrayList<>();
+    ArrayList<String[]> summaryTuples;
+    ArrayList<String> dateLabels;
+    ArrayList<String> filterNames;
     void readSummary() {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         File recordingsDir = new File(documentsDir, "RECORDINGS");
         File summaryDir = new File(recordingsDir, "Summary");
 
-        ArrayList<String> titles = new ArrayList<>();
-        int infoindex=-1;
+        SummaryReader.setFilepath(summaryDir.getParent() + "/Summary/Summary.csv");
 
-        try (BufferedReader br = new BufferedReader(new FileReader(summaryDir.getParent() + "/Summary/Summary.csv"))) {
-            String line;
-            boolean firstLine = true;
-            while ((line = br.readLine()) != null) {
-                if (firstLine) {
-                    firstLine = false;
-                    summaryTitles = line.split(";");
-                    titles = new ArrayList<>(Arrays.asList(summaryTitles));
-                    infoindex = titles.indexOf("Info");
-                    if(infoindex==-1)
-                        throw new Exception("Summary does not have Info!");
-                    continue;
-                }
-                String[] splitline = line.split(";");
-                splitline[1]=String.valueOf(Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
-                summaryTuples.add(splitline);
-                dateLabels.add(splitline[0]);
 
-                if(splitline.length > infoindex)
-                    addFilter(splitline[infoindex].split(","));
-            }
-        } catch (IOException e) {
-            System.err.println("Error reading file: " + (summaryDir.getParent() + "/Summary/Summary.csv"));
-            e.printStackTrace();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        filterNames.sort(Comparator.naturalOrder());
-
+        SummaryReader sr = SummaryReader.getInstance();
+        summaryTitles = sr.getSummaryTitles();
+        summaryTuples = sr.getSummaryTuplesWithNoSkipItems();
+        dateLabels = sr.getDateLabelsWithNoSkipItems();
+        filterNames = sr.getFilterNames();
     }
 
 

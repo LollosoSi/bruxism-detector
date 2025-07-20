@@ -252,28 +252,31 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
 
         Grapher<Bitmap, Color, Typeface> gg = new Grapher<>(FileEventReader.readCSV(file.getAbsolutePath()), file.getName(), 1280,720);
 
+
+
         gg.setSleepData(FileSleepReader.readCSV(file.getParent()+"/Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
 
-
-        Log.i(TAG, "Path: " + path + " raw: " + rawfile.getAbsolutePath());
-        if(!onlyStats) {
-            if(rawfile.exists()){
-                ArrayList<RawEvent> rawevents = FileRawEventReader.readCSV(rawfile.getAbsolutePath());
-                Log.i(TAG, "Rawevents size " + rawevents.size());
-                gg.addRawData(rawevents);
+        if(!gg.only_info) {
+            Log.i(TAG, "Path: " + path + " raw: " + rawfile.getAbsolutePath());
+            if (!onlyStats) {
+                if (rawfile.exists()) {
+                    ArrayList<RawEvent> rawevents = FileRawEventReader.readCSV(rawfile.getAbsolutePath());
+                    Log.i(TAG, "Rawevents size " + rawevents.size());
+                    gg.addRawData(rawevents);
+                }
+                if (noisefile.exists()) {
+                    ArrayList<NoiseEvent> noises = FileNoiseReader.readCSV(noisefile.getAbsolutePath());
+                    Log.i(TAG, "Noise event size " + noises.size());
+                    gg.addNoiseData(noises);
+                }
+                if (accelfile.exists()) {
+                    ArrayList<NoiseEvent> accel = FileNoiseReader.readCSV(accelfile.getAbsolutePath());
+                    Log.i(TAG, "Accel event size " + accel.size());
+                    gg.addAccelData(accel);
+                }
+                gg.setPlatformSpecificAbstractions(new GrapherAndroid(gg.graph_width, gg.graph_height), new IconManagerAndroid(ctx), new AndroidTaskRunner());
+                gg.writeImage(gg.generateGraph(isDarkModeActive(ctx)), file.getParent() + "/Graphs/" + file.getName());
             }
-            if(noisefile.exists()){
-                ArrayList<NoiseEvent> noises = FileNoiseReader.readCSV(noisefile.getAbsolutePath());
-                Log.i(TAG, "Noise event size " + noises.size());
-                gg.addNoiseData(noises);
-            }
-            if(accelfile.exists()){
-                ArrayList<NoiseEvent> accel = FileNoiseReader.readCSV(accelfile.getAbsolutePath());
-                Log.i(TAG, "Accel event size " + accel.size());
-                gg.addAccelData(accel);
-            }
-            gg.setPlatformSpecificAbstractions(new GrapherAndroid(gg.graph_width, gg.graph_height), new IconManagerAndroid(ctx), new AndroidTaskRunner());
-            gg.writeImage(gg.generateGraph(isDarkModeActive(ctx)), file.getParent() + "/Graphs/" + file.getName());
         }
 
         return gg.getStats();

@@ -30,6 +30,7 @@ public class Grapher<Image, Color, Font> {
 		calculateGraphParameters();
 	}
 
+	public boolean only_info = false; // Do not draw graphs if this is true.. no data in file
 	StatData sd = null;
 	SleepData sleepData = null;
 
@@ -104,6 +105,10 @@ public class Grapher<Image, Color, Font> {
 
 		graph_width = width;
 		graph_height = height;
+
+		if(events.get(0).type.equals("ONLY_INFO") || events.get(1).type.equals("ONLY_INFO")){
+			only_info=true;
+		}
 	}
 
 	void calculateGraphParameters() {

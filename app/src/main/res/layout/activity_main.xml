@@ -266,13 +266,13 @@
             android:id="@+id/button_start_trainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="120dp"
-            android:layout_marginTop="8dp"
             android:onClick="startTrainer"
             android:text="Start trainer"
             app:icon="@drawable/trainer"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/button2" />
+            app:layout_constraintTop_toTopOf="@id/button_calendar"
+            app:layout_constraintStart_toEndOf="@id/button_calendar"
+            app:layout_constraintTop_toBottomOf="@id/button2"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
         <Button
             android:id="@+id/button_startcatcher"
@@ -284,6 +284,19 @@
             app:icon="@drawable/start_recording"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/button2" />
+
+        <Button
+            android:id="@+id/button_calendar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:onClick="startCalendar"
+            android:text="Calendar"
+            android:visibility="visible"
+            app:icon="@android:drawable/ic_menu_my_calendar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/button2"
+            app:layout_constraintEnd_toStartOf="@id/button_start_trainer"/>
 
         <Button
             android:id="@+id/button_test"

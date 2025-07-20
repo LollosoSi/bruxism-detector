@@ -1,15 +1,9 @@
 package com.example.bruxismdetector.bruxism_grapher2;
 
-import android.os.Environment;
 import android.util.Log;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 
 public class CorrelationsCalculator {
 
@@ -18,7 +12,7 @@ public class CorrelationsCalculator {
         readSummary(summary_complete_file_path);
     }
 
-    static final byte PositiveCorr = 1, NegativeCorr = 2, NeutralCorr = 0;
+    public static final byte PositiveCorr = 1, NegativeCorr = 2, NeutralCorr = 0;
 
     static ArrayList<String> positiveIncreased = new ArrayList<>(Arrays.asList(
             "Stopped after beep %",
@@ -36,7 +30,7 @@ public class CorrelationsCalculator {
             "Alarm Triggers",
             "Alarm %"
     ));
-    static byte isGoingToBetter(double correlation, String tablelabel) throws IndexOutOfBoundsException {
+    public static byte isGoingToBetter(double correlation, String tablelabel) throws IndexOutOfBoundsException {
 
 
         boolean cc1 = (positiveIncreased.contains(tablelabel));
@@ -56,59 +50,24 @@ public class CorrelationsCalculator {
         return res;
 
     }
-    ArrayList<String> filterNames = new ArrayList<>();
-    void addFilter(String[] names){
-        for(String s : names)
-            addFilter(s);
-    }
-    void addFilter(String name){
-        if(!filterNames.contains(name))
-            filterNames.add(name);
-    }
-    String[] summaryTitles;
-    ArrayList<String[]> summaryTuples = new ArrayList<>();
-    ArrayList<String> dateLabels = new ArrayList<>();
+
     int infoindex = -1;
-    void readSummary(String filepath) {
+    String[] summaryTitles;
+    ArrayList<String[]> summaryTuples;
+    ArrayList<String> dateLabels;
+    ArrayList<String> filterNames;
+    void readSummary(String summary_complete_file_path) {
 
-        ArrayList<String> titles = new ArrayList<>();
+        SummaryReader.setFilepath(summary_complete_file_path);
+        SummaryReader sr = SummaryReader.getInstance();
 
-        try (BufferedReader br = new BufferedReader(new FileReader(filepath))) {
-            String line;
-            boolean firstLine = true;
-            while ((line = br.readLine()) != null) {
-                if (firstLine) {
-                    firstLine = false;
-                    summaryTitles = line.split(";");
-                    titles = new ArrayList<>(Arrays.asList(summaryTitles));
-                    infoindex = titles.indexOf("Info");
-                    if(infoindex==-1)
-                        throw new Exception("Summary does not have Info!");
-                    continue;
-                }
-                String[] base = new String[infoindex+1];
-                Arrays.fill(base, "");
-                String[] splitline = line.split(";");
-                splitline[1]=String.valueOf(Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
-                for(int i = 0; i < splitline.length; i++)
-                    base[i] = splitline[i];
-
-                summaryTuples.add(base);
-                dateLabels.add(base[0]);
-
-                if(!base[infoindex].isEmpty())
-                    addFilter(base[infoindex].split(","));
-            }
-        } catch (IOException e) {
-            System.err.println("Error reading file: " + filepath);
-            e.printStackTrace();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        filterNames.sort(Comparator.naturalOrder());
-
+        summaryTitles = sr.getSummaryTitles();
+        summaryTuples = sr.getSummaryTuplesWithNoSkipItems();
+        dateLabels = sr.getDateLabelsWithNoSkipItems();
+        filterNames = sr.getFilterNames();
+        infoindex = sr.getInfomationIndex();
     }
+
 
     int[] filterhitcount = null;
     ArrayList<String> statNames;

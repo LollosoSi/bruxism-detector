@@ -1,12 +1,8 @@
 package com.example.bruxismdetector;
 
 import android.animation.LayoutTransition;
-import android.graphics.Color;
-import android.graphics.text.LineBreaker;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -24,18 +20,12 @@ import androidx.core.widget.TextViewCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.bruxismdetector.bruxism_grapher2.Correlations;
+import com.example.bruxismdetector.bruxism_grapher2.SummaryReader;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
 
 public class CorrelationsFragment extends Fragment {
     boolean show_error = false;
@@ -134,63 +124,24 @@ public class CorrelationsFragment extends Fragment {
 
     }
 
-
-    ArrayList<String> filterNames = new ArrayList<>();
-
-    void addFilter(String[] names){
-        for(String s : names)
-            addFilter(s);
-    }
-    void addFilter(String name){
-        if(!filterNames.contains(name))
-            filterNames.add(name);
-    }
-    String[] summaryTitles;
-    ArrayList<String[]> summaryTuples = new ArrayList<>();
-    ArrayList<String> dateLabels = new ArrayList<>();
     int infoindex = -1;
+    String[] summaryTitles;
+    ArrayList<String[]> summaryTuples;
+    ArrayList<String> dateLabels;
+    ArrayList<String> filterNames;
     void readSummary() {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         File recordingsDir = new File(documentsDir, "RECORDINGS");
         File summaryDir = new File(recordingsDir, "Summary");
 
-        ArrayList<String> titles = new ArrayList<>();
+        SummaryReader.setFilepath(summaryDir.getParent() + "/Summary/Summary.csv");
 
-        try (BufferedReader br = new BufferedReader(new FileReader(summaryDir.getParent() + "/Summary/Summary.csv"))) {
-            String line;
-            boolean firstLine = true;
-            while ((line = br.readLine()) != null) {
-                if (firstLine) {
-                    firstLine = false;
-                    summaryTitles = line.split(";");
-                    titles = new ArrayList<>(Arrays.asList(summaryTitles));
-                    infoindex = titles.indexOf("Info");
-                    if(infoindex==-1)
-                        throw new Exception("Summary does not have Info!");
-                    continue;
-                }
-                String[] base = new String[infoindex+1];
-                Arrays.fill(base, "");
-                String[] splitline = line.split(";");
-                splitline[1]=String.valueOf(Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
-                for(int i = 0; i < splitline.length; i++)
-                    base[i] = splitline[i];
-
-                summaryTuples.add(base);
-                dateLabels.add(base[0]);
-
-                if(!base[infoindex].isEmpty())
-                    addFilter(base[infoindex].split(","));
-            }
-        } catch (IOException e) {
-            System.err.println("Error reading file: " + (summaryDir.getParent() + "/Summary/Summary.csv"));
-            e.printStackTrace();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        filterNames.sort(Comparator.naturalOrder());
-
+        SummaryReader sr = SummaryReader.getInstance();
+        summaryTitles = sr.getSummaryTitles();
+        summaryTuples = sr.getSummaryTuplesWithNoSkipItems();
+        dateLabels = sr.getDateLabelsWithNoSkipItems();
+        filterNames = sr.getFilterNames();
+        infoindex = sr.getInfomationIndex();
     }
 
     public static class CardWithRows{

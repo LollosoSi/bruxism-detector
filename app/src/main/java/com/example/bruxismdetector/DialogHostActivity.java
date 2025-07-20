@@ -22,9 +22,14 @@ public class DialogHostActivity extends AppCompatActivity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
+        boolean hasSession = true;
+        if(getIntent().hasExtra("hasSession")){
+            hasSession = getIntent().getBooleanExtra("hasSession", true);
+        }
+
 
         FragmentManager fragmentManager = getSupportFragmentManager();
-        new SwitchDialogFragment().show(fragmentManager, "SwitchDialog");
+        new SwitchDialogFragment().setHasSession(hasSession).show(fragmentManager, "SwitchDialog");
     }
 }
 

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root_calendar"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <!-- Intestazione mese / anno -->
+    <LinearLayout
+        android:id="@+id/header_month"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/button_prev_month"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="Previous month"
+            android:src="@android:drawable/ic_media_previous"
+            style="?attr/materialIconButtonStyle" />
+
+        <TextView
+            android:id="@+id/text_month_year"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Luglio 2025"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            android:paddingHorizontal="16dp" />
+
+        <ImageButton
+            android:id="@+id/button_next_month"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="Next month"
+            android:src="@android:drawable/ic_media_next"
+            style="?attr/materialIconButtonStyle" />
+    </LinearLayout>
+
+    <!-- Calendario mensile scrollabile -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/calendar_viewpager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/header_month"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/variable_picker"
+        android:layout_marginVertical="8dp" />
+
+    <!-- Picker per selezionare la caratteristica -->
+    <Spinner
+        android:id="@+id/variable_picker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/statistics_section"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Sezione statistiche -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/statistics_section"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/text_statistics_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Monthly stats (WIP)"
+                android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+            <!-- Qui puoi aggiungere altri dati con LinearLayout, Charts, etc. -->
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

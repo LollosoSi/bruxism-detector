@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import android.os.Environment;
 import android.se.omapi.Session;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -32,14 +33,22 @@ import java.io.FileWriter;
 import java.io.PrintWriter;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 public class SwitchDialogFragment extends DialogFragment {
 
     SwitchManager switchManager;
+
+    boolean write_empty_session = false;
+    public SwitchDialogFragment setHasSession(boolean hasSession){
+        write_empty_session = !hasSession;
+        return this;
+    }
 
     @Nullable
     @Override
@@ -126,57 +135,105 @@ public class SwitchDialogFragment extends DialogFragment {
             public void onClick(View v) {
 
                 try {
-                    File file = getMostRecentFile();
-                    int count = 0;
-                    // Step 1: Read the existing content
-                    StringBuilder originalFirstLines = new StringBuilder();
-                    StringBuilder originalContent = new StringBuilder();
-                    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            if (count < 2) {
-                                originalFirstLines.append(line).append("\n");
-                                count++;
-                            }else{
-                                if(!line.contains(";MOOD;"))
-                                    originalContent.append(line).append("\n");
-                            }
+                    File file;
+                    if (write_empty_session){
+                        Date currentDate = new Date();
+                        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+                        String formattedDate = formatter.format(currentDate);
 
+                        SessionTracker st = new SessionTracker();
+                        st.createRecordingsDirectory();
+
+                        String filename1 = st.getNewFilename(formattedDate, ".csv", st.csv_folder_path);
+
+                        Log.i("DialogFragment", "Writing file "+filename1);
+
+                        PrintWriter writer = SessionTracker.createWriter(filename1);
+
+                        SessionTracker.append_csv(new String[]{"Millis", "Time", "Event", "Notes", "Duration (seconds)"}, writer);
+                        SessionTracker.append_csv(new String[]{"0", "00:00", "Start", "No Tracking. Date: "+formattedDate}, writer);
+                        SessionTracker.append_csv(new String[]{"0", "00:00", "ONLY_INFO", ""}, writer);
+
+
+                        Intent intent = new Intent(requireContext(), Tracker2.class);
+
+                        // Mood SeekBar
+                        SeekBar moodSeekBar = requireView().findViewById(R.id.seekBar_mood);
+                        int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
+                        intent.putExtra("mood", moodValue);
+                        intent.putExtra("info", switchManager.extractInfo());
+
+
+
+
+                        DailyLogData dld = new DailyLogData(intent);
+
+                        // Step 2: Write new content
+                        SessionTracker.writeDailyLog(dld, writer, requireContext(), true);
+
+                        SessionTracker.append_csv(new String[]{"0", "00:00", "ONLY_INFO", ""}, writer);
+
+
+                        writer.close();
+
+                    }else{
+                        file = getMostRecentFile();
+
+                        int count = 0;
+                        // Step 1: Read the existing content
+                        StringBuilder originalFirstLines = new StringBuilder();
+                        StringBuilder originalContent = new StringBuilder();
+                        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (count < 2) {
+                                    originalFirstLines.append(line).append("\n");
+                                    count++;
+                                }else{
+                                    if(!line.contains(";MOOD;"))
+                                        originalContent.append(line).append("\n");
+                                }
+
+                            }
                         }
+
+                        PrintWriter writer = new PrintWriter(new FileWriter(file));
+                        writer.write(originalFirstLines.toString());
+
+
+                        Intent intent = new Intent(requireContext(), Tracker2.class);
+
+                        // Mood SeekBar
+                        SeekBar moodSeekBar = requireView().findViewById(R.id.seekBar_mood);
+                        int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
+                        intent.putExtra("mood", moodValue);
+                        intent.putExtra("info", switchManager.extractInfo());
+
+
+                        DailyLogData dld = new DailyLogData(intent);
+
+                        // Step 2: Write new content
+                        SessionTracker.writeDailyLog(dld, writer, requireContext(), true);
+
+                        // Step 3: Write old content
+                        writer.write(originalContent.toString());
+
+                        writer.close();
+
                     }
 
-                    PrintWriter writer = new PrintWriter(new FileWriter(file));
-                    writer.write(originalFirstLines.toString());
 
-
-                    Intent intent = new Intent(requireContext(), Tracker2.class);
-
-                    // Mood SeekBar
-                    SeekBar moodSeekBar = requireView().findViewById(R.id.seekBar_mood);
-                    int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
-                    intent.putExtra("mood", moodValue);
-                    intent.putExtra("info", switchManager.extractInfo());
-
-
-                    DailyLogData dld = new DailyLogData(intent);
-
-                    // Step 2: Write new content
-                    SessionTracker.writeDailyLog(dld, writer, requireContext(), true);
-
-                    // Step 3: Write old content
-                    writer.write(originalContent.toString());
-
-                    writer.close();
 
                 }catch(Exception e){
                     e.printStackTrace();
                 }
 
-                Intent myIntent = new Intent(requireContext(), MainActivity.class);
-                myIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
-                myIntent.setAction(MainActivity.LAUNCH_GRAPHER);
-                requireContext().startActivity(myIntent);
-
+                if(!write_empty_session) {
+                    Intent myIntent = new Intent(requireContext(), MainActivity.class);
+                    myIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Required from a Service
+                    myIntent.setAction(MainActivity.LAUNCH_GRAPHER);
+                    requireContext().startActivity(myIntent);
+                }
                 dismiss();
             }
         });

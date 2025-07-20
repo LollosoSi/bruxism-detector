@@ -14,7 +14,8 @@ public class StatData implements Comparable<StatData> {
 	}
 
 	public void addInfo(String name) {
-		infoNames.add(name);
+		if (!infoNames.contains(name))
+			infoNames.add(name);
 	}
 	public StatData(){
 	}

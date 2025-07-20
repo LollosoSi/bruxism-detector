@@ -141,8 +141,6 @@ public class MainActivity extends AppCompatActivity {
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
 
-
-
         final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -1199,7 +1197,7 @@ public class MainActivity extends AppCompatActivity {
     private ConstraintSet collapsedSet = new ConstraintSet();
 
     private void setupSessionToggle() {
-
+        
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         rootLayout = findViewById(R.id.session_card_root); // the root ConstraintLayout inside your CardView
@@ -1270,5 +1268,12 @@ public class MainActivity extends AppCompatActivity {
     public void scheduleUDPCatcher(View v){
         ServiceScheduler.scheduleUDPCatcherAtTime(this, System.currentTimeMillis()+10000);
     }
+
+    public void startCalendar(View v){
+        // Launch Calendar activity
+        Intent intent = new Intent(this, CalendarViewer.class);
+        startActivity(intent);
+    }
+
 
 }

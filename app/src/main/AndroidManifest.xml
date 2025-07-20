@@ -42,17 +42,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
-    <uses-permission android:name="android.permission.BLUETOOTH"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
-
-    <!-- Declare that your app uses BLE features -->
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
-
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" /> <!-- Declare that your app uses BLE features -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -64,6 +62,20 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BruxismDetector"
         tools:targetApi="31">
+        <receiver
+            android:name=".NoSessionNotificationReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION" />
+                <action android:name="com.example.bruxismdetector.ACTION_TEST_NO_SESSION_RECORD" />
+            </intent-filter>
+        </receiver>
+
+        <activity
+            android:name=".CalendarViewer"
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar" />
         <activity
             android:name=".CrashDialogActivity"
             android:exported="false" />
@@ -119,9 +131,9 @@
             android:turnScreenOn="true" />
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="true"
-            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout">
+            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
