@@ -66,6 +66,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 
 ## **What to expect**
 - Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps in csv files. Via Processing or the experimental Android App
+- Keep a diary with your habits and events (even when not monitoring sleep!) and see them in a calendar view
 - Raw data: all SVM results (clenching/not clenching and confidence) are logged with timestamps in a `<date>_RAW.csv` file so you can elaborate them later and make a better detection algorithm.
 - Match your data with sleep data from your sleep tracker*
 - A graph if you wish to see one. Use `generator.jar` or the Android app.
@@ -147,6 +148,7 @@ An experimental graphing application is available for download and the source ca
 
 ## **Android integration**
 An experimental Android App is available for download and source can be found at the [Android branch](https://github.com/LollosoSi/bruxism-detector/tree/Android).
+Note: If you skipped a night, the app will still allow tagging it for reference: say your doctor asks "how many times in a week you're wearing the mouth guard?", just check the `Calendar` in app!
 1. If `Autostart Service` is enabled, you will need to follow this only once.
    - When tracking ends, you will still be asked about your day.
    - The app will always use your last `Session Settings` 
@@ -162,6 +164,7 @@ An experimental Android App is available for download and source can be found at
    - Tap `PC` to send your data to the Grapher program on your computer (which will be listening after clicking `Receive from android`)
    - Tap `Smartband DB` if you are using a Mi Band to track your sleep with Mi Fitness, and you have either a rooted device or the database (`fitness_data`) file
 7. Spot correlations with tagged sessions in `Summary -> Correlations`. You will get an overview.
+8. See some general data in `Calendar`
 
 
 <div style="display: flex; justify-content: space-between;">
@@ -173,6 +176,9 @@ An experimental Android App is available for download and source can be found at
 <img src="https://github.com/user-attachments/assets/a203d53f-90f2-40be-b3c0-0d642c10d711" width="22%">
 
 <img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%">
+
+<img src="https://github.com/user-attachments/assets/195a6b46-6cdd-4250-b837-13d67fe30351" width="22%">
+<img src="https://github.com/user-attachments/assets/0fd6d888-801a-4159-947d-09a5e7c440e4" width="22%">
 
 </div>
 
