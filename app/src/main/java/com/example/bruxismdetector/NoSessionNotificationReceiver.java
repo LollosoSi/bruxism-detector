@@ -23,14 +23,28 @@ import java.util.Date;
 
 public class NoSessionNotificationReceiver extends BroadcastReceiver {
 
-    public static final String action_nosession_cancel = "com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION";
-    public static final String action_nosession_record = "com.example.bruxismdetector.ACTION_TEST_NO_SESSION_RECORD";
+    public static final String action_nosession_cancel = "com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION_CANCEL";
+    public static final String action_nosession_record = "com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION_RECORD";
+
+    public static final String action_nosession = "com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION";
 
     @Override
     public void onReceive(Context context, Intent intent) {
+
+        Log.e("NoSessionReceiver_DEBUG", ">>>> NoSessionNotificationReceiver - onReceive CALLED! <<<<");
+        if (intent != null) {
+            Log.e("NoSessionReceiver_DEBUG", "Action received: " + intent.getAction());
+        } else {
+            Log.e("NoSessionReceiver_DEBUG", "Intent is NULL in onReceive.");
+            return; // Or handle null intent appropriately
+        }
+
+        // Send an implicit intent so the UDPCatcher can see this call
+        Intent intent2 = new Intent(context, UDPCatcher.class);
+        intent2.setAction(UDPCatcher.ACTION_STOP);
+        context.startService(intent2);
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-
-
 
         if(intent.hasExtra("del_notification")) {
             sendNoSessionNotification(context, true);
@@ -49,7 +63,7 @@ public class NoSessionNotificationReceiver extends BroadcastReceiver {
     }
 
     public static void reschedulenotification(Context ctx){
-        DailyNotificationScheduler.scheduleNotificationAtTime(ctx, 8, 30);
+        DailyNotificationScheduler.scheduleNotificationAtTime(ctx, 7, 30);
     }
 
     private static final String CHANNEL_ID = "NoSessionNotificationChannel";
@@ -155,11 +169,9 @@ public class NoSessionNotificationReceiver extends BroadcastReceiver {
                 Log.e(TAG, "AlarmManager not available.");
                 return;
             }
-            // Use explicit intent to target the receiver class directly
+
             Intent intent = new Intent(context, NoSessionNotificationReceiver.class);
-            intent.setAction("com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION");
-            // Ensure package set to avoid implicit resolution issues
-            intent.setPackage(context.getPackageName());
+            intent.setAction(NoSessionNotificationReceiver.action_nosession);
 
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

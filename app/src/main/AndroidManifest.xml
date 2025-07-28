@@ -61,14 +61,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BruxismDetector"
-        tools:targetApi="31">
+        >
+
         <receiver
             android:name=".NoSessionNotificationReceiver"
             android:enabled="true"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION" />
-                <action android:name="com.example.bruxismdetector.ACTION_TEST_NO_SESSION_RECORD" />
+                <action android:name="com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION_RECORD" />
+                <action android:name="com.example.bruxismdetector.ACTION_TEST_NO_SESSION_NOTIFICATION_CANCEL" />
             </intent-filter>
         </receiver>
 
@@ -84,7 +87,8 @@
             android:name=".MovementDetectorService"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location"
+            tools:ignore="ExportedService" />
 
         <activity
             android:name=".SwitchEditor"
@@ -106,29 +110,34 @@
             android:name=".UDPCatcher"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync"
+            tools:ignore="ExportedService" />
 
         <receiver
             android:name=".RingReceiver"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="true"
+            tools:ignore="ExportedReceiver" />
 
         <service
             android:name=".Tracker2"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="connectedDevice"
+            tools:ignore="ExportedService" />
         <service
             android:name=".Recorder"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone"
+            tools:ignore="ExportedService" />
 
         <activity
             android:name=".AlarmActivity"
             android:exported="true"
             android:showWhenLocked="true"
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            tools:targetApi="o_mr1" />
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"

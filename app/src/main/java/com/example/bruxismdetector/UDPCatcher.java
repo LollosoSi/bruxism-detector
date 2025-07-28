@@ -7,8 +7,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.icu.util.Calendar;
 import android.net.wifi.WifiManager;
@@ -46,6 +48,9 @@ public class UDPCatcher extends Service {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private boolean running = false;
 
+    private static final String TAG = "UDPCatcherService";
+    // The same action string your NoSessionNotificationReceiver uses
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -53,6 +58,8 @@ public class UDPCatcher extends Service {
         Log.i("UDPCatcher", "UDPCatcher is created!");
 
         createNotificationChannel();
+
+        Log.d(TAG, "UdpBroadcastReceiver registered for action: " + NoSessionNotificationReceiver.action_nosession);
     }
 
     @Override
@@ -118,12 +125,10 @@ public class UDPCatcher extends Service {
     }
 
     private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel("listener_channel", "Listener Channel", NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("UDP Listener Service");
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            manager.createNotificationChannel(channel);
-        }
+        NotificationChannel channel = new NotificationChannel("listener_channel", "Listener Channel", NotificationManager.IMPORTANCE_NONE);
+        channel.setDescription("UDP Listener Service");
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(channel);
     }
 
     // ---- Your existing logic here ----
@@ -194,6 +199,7 @@ public class UDPCatcher extends Service {
             receiveSocket.close();
         }
         executor.shutdownNow();
+
     }
 
     @Nullable
@@ -201,4 +207,6 @@ public class UDPCatcher extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
+
 }

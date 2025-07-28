@@ -194,6 +194,11 @@ public class MainActivity extends AppCompatActivity {
 
 
         initialSetup();
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("tutorial",true)) {
+            playTutorial();
+        }
     }
 
     public void initialSetup(){
@@ -391,10 +396,7 @@ public class MainActivity extends AppCompatActivity {
         switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
-        if(prefs.getBoolean("tutorial",true)) {
-            playTutorial();
 
-        }
 
     }
 
