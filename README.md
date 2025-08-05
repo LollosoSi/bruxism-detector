@@ -199,7 +199,7 @@ The following will reference `Arduino/main/main.ino` as the main program.
   - (c) Record data in the clenching state: begin the recording when you are already clenching. Don't go too hard, but do not let go. Add some variability.
   - (any other key) Suspend recording
   - (s) Save
-  - Move your `clenching.csv` and `non-clenching.csv` in the same folder of `data_classification_training.py`. Make sure the content of the files is formatted correctly, it surely isn't. Remove `,` at the end of each line.
+  - Move your `clenching.csv` and `non-clenching.csv` in the same folder of `data_classification_training.py`.
   - CMD to that folder, run `python data_classification_training.py`.
   - You will get the C++ code to be pasted in the arduino sketch.</br>It will look like this:
   ```Cpp
