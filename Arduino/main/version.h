@@ -1,1 +1,0 @@
-const static uint16_t VersionIncremental = 4;

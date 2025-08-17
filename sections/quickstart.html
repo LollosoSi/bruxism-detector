@@ -1,0 +1,103 @@
+<section>
+  <h2>Quick Start</h2>
+  <ol>
+    <li>
+      <strong>Assemble the Device</strong><br>
+      Use the <a href="https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure" target="_blank">3D printed parts</a>, a buzzer, a button, and some wires. Secure the parts using iron thread—holes are provided near the buzzer and button for this purpose.
+    </li>
+	</br>
+    <li>
+      <strong>Build the Headband & Place Electrodes</strong><br>
+      You'll need 3 electrodes:
+      <ul>
+        <li><strong>1 ground electrode</strong> — place it in the center of your forehead, away from the temples.</li>
+        <li><strong>2 signal electrodes</strong> — place them symmetrically near your temples.</li>
+      </ul>
+	  </br>
+      To find the exact muscle location, lightly clench your jaw and feel where the temporalis muscle contracts under your fingers.
+	  </br></br>Make sure to:
+      <ul>
+        <li>Move hair out of the way.</li>
+        <li>Use conductive gel or replacement pads—dry pads won't work reliably.</li>
+      </ul>
+	  </br>
+	  Fix everything in place with an elastic band (like the ones for underwear). Make some holes and have the electrodes clip through it.
+	  </br>You might want to print a clip in TPU like <a href="https://www.thingiverse.com/thing:4264338" target="_blank">this one</a> (resize the model appropriately).
+    </li>
+	<center><img style="margin:10px;border-radius: 24px;" width="40%" src="images/headband.jpg"/></center>
+	</br>
+    <li>
+      <strong>Install the Arduino IDE</strong><br>
+      Install the <code>CMSIS-DSP</code> and <code>ArduinoBLE</code> libraries from the Library Manager.
+    </li>
+	</br>
+    <li>
+      <strong>Get the Arduino Code</strong><br>
+      Download the latest <a href="https://github.com/LollosoSi/bruxism-detector/tree/main/Arduino/main" target="_blank">Arduino sketch</a> from the GitHub repository.
+    </li>
+	</br>
+    <li>
+      <strong>Configure Wi-Fi</strong><br>
+      Edit the file <code><a href="https://github.com/LollosoSi/bruxism-detector/blob/8d4a49e24c5d6fa42ad300063e335d86065e740a/Arduino/main/user/WifiSettings.h">user/WifiSettings.h</a></code> with your network credentials, then upload the sketch to the Arduino UNO R4 WiFi using the Arduino IDE.
+    </li>
+	</br>
+ <!-- Android App Installation -->
+<div class="flex-row">
+    <img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" class="step-image">
+	<li>
+		<div>
+		<strong>Install the Android App</strong><br>
+		Download the latest release APK from <a href="https://github.com/LollosoSi/bruxism-detector/releases" target="_blank">GitHub Releases</a> and install it on your device.<br>
+		Launch and grant all requested permissions.
+		</div>
+	</li>
+</div>
+<br><br>
+ <!-- Android App Installation -->
+<div class="flex-row">
+    <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" class="step-image">
+	<div>
+	<li>
+		
+		<strong>Start the System</strong><br>
+		Wear the headband, power the device, and <strong>long-press the button for 4 seconds</strong>—you’ll hear a beep sequence to confirm it's streaming the tuning data.<br>
+		<em>Note: this only works during the first 2 minutes of runtime.<br>If it doesn't work, restart the Arduino device.</em>
+
+	</li>
+	<br>
+	<li>
+
+		<strong>Tune it</strong>
+		<br>
+		The app will automatically detect the signal and enter a tuning screen.
+		<br>Adjust the classification threshold so that it's triggered only during real clenching events.<br>When satisfied, tap <strong>“Awesome”</strong>.<br><br>
+		<strong>Long-press the button for 4 seconds</strong> to disable tuning.<br>If you don't hear any confirmation, restart the Arduino device.
+		
+	</li>
+	</div>
+</div>
+
+<div>
+
+    </div>
+
+</div>
+
+    
+
+
+<!-- Tags -->
+<li>
+  <strong>Customize Tags</strong><br>
+  Go to the <strong>“Tags”</strong> section of the app to select or add pertinent tracking elements.
+</li>
+
+	</br>
+    <li>
+      <strong>Done!</strong><br>
+      You’re all set!
+	  <br>
+	  By this point you should have seen the tutorial in the app | Hit <code>Start</code> to begin tracking.
+    </li>
+  </ol>
+</section>
