@@ -111,7 +111,7 @@ For more information, [see here](https://en.wikipedia.org/wiki/Classical_conditi
 - (optional) a sleep tracker
 
 ## **Software you need**
-- Arduino IDE with "CMSIS-DSP" Library
+- Arduino IDE with "CMSIS-DSP" and "ArduinoBLE" Libraries
 - Processing with "Sound" Library
 - Python with numpy, pandas, sklearn, openpyxl libraries. Use pip to install these.
 
