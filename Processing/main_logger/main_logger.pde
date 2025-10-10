@@ -1,4 +1,4 @@
-import processing.serial.*;
+
 import java.net.*;
 import java.awt.Toolkit;
 
@@ -15,7 +15,6 @@ int muscleMaxFreq = 230;
 // Serial is going to be supported for SIMULATIONS
 boolean override_use_UDP = true;
 
-Serial myPort;
 double[] fftData; // This will store the FFT data
 int sampleCount = 128;
 long samplingFrequency = 2000;
@@ -56,7 +55,7 @@ void append_csv(String[] data, PrintWriter out) {
     out.print(data[i]);
   }
   out.println();
-  
+
   out.flush();
 }
 
@@ -142,31 +141,24 @@ void setup() {
   file_out.flush();
   file_raw_out.flush();
 
-  // Check if the second serial port is available
-  if (Serial.list().length > 1 && !override_use_UDP) {
-    // Use Serial if the second port is available
-    String portName = Serial.list()[1]; // Choose the second available port
-    myPort = new Serial(this, portName, 500000);
-    println("Using Serial Port: " + portName);
-  } else {
-    // Fallback to UDP if the second port is not available
-    try {
-      udpSocket = new MulticastSocket(serverPort); // Same port as the sender
-      serverAddress = InetAddress.getByName("239.255.0.1");
-      NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // Use the same network interface as the sender
-      udpSocket.joinGroup(new InetSocketAddress(serverAddress, 12345), netIf);
+  // Fallback to UDP if the second port is not available
+  try {
+    udpSocket = new MulticastSocket(serverPort); // Same port as the sender
+    serverAddress = InetAddress.getByName("239.255.0.1");
+    NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // Use the same network interface as the sender
+    udpSocket.joinGroup(new InetSocketAddress(serverAddress, 12345), netIf);
 
-      sendudpSocket = new MulticastSocket();
-      sendserverAddress = InetAddress.getByName("239.255.0.1");
-      NetworkInterface sendnetIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // You can specify a specific network interface if needed
-      sendudpSocket.joinGroup(new InetSocketAddress(sendserverAddress, sendserverPort), sendnetIf);
+    sendudpSocket = new MulticastSocket();
+    sendserverAddress = InetAddress.getByName("239.255.0.1");
+    NetworkInterface sendnetIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // You can specify a specific network interface if needed
+    sendudpSocket.joinGroup(new InetSocketAddress(sendserverAddress, sendserverPort), sendnetIf);
 
-      println(String.format("Listening for UDP packets on port %d...", serverPort));
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-    }
+    println(String.format("Listening for UDP packets on port %d...", serverPort));
   }
+  catch (Exception e) {
+    e.printStackTrace();
+  }
+
 
   // Initialize fftData array with default sampleCount
   fftData = new double[sampleCount];
@@ -303,23 +295,6 @@ void listenForUDP() {
   }
 }
 
-boolean firstread=true;
-
-// Handle incoming serial event (unmaintained, sorry)
-void serialEvent(Serial myPort) {
-  int availableBytes = myPort.available();
-  println("Available bytes: " + availableBytes);
-
-  if (availableBytes == (firstread?(4):(sampleCount/2))) {
-    firstread=false;
-    byte[] serialData = new byte[availableBytes];
-    myPort.readBytes(serialData);  // Read the available bytes
-
-
-
-    processData(serialData, serialData.length);
-  }
-}
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -369,39 +344,39 @@ void processData(byte[] data, int length) {
     } else if (length % dataelementbytes == 0) {  // Ensure it's a multiple of dataelementbytes
       long millisforsync = millis();
 
-                int count = length / dataelementbytes;   // Number of elements in the packet
+      int count = length / dataelementbytes;   // Number of elements in the packet
 
-                for (int i = 0; i < count; i++) {
-                    int offset = i * dataelementbytes;
+      for (int i = 0; i < count; i++) {
+        int offset = i * dataelementbytes;
 
-                    long timestamp = (ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL) + timestamp_difference_add;
-                    boolean value = (data[offset + 4] != 0);
-                    float fvalue = ByteBuffer.wrap(data, offset + 5, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+        long timestamp = (ByteBuffer.wrap(data, offset, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL) + timestamp_difference_add;
+        boolean value = (data[offset + 4] != 0);
+        float fvalue = ByteBuffer.wrap(data, offset + 5, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
 
-                    if(timestamp < last_millis_raw){
-                        long offstart = (sync_millis+(last_millis_raw-local_sync_millis));
-                        long offtime = millisforsync-offstart;
-                        timestamp_difference_add = (last_millis_raw)+(offtime);
-                        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetected", "Looks like arduino was reset here. It was down for approximately "+offtime+"ms."}, file_out);
-                        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetectedStartMs", String.valueOf(offstart)}, file_out);
-                        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetectedEndMs", String.valueOf(offstart+offtime)}, file_out);
-                        timestamp += timestamp_difference_add;
-                    }
+        if (timestamp < last_millis_raw) {
+          long offstart = (sync_millis+(last_millis_raw-local_sync_millis));
+          long offtime = millisforsync-offstart;
+          timestamp_difference_add = (last_millis_raw)+(offtime);
+          append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetected", "Looks like arduino was reset here. It was down for approximately "+offtime+"ms."}, file_out);
+          append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetectedStartMs", String.valueOf(offstart)}, file_out);
+          append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "ResetDetectedEndMs", String.valueOf(offstart+offtime)}, file_out);
+          timestamp += timestamp_difference_add;
+        }
 
-                    if(i==count-1){
-                        last_millis_raw = timestamp;
-                    }
+        if (i==count-1) {
+          last_millis_raw = timestamp;
+        }
 
-                    append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value), String.valueOf((int)fvalue)}, file_raw_out);
-                    System.out.println("Received RAW:\t" + timestamp + "\t" + value + "\t" + ((int)fvalue));
-                }
+        append_csv(new String[]{String.valueOf(timestamp), String.valueOf(value), String.valueOf((int)fvalue)}, file_raw_out);
+        System.out.println("Received RAW:\t" + timestamp + "\t" + value + "\t" + ((int)fvalue));
+      }
 
-                if (!did_print_sync) {
-                    did_print_sync = true;
-                    sync_millis=millisforsync;
-                    local_sync_millis = ByteBuffer.wrap(data, (count-1) * dataelementbytes, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
-                    append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(local_sync_millis)}, file_out);
-                }
+      if (!did_print_sync) {
+        did_print_sync = true;
+        sync_millis=millisforsync;
+        local_sync_millis = ByteBuffer.wrap(data, (count-1) * dataelementbytes, 4).order(ByteOrder.LITTLE_ENDIAN).getInt() & 0xFFFFFFFFL;
+        append_csv(new String[]{String.valueOf(millisforsync), formatted_now(), "Sync", String.valueOf(local_sync_millis)}, file_out);
+      }
     } else if (length==1) {
       int val = (data[0] & 0xFF);
 
