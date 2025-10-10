@@ -1,6 +1,5 @@
 // Requires Library "Sound"
 
-import processing.serial.*;
 import java.net.*;
 import java.awt.Toolkit;
 
@@ -40,7 +39,7 @@ void async_play(float a, float b, int c, int d) {
 }
 
 
-Serial myPort;
+
 double[] fftData; // This will store the FFT data
 int sampleCount = 128;
 long samplingFrequency = 2000;
@@ -142,31 +141,25 @@ void setup() {
   file_raw_out = createWriter(csv_folder_path+formattedDate+"_RAW.csv");
   append_csv(new String[]{"Millis", "Classification"}, file_raw_out);
 
-  // Check if the second serial port is available
-  if (Serial.list().length > 1 && !override_use_UDP) {
-    // Use Serial if the second port is available
-    String portName = Serial.list()[1]; // Choose the second available port
-    myPort = new Serial(this, portName, 500000);
-    println("Using Serial Port: " + portName);
-  } else {
-    // Fallback to UDP if the second port is not available
-    try {
-      udpSocket = new MulticastSocket(serverPort); // Same port as the sender
-      serverAddress = InetAddress.getByName("239.255.0.1");
-      NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // Use the same network interface as the sender
-      udpSocket.joinGroup(new InetSocketAddress(serverAddress, 12345), netIf);
 
-      sendudpSocket = new MulticastSocket();
-      sendserverAddress = InetAddress.getByName("239.255.0.1");
-      NetworkInterface sendnetIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // You can specify a specific network interface if needed
-      sendudpSocket.joinGroup(new InetSocketAddress(sendserverAddress, sendserverPort), sendnetIf);
+  // Fallback to UDP if the second port is not available
+  try {
+    udpSocket = new MulticastSocket(serverPort); // Same port as the sender
+    serverAddress = InetAddress.getByName("239.255.0.1");
+    NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // Use the same network interface as the sender
+    udpSocket.joinGroup(new InetSocketAddress(serverAddress, 12345), netIf);
 
-      println(String.format("Listening for UDP packets on port %d...", serverPort));
-    }
-    catch (Exception e) {
-      e.printStackTrace();
-    }
+    sendudpSocket = new MulticastSocket();
+    sendserverAddress = InetAddress.getByName("239.255.0.1");
+    NetworkInterface sendnetIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost()); // You can specify a specific network interface if needed
+    sendudpSocket.joinGroup(new InetSocketAddress(sendserverAddress, sendserverPort), sendnetIf);
+
+    println(String.format("Listening for UDP packets on port %d...", serverPort));
   }
+  catch (Exception e) {
+    e.printStackTrace();
+  }
+
 
   // Initialize fftData array with default sampleCount
   fftData = new double[sampleCount];
@@ -245,7 +238,7 @@ void play_osc(float amp, float tone, int wait) {
 }
 
 void draw() {
-  
+
   alarm_loop();
 
   // Draw the scale first, then the bars
@@ -469,24 +462,6 @@ void listenForUDP() {
   }
 }
 
-boolean firstread=true;
-
-// Handle incoming serial event (with 4-byte packet for parameters)
-void serialEvent(Serial myPort) {
-  int availableBytes = myPort.available();
-  println("Available bytes: " + availableBytes);
-
-  if (availableBytes == (firstread?(4):(sampleCount/2))) {
-    firstread=false;
-    byte[] serialData = new byte[availableBytes];
-    myPort.readBytes(serialData);  // Read the available bytes
-
-
-
-    processData(serialData, serialData.length);
-  }
-}
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -566,7 +541,7 @@ void processData(byte[] data, int length) {
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STARTED"}, file_out);
         alarmed=true;
         break;
-        case ALARM_STOP:
+      case ALARM_STOP:
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Alarm", "STOPPED"}, file_out);
         alarmed=true;
         break;
@@ -586,8 +561,8 @@ void processData(byte[] data, int length) {
       case CONTINUED:
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "CLENCHING", "CONTINUED"}, file_out);
         break;
-        
-        case TRACKING_STOP:
+
+      case TRACKING_STOP:
         exit();
         break;
       }
