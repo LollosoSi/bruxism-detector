@@ -20,7 +20,7 @@
         android:fillViewport="true"
         android:gravity="center"
         android:orientation="vertical"
-        android:visibility="gone"
+        android:visibility="visible"
         >
 <LinearLayout
     android:id="@+id/menu_content"
@@ -332,7 +332,7 @@
         android:layout_marginRight="10dp"
         android:layout_marginLeft="10dp"
         android:animateLayoutChanges="true"
-        android:visibility="visible">
+        android:visibility="gone">
 
         <Space
             android:layout_width="match_parent"
