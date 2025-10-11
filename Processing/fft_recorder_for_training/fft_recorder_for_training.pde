@@ -73,11 +73,16 @@ void keyPressed() {
   }
 }
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
+
 void saveData(PrintWriter file, float[] data) {
+  DecimalFormat df = new DecimalFormat("#.##########", DecimalFormatSymbols.getInstance(Locale.US));
   boolean first = true;
   for (float val : data) {
-    file.print((first ? "" : ",") + val);
-    if (first)first = false;
+    file.print((first ? "" : ",") + df.format(val));
+    if (first) first = false;
   }
   file.println();
 }
