@@ -9,6 +9,8 @@ import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -39,11 +41,14 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Pair;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
@@ -69,16 +74,27 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
+import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
 import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.google.android.material.elevation.SurfaceColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
@@ -87,10 +103,13 @@ import java.net.MulticastSocket;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -173,6 +192,15 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
+        chart = findViewById(R.id.fft_chart);
+        chart.getDescription().setEnabled(false);
+        chart.setDrawGridBackground(false);
+        chart.setExtraOffsets(40f, 10f, 10f, 40f); // spazio per le etichette
+        chart.setAutoScaleMinMaxEnabled(false);
+        chart.setPinchZoom(false);
+        chart.setScaleEnabled(false);
+        chart.setHighlightPerTapEnabled(false);
+        chart.getAxisRight().setEnabled(false);
 
 
 
@@ -916,6 +944,22 @@ public class MainActivity extends AppCompatActivity {
 
     int min_result = 0, max_result = 0;
 
+    private float[] fftData = null;
+    private int samplingFrequency = 0;
+    private int sampleCount = 0;
+    private int numBins = 0;
+
+    private BarChart chart;
+    private BarDataSet fftDataSet;
+    private BarData fftBarData;
+    private final int muscleMinFreq = 80;
+    private final int muscleMaxFreq = 230;
+
+    private boolean reverseBins = false;
+
+    boolean recording_clenching = false, recording_non_clenching = false;
+    PrintWriter current_outputfile = null;
+
     public void receiveUDP() {
         byte[] buffer = new byte[10000];
 
@@ -980,9 +1024,7 @@ public class MainActivity extends AppCompatActivity {
                         });
 
                     }
-                }
-
-                if(length == 11) {
+                }else if(length == 11) {
 
                     if (data[0] == 11 && data[5]==data[10]) {
 
@@ -1026,6 +1068,283 @@ public class MainActivity extends AppCompatActivity {
                         });
 
                     }
+                } else if (length == 4) {
+                    // ricezione parametri: fs e sampleCount (little-endian uint16)
+                    samplingFrequency = ((data[0] & 0xFF) | ((data[1] & 0xFF) << 8));
+                    sampleCount = ((data[2] & 0xFF) | ((data[3] & 0xFF) << 8));
+
+                    // numero di bin = sampleCount/2 (metà spettro)
+                    fftData = new float[sampleCount / 2];
+                    numBins = fftData.length;
+
+                    Log.i("FFT","Received Parameters: fs=" + samplingFrequency + ", samples=" + sampleCount + ", bins=" + numBins);
+
+                    // inizializza il chart con N barre a zero (UI thread)
+                    chart.post(() -> setupChart(numBins));
+                    if(((LinearLayout)findViewById(R.id.recording_holder)).getVisibility() == View.GONE) {
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                                ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
+                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_green_500));
+                                ((LinearLayout)findViewById(R.id.recording_holder)).setVisibility(View.VISIBLE);
+
+
+                            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                            File recordingsDir = new File(documentsDir, "RECORDINGS");
+                            File recordingsTrainingDir = new File(recordingsDir, "TrainingData");
+
+                            if (!recordingsTrainingDir.exists()) {
+                                if (!recordingsTrainingDir.mkdirs()) {}}
+
+                            String non_clenching_filenamepath = recordingsTrainingDir.getAbsolutePath()+"/non_clenching.csv";
+                            String clenching_filenamepath = recordingsTrainingDir.getAbsolutePath()+"/clenching.csv";
+
+
+                            ((Button)findViewById(R.id.button_start_over)).setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View view) {
+                                    File nonClenchingFile = new File(non_clenching_filenamepath);
+                                    if (nonClenchingFile.exists()) {
+                                        if (nonClenchingFile.delete()) {
+                                            Log.i("FileCleanup", "Successfully deleted non_clenching.csv");
+                                        } else {
+                                            Log.e("FileCleanup", "Failed to delete non_clenching.csv");
+                                        }
+                                    }
+
+                                    File clenchingFile = new File(clenching_filenamepath);
+                                    if (clenchingFile.exists()) {
+                                        if (clenchingFile.delete()) {
+                                            Log.i("FileCleanup", "Successfully deleted clenching.csv");
+                                        } else {
+                                            Log.e("FileCleanup", "Failed to delete clenching.csv");
+                                        }
+                                    }
+                                }
+                            });
+
+                            ((Button)findViewById(R.id.button_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
+                            ((Button)findViewById(R.id.button_clenching)).setOnTouchListener(new View.OnTouchListener() {
+                                @Override
+                                public boolean onTouch(View view, MotionEvent motionEvent) {
+                                    if(!recording_non_clenching) {
+                                        switch (motionEvent.getAction()) {
+                                            case MotionEvent.ACTION_DOWN:
+                                                Log.i("Pressed", "DOWN");
+                                                ((Button) findViewById(R.id.button_clenching)).setBackgroundColor(getResources().getColor(R.color.material_red_500));
+                                                recording_clenching = true;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Recording clenching...");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_red_500));
+                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(false);
+
+                                                try {
+                                                    // Use FileOutputStream with the 'append' flag set to true
+                                                    current_outputfile = new PrintWriter(new java.io.FileOutputStream(new File(clenching_filenamepath), true));
+                                                } catch (FileNotFoundException e) {
+                                                    Log.e(TAG, "Error creating PrintWriter for file: " + clenching_filenamepath, e);
+                                                }
+                                                break;
+                                            case MotionEvent.ACTION_UP:
+                                                Log.i("Pressed", "UP");
+                                                ((Button) findViewById(R.id.button_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
+                                                recording_clenching = false;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_green_500));
+                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
+
+                                                current_outputfile.flush();
+                                                current_outputfile.close();
+                                                current_outputfile = null;
+
+                                                break;
+                                        }
+                                    }
+
+                                    return true;
+                                }
+                            });
+
+
+                            ((Button)findViewById(R.id.button_non_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
+                            ((Button)findViewById(R.id.button_non_clenching)).setOnTouchListener(new View.OnTouchListener() {
+                                @Override
+                                public boolean onTouch(View view, MotionEvent motionEvent) {
+                                    if(!recording_clenching) {
+                                        switch (motionEvent.getAction()) {
+                                            case MotionEvent.ACTION_DOWN:
+                                                Log.i("Pressed", "DOWN");
+                                                ((Button) findViewById(R.id.button_non_clenching)).setBackgroundColor(getResources().getColor(R.color.material_red_500));
+                                                recording_non_clenching = true;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Recording non clenching...");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_red_500));
+                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(false);
+
+                                                try {
+                                                    // Use FileOutputStream with the 'append' flag set to true
+                                                    current_outputfile = new PrintWriter(new java.io.FileOutputStream(new File(non_clenching_filenamepath), true));
+                                                } catch (FileNotFoundException e) {
+                                                    Log.e(TAG, "Error creating PrintWriter for file: " + non_clenching_filenamepath, e);
+                                                }
+
+                                                break;
+                                            case MotionEvent.ACTION_UP:
+                                                Log.i("Pressed", "UP");
+                                                ((Button) findViewById(R.id.button_non_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
+                                                recording_non_clenching = false;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_green_500));
+                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
+
+                                                current_outputfile.flush();
+                                                current_outputfile.close();
+                                                current_outputfile = null;
+
+                                                break;
+                                        }
+                                    }
+
+                                    return true;
+                                }
+                            });
+
+                            ((Button)findViewById(R.id.button_calculate_weights)).setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View view) {
+                                    try {
+                                        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                        SVMTrainer.ProgressCallback pcb = new SVMTrainer.ProgressCallback() {
+                                            @Override
+                                            public void onProgress(int progress) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        ((ProgressBar)findViewById(R.id.weights_progress_bar)).setProgress(progress);
+                                                    }
+                                                });
+                                            }
+                                        };
+
+                                        (findViewById(R.id.weights_progress_bar)).setVisibility(View.VISIBLE);
+
+                                        ((TextView) findViewById(R.id.fft_status_text)).setText("Calculating your weights..");
+                                        ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_orange_500));
+
+                                        ((Button)findViewById(R.id.button_start_over)).setEnabled(false);
+                                        ((Button)findViewById(R.id.button_clenching)).setEnabled(false);
+                                        ((Button)findViewById(R.id.button_non_clenching)).setEnabled(false);
+                                        ((Button)findViewById(R.id.button_calculate_weights)).setEnabled(false);
+
+
+
+                                        // --- Start a new background thread for the training task ---
+                                        new Thread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                try {
+                                                    // This is now running on a background thread
+                                                    final String result = SVMTrainer.train_for_result(clenching_filenamepath, non_clenching_filenamepath, pcb);
+
+                                                    // --- Switch back to the UI thread to update the UI ---
+                                                    runOnUiThread(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            EditText weightsOutput = findViewById(R.id.weights_output);
+                                                            weightsOutput.setText(result);
+                                                            weightsOutput.setVisibility(View.VISIBLE);
+                                                            ((ProgressBar)findViewById(R.id.weights_progress_bar)).setVisibility(View.GONE);
+                                                            ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
+                                                            ((Button)findViewById(R.id.button_clenching)).setEnabled(true);
+                                                            ((Button)findViewById(R.id.button_non_clenching)).setEnabled(true);
+                                                            ((Button)findViewById(R.id.button_calculate_weights)).setEnabled(true);
+                                                            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+                                                            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                                                            ClipData clip = ClipData.newPlainText("SVM Weights", result);
+                                                            clipboard.setPrimaryClip(clip);
+
+                                                            ((TextView) findViewById(R.id.fft_status_text)).setText("Result copied to clipboard");
+                                                            ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_blue_500));
+
+                                                        }
+                                                    });
+
+                                                } catch (Exception e) {
+                                                    // It's good practice to handle potential exceptions
+                                                    Log.e("SVMTrainer", "Training failed", e);
+                                                    // Optionally, show an error message on the UI thread
+                                                    runOnUiThread(() -> {
+                                                        Toast.makeText(MainActivity.this, "Training failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                                        ((ProgressBar)findViewById(R.id.weights_progress_bar)).setVisibility(View.GONE);
+                                                        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                                        ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
+                                                        ((Button)findViewById(R.id.button_clenching)).setEnabled(true);
+                                                        ((Button)findViewById(R.id.button_non_clenching)).setEnabled(true);
+                                                        ((Button)findViewById(R.id.button_calculate_weights)).setEnabled(true);
+                                                    });
+                                                }
+                                            }
+                                        }).start(); // Don't forget to start the thread!
+
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                            });
+
+                            }
+
+
+
+                    });
+
+
+
+                    }
+
+
+
+                } else if (length==1 ||(length % 5 == 0) ) {
+                } else if(fftData!=null) {
+                    // ricezione dati FFT: ogni float = 4 byte (little-endian)
+                    int receivedBins = Math.min(length / 4, fftData.length);
+
+                    //StringBuilder sb = new StringBuilder();
+                    //sb.append("Inbound data:");
+                    //sb.append(" Bins: ").append(receivedBins);
+
+                    for (int i = 0; i < receivedBins; i++) {
+                        float v = ByteBuffer.wrap(data, i * 4, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+                        fftData[i] = v;
+                        //sb.append(" ").append(i).append(":").append(v);
+                    }
+                    // se sono arrivati meno bin di quelli attesi, azzera il resto
+                    for (int i = receivedBins; i < fftData.length; i++) fftData[i] = 0f;
+
+                    //Log.i("FFTDATA", sb.toString());
+
+                    // aggiorna il chart (UI thread)
+                    chart.post(this::updateChartFromFFT);
+
+                    if((recording_clenching || recording_non_clenching)&&current_outputfile!=null){
+
+                        try {
+                                DecimalFormat df = new DecimalFormat("#.##########", DecimalFormatSymbols.getInstance(Locale.US));
+                                boolean first = true;
+                                for (float val : fftData) {
+
+                                    current_outputfile.print((first ? "" : ",") + df.format(val));
+                                    if (first) first = false;
+                                }
+                                current_outputfile.println();
+
+                        }catch (NullPointerException npe){}
+
+
+                    }
+
+
                 }
             } catch (IOException e) {
                 if (running) {
@@ -1038,6 +1357,96 @@ public class MainActivity extends AppCompatActivity {
             multicastLock.release();
 
     }
+
+    private void setupChart(int bins) {
+        ArrayList<BarEntry> initial = new ArrayList<>(bins);
+        for (int i = 0; i < bins; i++) initial.add(new BarEntry(i, 0f));
+
+        fftDataSet = new BarDataSet(initial, null); // nessuna label
+        fftDataSet.setDrawValues(false);            // niente valori sopra le barre
+
+        // Colori iniziali (grigio)
+        List<Integer> initialColors = new ArrayList<>(bins);
+        for (int i = 0; i < bins; i++) initialColors.add(Color.GRAY);
+        fftDataSet.setColors(initialColors);
+
+        fftBarData = new BarData(fftDataSet);
+        fftBarData.setBarWidth(1.0f);               // barre più larghe
+        chart.setData(fftBarData);
+
+        // Rimuove legenda e descrizione
+        chart.getLegend().setEnabled(false);
+        chart.getDescription().setEnabled(false);
+
+        // X Axis (frequenze)
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false);
+        xAxis.setDrawAxisLine(false);
+        xAxis.setTextSize(10f);
+        xAxis.setLabelRotationAngle(90f);
+        xAxis.setLabelCount(Math.min(10, bins), true);
+        xAxis.setAxisMinimum(-0.5f);
+        xAxis.setAxisMaximum(bins - 0.5f);
+        xAxis.setValueFormatter(new IndexAxisValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                int idx = Math.round(value);
+                if (idx < 0 || idx >= numBins) return "";
+                float binWidth = (float) samplingFrequency / (float) sampleCount;
+                int freq = Math.round(idx * binWidth);
+                return freq + " Hz";
+            }
+        });
+
+        // Disattiva asse Y completamente
+        chart.getAxisLeft().setEnabled(false);
+        chart.getAxisRight().setEnabled(false);
+
+        // Disattiva interazioni inutili
+        chart.setTouchEnabled(false);
+        chart.setHighlightPerTapEnabled(false);
+        chart.setHighlightPerDragEnabled(false);
+        chart.setScaleEnabled(false);
+        chart.setDragEnabled(false);
+        chart.setPinchZoom(false);
+
+        // Margini extra per allargare il grafico
+        chart.setExtraOffsets(20, 10, 20, 60);
+
+        chart.setFitBars(true);
+        chart.invalidate();
+    }
+
+    private void updateChartFromFFT() {
+        if (fftDataSet == null || fftBarData == null) return;
+
+        ArrayList<BarEntry> entries = new ArrayList<>(numBins);
+        ArrayList<Integer> colors = new ArrayList<>(numBins);
+        float binWidth = (float) samplingFrequency / (float) sampleCount;
+
+        for (int i = 0; i < numBins; i++) {
+            float mag = Math.abs(fftData[i]);
+            entries.add(new BarEntry(i, mag));
+
+            float freq = i * binWidth;
+            if (freq >= muscleMinFreq && freq <= muscleMaxFreq)
+                colors.add(Color.RED);
+            else
+                colors.add(Color.GRAY);
+        }
+
+        fftDataSet.setValues(entries);
+        fftDataSet.setColors(colors);
+
+        fftBarData.notifyDataChanged();
+        chart.notifyDataSetChanged();
+        chart.invalidate();
+    }
+
+
+
     public void sendUDP(byte[] data) {
 
         Thread thread = new Thread(new Runnable() {

@@ -20,6 +20,7 @@
         android:fillViewport="true"
         android:gravity="center"
         android:orientation="vertical"
+        android:visibility="gone"
         >
 <LinearLayout
     android:id="@+id/menu_content"
@@ -328,10 +329,10 @@
         android:orientation="vertical"
         android:layout_gravity="center"
         android:gravity="center"
-        android:layout_marginRight="20dp"
-        android:layout_marginLeft="20dp"
-
-        android:visibility="gone">
+        android:layout_marginRight="10dp"
+        android:layout_marginLeft="10dp"
+        android:animateLayoutChanges="true"
+        android:visibility="visible">
 
         <Space
             android:layout_width="match_parent"
@@ -397,6 +398,139 @@
             android:layout_height="wrap_content"
             android:onClick="hideReception"
             android:text="Awesome!" />
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/fft_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:animateLayoutChanges="true"
+            android:elevation="4dp"
+            android:visibility="visible"
+            app:cardCornerRadius="12dp"
+            app:cardUseCompatPadding="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:animateLayoutChanges="true"
+                android:padding="16dp">
+
+                <!-- Status Text -->
+                <TextView
+                    android:id="@+id/fft_status_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Listening for FFT parameters..."
+                    android:textAlignment="center"
+                    android:paddingBottom="8dp" />
+
+                <!-- Recording Holder -->
+                <LinearLayout
+                    android:id="@+id/recording_holder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:layout_gravity="center"
+                    android:animateLayoutChanges="true">
+
+                    <Button
+                        android:id="@+id/button_start_over"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Delete old recordings"
+                        android:textAllCaps="false" />
+
+                    <!-- Hold to Record + Vertical Buttons -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:id="@+id/hold_label"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:text="Hold to record:"
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:layout_marginEnd="12dp"
+                            android:layout_weight="1"/>
+
+                        <LinearLayout
+                            android:layout_weight="1"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <Button
+                                android:id="@+id/button_non_clenching"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Non-Clenching"
+                                android:textAllCaps="false"
+                                android:layout_marginBottom="4dp" />
+
+                            <Button
+                                android:id="@+id/button_clenching"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Clenching"
+                                android:textAllCaps="false" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                        <Button
+                            android:id="@+id/button_calculate_weights"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Calculate weights"
+                            android:textAllCaps="false" />
+
+                    <ProgressBar
+                        android:id="@+id/weights_progress_bar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:max="100"
+                        android:progress="0"
+                        android:indeterminate="false"
+                        android:visibility="gone"/>
+
+                    <!-- SVM Weights EditText -->
+                    <EditText
+                        android:id="@+id/weights_output"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="Weights will appear here"
+                        android:inputType="textMultiLine"
+                        android:gravity="top"
+                        android:minLines="3"
+                        android:maxLines="6"
+                        android:scrollbars="vertical"
+                        android:padding="8dp"
+                        android:visibility="gone" />
+
+                    <!-- FFT Chart -->
+                    <com.github.mikephil.charting.charts.BarChart
+                        android:id="@+id/fft_chart"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_marginTop="16dp" />
+
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+
 
     </LinearLayout>
 </LinearLayout>
