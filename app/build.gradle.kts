@@ -46,6 +46,7 @@ dependencies {
     implementation ("com.github.chrisbanes:PhotoView:2.3.0")
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui)
+    implementation(libs.preference.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

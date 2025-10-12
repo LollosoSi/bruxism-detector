@@ -8,7 +8,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.util.Pair;
 import android.view.View;
 import android.widget.CheckBox;

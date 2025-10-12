@@ -10,16 +10,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.util.Log;
-
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-
-import java.io.File;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 
 public class NoSessionNotificationReceiver extends BroadcastReceiver {
 
@@ -259,14 +253,19 @@ public class NoSessionNotificationReceiver extends BroadcastReceiver {
             }
 
             Intent intent = new Intent(context, NoSessionNotificationReceiver.class);
+            // You MUST set the same action to match the original intent
+            intent.setAction(NoSessionNotificationReceiver.action_nosession);
+
             PendingIntent pendingIntent;
 
             int flags = PendingIntent.FLAG_NO_CREATE; // Use FLAG_NO_CREATE to check if it exists
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 flags |= PendingIntent.FLAG_IMMUTABLE;
             }
+
             // Recreate the *exact same* PendingIntent (requestCode + Intent filter)
-            pendingIntent = PendingIntent.getService(
+            // FIX: Use getBroadcast to match the creation method
+            pendingIntent = PendingIntent.getBroadcast(
                     context,
                     DailyNotificationScheduler_PRIMARY_REQUEST_CODE,
                     intent,
@@ -276,9 +275,9 @@ public class NoSessionNotificationReceiver extends BroadcastReceiver {
             if (pendingIntent != null) {
                 alarmManager.cancel(pendingIntent);
                 pendingIntent.cancel(); // Also cancel the PendingIntent itself
-                Log.i(TAG, "Cancelled scheduled DailyNotificationScheduler service (request code: " + DailyNotificationScheduler_PRIMARY_REQUEST_CODE + ").");
+                Log.i(TAG, "Cancelled scheduled DailyNotificationScheduler broadcast (request code: " + DailyNotificationScheduler_PRIMARY_REQUEST_CODE + ").");
             } else {
-                Log.d(TAG, "No scheduled DailyNotificationScheduler service found to cancel with request code: " + DailyNotificationScheduler_PRIMARY_REQUEST_CODE);
+                Log.d(TAG, "No scheduled DailyNotificationScheduler broadcast found to cancel with request code: " + DailyNotificationScheduler_PRIMARY_REQUEST_CODE);
             }
         }
     }

@@ -12,6 +12,8 @@ coreAnimation = "1.0.0"
 photoview = "2.3.0"
 navigationFragment = "2.9.0"
 navigationUi = "2.9.0"
+navigationFragmentVersion = "2.9.5"
+preferenceKtxVersion = "1.2.1"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -26,6 +28,8 @@ core-animation = { group = "androidx.core", name = "core-animation", version.ref
 photoview = { module = "io.github.basshelal:PhotoView", version.ref = "photoview" }
 navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment", version.ref = "navigationFragment" }
 navigation-ui = { group = "androidx.navigation", name = "navigation-ui", version.ref = "navigationUi" }
+androidx-navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment", version.ref = "navigationFragmentVersion" }
+preference-ktx = { module = "androidx.preference:preference-ktx", version.ref = "preferenceKtxVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

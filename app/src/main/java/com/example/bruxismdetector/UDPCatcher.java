@@ -16,7 +16,7 @@ import android.icu.util.Calendar;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.util.Log;
 
 import androidx.annotation.Nullable;

@@ -25,7 +25,7 @@ import android.os.PowerManager;
 import android.os.Process;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.se.omapi.Session;
 import android.util.Log;
 import android.widget.Toast;

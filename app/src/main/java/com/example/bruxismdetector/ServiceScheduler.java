@@ -140,6 +140,7 @@ public class ServiceScheduler {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
         // Recreate the *exact same* PendingIntent (requestCode + Intent filter)
+        // FIX: Use getService to match the creation method
         pendingIntent = PendingIntent.getService(
                 context,
                 UDP_CATCHER_PRIMARY_REQUEST_CODE,

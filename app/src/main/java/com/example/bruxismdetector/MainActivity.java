@@ -1,8 +1,5 @@
 package com.example.bruxismdetector;
 
-import static androidx.core.app.PendingIntentCompat.getActivity;
-
-import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -12,16 +9,12 @@ import android.app.TimePickerDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.icu.util.Calendar;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -34,33 +27,22 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.preference.PreferenceManager;
-import android.provider.Settings;
-import android.transition.TransitionManager;
-import android.util.DisplayMetrics;
+import androidx.preference.PreferenceManager;
+
 import android.util.Log;
 import android.util.Pair;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -78,12 +60,10 @@ import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
 import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.google.android.material.elevation.SurfaceColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -126,7 +106,6 @@ public class MainActivity extends AppCompatActivity {
     private InetAddress multicastAddress;
     boolean running = false;
     private int sendPort;
-    private int receivePort;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final String TAG = "Main activity";
@@ -158,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
 
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
         final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -210,13 +189,9 @@ public class MainActivity extends AppCompatActivity {
         Intent launchintent = getIntent();
         if(launchintent!=null){
             if(launchintent.getAction()!=null){
-            switch (launchintent.getAction()){
-                case LAUNCH_GRAPHER:
+                if (launchintent.getAction().equals(LAUNCH_GRAPHER)) {
                     tryGraphing(null);
-                    break;
-                default:
-                    break;
-            }
+                }
         }
             }
 
@@ -229,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     public void initialSetup(){
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
@@ -236,7 +212,7 @@ public class MainActivity extends AppCompatActivity {
         setupSessionToggle();
 
 
-        MaterialSwitch swsh = (MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
+        MaterialSwitch swsh = findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
         swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -247,7 +223,17 @@ public class MainActivity extends AppCompatActivity {
         });
         swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
 
-        MaterialSwitch swshl = (MaterialSwitch)findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item);
+
+        View autostartListenerRow = findViewById(R.id.switch_autostart_listener);
+        autostartListenerRow.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                showAutostartTimePicker();
+                return true; // Consume the long click
+            }
+        });
+
+        MaterialSwitch swshl = autostartListenerRow.findViewById(R.id.switch_item);
         swshl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @SuppressLint("ScheduleExactAlarm")
             @Override
@@ -276,17 +262,10 @@ public class MainActivity extends AppCompatActivity {
         });
         swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
 
-        View autostartListenerRow = findViewById(R.id.switch_autostart_listener);
-        autostartListenerRow.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                showAutostartTimePicker();
-                return true; // Consume the long click
-            }
-        });
 
 
-        MaterialSwitch swthr = (MaterialSwitch)findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
+
+        MaterialSwitch swthr = findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
         swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -296,7 +275,18 @@ public class MainActivity extends AppCompatActivity {
         });
         swthr.setChecked(prefs.getBoolean("use_threshold", false));
 
-        MaterialSwitch swardubeep = (MaterialSwitch)findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
+
+        View ardubeep_row = findViewById(R.id.switch_sharedpref_arduino_beep);
+        if (ardubeep_row != null) {
+            TextView materialSwitch = ardubeep_row.findViewById(R.id.switch_label);
+            if (materialSwitch != null) {
+                materialSwitch.setText("Arduino beeps");
+            }
+        }
+
+        setSwitchThreshold_sharedpref_text();
+
+        MaterialSwitch swardubeep = ardubeep_row.findViewById(R.id.switch_item);
         swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -306,7 +296,7 @@ public class MainActivity extends AppCompatActivity {
         });
         swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
 
-        MaterialSwitch swoalarmondevice = (MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
+        MaterialSwitch swoalarmondevice = findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
         swoalarmondevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -318,7 +308,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-        MaterialSwitch swrecordnoise = (MaterialSwitch)findViewById(R.id.switch_recordnoise).findViewById(R.id.switch_item);
+        MaterialSwitch swrecordnoise = findViewById(R.id.switch_recordnoise).findViewById(R.id.switch_item);
         swrecordnoise.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -328,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
         swrecordnoise.setChecked(prefs.getBoolean("record_noise", false));
 
 
-        MaterialSwitch swrecordaccel = (MaterialSwitch)findViewById(R.id.switch_recordaccel).findViewById(R.id.switch_item);
+        MaterialSwitch swrecordaccel = findViewById(R.id.switch_recordaccel).findViewById(R.id.switch_item);
         swrecordaccel.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -338,7 +328,7 @@ public class MainActivity extends AppCompatActivity {
         swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
 
 
-        MaterialSwitch sw_notbeep = (MaterialSwitch)findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
+        MaterialSwitch sw_notbeep = findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
         sw_notbeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -353,7 +343,7 @@ public class MainActivity extends AppCompatActivity {
         });
         sw_notbeep.setChecked(prefs.getBoolean("do_not_beep", false));
 
-        MaterialSwitch sw_notalarm = (MaterialSwitch)findViewById(R.id.switch_do_not_alarm).findViewById(R.id.switch_item);
+        MaterialSwitch sw_notalarm = findViewById(R.id.switch_do_not_alarm).findViewById(R.id.switch_item);
         sw_notalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -368,8 +358,9 @@ public class MainActivity extends AppCompatActivity {
         });
         sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
 
-        MaterialSwitch swtcp = (MaterialSwitch)findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
+        MaterialSwitch swtcp = findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
         swtcp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @SuppressLint("SetTextI18n")
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("use_tcp", swtcp.isChecked()).apply();  // or false when unchecked
@@ -384,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
         swtcp.setEnabled(!ip.isEmpty());
 
 
-        SeekBar sbar = (SeekBar)findViewById(R.id.reception);
+        SeekBar sbar = findViewById(R.id.reception);
         sbar.setMax(100);
         sbar.setMin(0);
         sbar.setProgress(50);      // User cursor
@@ -411,15 +402,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        View roww = findViewById(R.id.switch_sharedpref_arduino_beep);
-        if (roww != null) {
-            TextView materialSwitch = roww.findViewById(R.id.switch_label);
-            if (materialSwitch != null) {
-                materialSwitch.setText("Arduino beeps");
-            }
-        }
 
-        setSwitchThreshold_sharedpref_text();
 
         switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
@@ -675,6 +658,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @SuppressLint("SetTextI18n")
     void setSwitchThreshold_sharedpref_text(){
         View row = findViewById(R.id.switch_sharedpref_use_threshold);
         if (row != null) {
@@ -767,11 +751,14 @@ public class MainActivity extends AppCompatActivity {
         if(bleWifiSender!=null)
              bleWifiSender.stop();
 
-        try {
-            bleThread.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        if(bleThread!=null) {
+            try {
+                bleThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
+
 
         super.onDestroy();
     }
@@ -869,7 +856,6 @@ public class MainActivity extends AppCompatActivity {
     public void setupUDP(int sendPort, int receivePort) {
         try {
             this.sendPort = sendPort;
-            this.receivePort = receivePort;
             multicastAddress = InetAddress.getByName("239.255.0.1");
 
             // Set up receiving socket
@@ -922,7 +908,7 @@ public class MainActivity extends AppCompatActivity {
                         Pattern pattern = Pattern.compile("VersionIncremental\\s*=\\s*(\\d+)");
                         Matcher matcher = pattern.matcher(line);
                         if (matcher.find()) {
-                            version = Integer.parseInt(matcher.group(1));
+                            version = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
                             break;
                         }
                     }
@@ -936,7 +922,7 @@ public class MainActivity extends AppCompatActivity {
                 new Handler(Looper.getMainLooper()).post(() -> callback.accept(finalVersion));
 
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.i("Exception", "Error while fetching latest version", e);
                 new Handler(Looper.getMainLooper()).post(() -> callback.accept(-1));
             }
         }).start();
@@ -955,7 +941,7 @@ public class MainActivity extends AppCompatActivity {
     private final int muscleMinFreq = 80;
     private final int muscleMaxFreq = 230;
 
-    private boolean reverseBins = false;
+    private final boolean reverseBins = false;
 
     boolean recording_clenching = false, recording_non_clenching = false;
     PrintWriter current_outputfile = null;
@@ -1017,7 +1003,7 @@ public class MainActivity extends AppCompatActivity {
                                     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
                                     if(prefs.getInt("lastversionarduino", 0) != versionincremental){
                                         prefs.edit().putInt("lastversionarduino", versionincremental).apply();
-                                        ((TextView)findViewById(R.id.updatedtextnotification)).setVisibility(View.VISIBLE);
+                                        findViewById(R.id.updatedtextnotification).setVisibility(View.VISIBLE);
                                     }
                                 }
                             }
@@ -1029,6 +1015,7 @@ public class MainActivity extends AppCompatActivity {
                     if (data[0] == 11 && data[5]==data[10]) {
 
                         runOnUiThread(new Runnable() {
+                            @SuppressLint("SetTextI18n")
                             @Override
                             public void run() {
                                 findViewById(R.id.main_container).setVisibility(View.GONE);
@@ -1049,10 +1036,10 @@ public class MainActivity extends AppCompatActivity {
                                 if (classification_result < min_result) min_result = classification_result;
                                 if (classification_result > max_result) max_result = classification_result;
 
-                                ((SeekBar) findViewById(R.id.reception)).setMin((int) min_result);
-                                ((SeekBar) findViewById(R.id.reception)).setMax((int) max_result);
+                                ((SeekBar) findViewById(R.id.reception)).setMin(min_result);
+                                ((SeekBar) findViewById(R.id.reception)).setMax(max_result);
 
-                                ((SeekBar) findViewById(R.id.reception)).setSecondaryProgress((int) classification_result);
+                                ((SeekBar) findViewById(R.id.reception)).setSecondaryProgress(classification_result);
 
                                 if (!is_user_editing_classification_thumb) {
                                     ((SeekBar) findViewById(R.id.reception)).setProgress(classification_threshold);
@@ -1081,14 +1068,15 @@ public class MainActivity extends AppCompatActivity {
 
                     // inizializza il chart con N barre a zero (UI thread)
                     chart.post(() -> setupChart(numBins));
-                    if(((LinearLayout)findViewById(R.id.recording_holder)).getVisibility() == View.GONE) {
+                    if(findViewById(R.id.recording_holder).getVisibility() == View.GONE) {
 
                     runOnUiThread(new Runnable() {
+                        @SuppressLint("SetTextI18n")
                         @Override
                         public void run() {
                                 ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
-                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_green_500));
-                                ((LinearLayout)findViewById(R.id.recording_holder)).setVisibility(View.VISIBLE);
+                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                findViewById(R.id.recording_holder).setVisibility(View.VISIBLE);
 
 
                             File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
@@ -1102,7 +1090,7 @@ public class MainActivity extends AppCompatActivity {
                             String clenching_filenamepath = recordingsTrainingDir.getAbsolutePath()+"/clenching.csv";
 
 
-                            ((Button)findViewById(R.id.button_start_over)).setOnClickListener(new View.OnClickListener() {
+                            findViewById(R.id.button_start_over).setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View view) {
                                     File nonClenchingFile = new File(non_clenching_filenamepath);
@@ -1125,19 +1113,19 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
 
-                            ((Button)findViewById(R.id.button_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
-                            ((Button)findViewById(R.id.button_clenching)).setOnTouchListener(new View.OnTouchListener() {
+                            findViewById(R.id.button_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                            findViewById(R.id.button_clenching).setOnTouchListener(new View.OnTouchListener() {
                                 @Override
                                 public boolean onTouch(View view, MotionEvent motionEvent) {
                                     if(!recording_non_clenching) {
                                         switch (motionEvent.getAction()) {
                                             case MotionEvent.ACTION_DOWN:
                                                 Log.i("Pressed", "DOWN");
-                                                ((Button) findViewById(R.id.button_clenching)).setBackgroundColor(getResources().getColor(R.color.material_red_500));
+                                                findViewById(R.id.button_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
                                                 recording_clenching = true;
                                                 ((TextView) findViewById(R.id.fft_status_text)).setText("Recording clenching...");
-                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_red_500));
-                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(false);
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
+                                                findViewById(R.id.button_start_over).setEnabled(false);
 
                                                 try {
                                                     // Use FileOutputStream with the 'append' flag set to true
@@ -1148,11 +1136,11 @@ public class MainActivity extends AppCompatActivity {
                                                 break;
                                             case MotionEvent.ACTION_UP:
                                                 Log.i("Pressed", "UP");
-                                                ((Button) findViewById(R.id.button_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
+                                                findViewById(R.id.button_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
                                                 recording_clenching = false;
                                                 ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
-                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_green_500));
-                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                                findViewById(R.id.button_start_over).setEnabled(true);
 
                                                 current_outputfile.flush();
                                                 current_outputfile.close();
@@ -1167,19 +1155,20 @@ public class MainActivity extends AppCompatActivity {
                             });
 
 
-                            ((Button)findViewById(R.id.button_non_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
-                            ((Button)findViewById(R.id.button_non_clenching)).setOnTouchListener(new View.OnTouchListener() {
+                            findViewById(R.id.button_non_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                            findViewById(R.id.button_non_clenching).setOnTouchListener(new View.OnTouchListener() {
+                                @SuppressLint("SetTextI18n")
                                 @Override
                                 public boolean onTouch(View view, MotionEvent motionEvent) {
                                     if(!recording_clenching) {
                                         switch (motionEvent.getAction()) {
                                             case MotionEvent.ACTION_DOWN:
                                                 Log.i("Pressed", "DOWN");
-                                                ((Button) findViewById(R.id.button_non_clenching)).setBackgroundColor(getResources().getColor(R.color.material_red_500));
+                                                findViewById(R.id.button_non_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
                                                 recording_non_clenching = true;
                                                 ((TextView) findViewById(R.id.fft_status_text)).setText("Recording non clenching...");
-                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_red_500));
-                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(false);
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
+                                                findViewById(R.id.button_start_over).setEnabled(false);
 
                                                 try {
                                                     // Use FileOutputStream with the 'append' flag set to true
@@ -1191,11 +1180,11 @@ public class MainActivity extends AppCompatActivity {
                                                 break;
                                             case MotionEvent.ACTION_UP:
                                                 Log.i("Pressed", "UP");
-                                                ((Button) findViewById(R.id.button_non_clenching)).setBackgroundColor(getResources().getColor(R.color.material_green_500));
+                                                findViewById(R.id.button_non_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
                                                 recording_non_clenching = false;
                                                 ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
-                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_green_500));
-                                                ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                                findViewById(R.id.button_start_over).setEnabled(true);
 
                                                 current_outputfile.flush();
                                                 current_outputfile.close();
@@ -1209,7 +1198,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
 
-                            ((Button)findViewById(R.id.button_calculate_weights)).setOnClickListener(new View.OnClickListener() {
+                            findViewById(R.id.button_calculate_weights).setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View view) {
                                     try {
@@ -1229,12 +1218,12 @@ public class MainActivity extends AppCompatActivity {
                                         (findViewById(R.id.weights_progress_bar)).setVisibility(View.VISIBLE);
 
                                         ((TextView) findViewById(R.id.fft_status_text)).setText("Calculating your weights..");
-                                        ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_orange_500));
+                                        ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_orange_500));
 
-                                        ((Button)findViewById(R.id.button_start_over)).setEnabled(false);
-                                        ((Button)findViewById(R.id.button_clenching)).setEnabled(false);
-                                        ((Button)findViewById(R.id.button_non_clenching)).setEnabled(false);
-                                        ((Button)findViewById(R.id.button_calculate_weights)).setEnabled(false);
+                                        findViewById(R.id.button_start_over).setEnabled(false);
+                                        findViewById(R.id.button_clenching).setEnabled(false);
+                                        findViewById(R.id.button_non_clenching).setEnabled(false);
+                                        findViewById(R.id.button_calculate_weights).setEnabled(false);
 
 
 
@@ -1248,16 +1237,17 @@ public class MainActivity extends AppCompatActivity {
 
                                                     // --- Switch back to the UI thread to update the UI ---
                                                     runOnUiThread(new Runnable() {
+                                                        @SuppressLint("SetTextI18n")
                                                         @Override
                                                         public void run() {
                                                             EditText weightsOutput = findViewById(R.id.weights_output);
                                                             weightsOutput.setText(result);
                                                             weightsOutput.setVisibility(View.VISIBLE);
-                                                            ((ProgressBar)findViewById(R.id.weights_progress_bar)).setVisibility(View.GONE);
-                                                            ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
-                                                            ((Button)findViewById(R.id.button_clenching)).setEnabled(true);
-                                                            ((Button)findViewById(R.id.button_non_clenching)).setEnabled(true);
-                                                            ((Button)findViewById(R.id.button_calculate_weights)).setEnabled(true);
+                                                            findViewById(R.id.weights_progress_bar).setVisibility(View.GONE);
+                                                            findViewById(R.id.button_start_over).setEnabled(true);
+                                                            findViewById(R.id.button_clenching).setEnabled(true);
+                                                            findViewById(R.id.button_non_clenching).setEnabled(true);
+                                                            findViewById(R.id.button_calculate_weights).setEnabled(true);
                                                             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
                                                             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
@@ -1265,7 +1255,7 @@ public class MainActivity extends AppCompatActivity {
                                                             clipboard.setPrimaryClip(clip);
 
                                                             ((TextView) findViewById(R.id.fft_status_text)).setText("Result copied to clipboard");
-                                                            ((TextView) findViewById(R.id.fft_status_text)).setTextColor(getResources().getColor(R.color.material_blue_500));
+                                                            ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_blue_500));
 
                                                         }
                                                     });
@@ -1276,12 +1266,12 @@ public class MainActivity extends AppCompatActivity {
                                                     // Optionally, show an error message on the UI thread
                                                     runOnUiThread(() -> {
                                                         Toast.makeText(MainActivity.this, "Training failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                                                        ((ProgressBar)findViewById(R.id.weights_progress_bar)).setVisibility(View.GONE);
+                                                        findViewById(R.id.weights_progress_bar).setVisibility(View.GONE);
                                                         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                                                        ((Button)findViewById(R.id.button_start_over)).setEnabled(true);
-                                                        ((Button)findViewById(R.id.button_clenching)).setEnabled(true);
-                                                        ((Button)findViewById(R.id.button_non_clenching)).setEnabled(true);
-                                                        ((Button)findViewById(R.id.button_calculate_weights)).setEnabled(true);
+                                                        findViewById(R.id.button_start_over).setEnabled(true);
+                                                        findViewById(R.id.button_clenching).setEnabled(true);
+                                                        findViewById(R.id.button_non_clenching).setEnabled(true);
+                                                        findViewById(R.id.button_calculate_weights).setEnabled(true);
                                                     });
                                                 }
                                             }
@@ -1306,6 +1296,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                 } else if (length==1 ||(length % 5 == 0) ) {
+                    // We don't need this, but I left it to avoid forgetting there is a reserved message size
                 } else if(fftData!=null) {
                     // ricezione dati FFT: ogni float = 4 byte (little-endian)
                     int receivedBins = Math.min(length / 4, fftData.length);
@@ -1339,7 +1330,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
                                 current_outputfile.println();
 
-                        }catch (NullPointerException npe){}
+                        }catch (NullPointerException ignored){}
 
 
                     }
@@ -1462,7 +1453,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.e(TAG, "Error sending UDP packet", e);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.e(TAG, "Error in sendUDP", e);
                 }
             }
         });
@@ -1509,7 +1500,7 @@ public class MainActivity extends AppCompatActivity {
         // Acquire a WakeLock to keep the screen on
         PowerManager powerManager = (PowerManager) ctx.getSystemService(POWER_SERVICE);
         PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "MyApp:MyWakeLockTag");
-        wakeLock.acquire();
+        wakeLock.acquire(10*60*1000L /*10 minutes*/);
 
         GrapherAsyncTask task = new GrapherAsyncTask(ctx);
 
@@ -1604,8 +1595,9 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isSessionExpanded = true;
     private ConstraintLayout rootLayout;
-    private ConstraintSet expandedSet = new ConstraintSet();
-    private ConstraintSet collapsedSet = new ConstraintSet();
+    boolean initialCopy = true;
+    private final ConstraintSet expandedSet = new ConstraintSet();
+    private final ConstraintSet collapsedSet = new ConstraintSet();
 
     private void setupSessionToggle() {
         
@@ -1614,7 +1606,10 @@ public class MainActivity extends AppCompatActivity {
         rootLayout = findViewById(R.id.session_card_root); // the root ConstraintLayout inside your CardView
 
         // Clone current layout as "expanded" state
-        expandedSet.clone(rootLayout);
+        if(initialCopy) {
+            expandedSet.clone(rootLayout);
+            initialCopy=false;
+        }
 
         // Define collapsed layout
         collapsedSet.clone(rootLayout);
