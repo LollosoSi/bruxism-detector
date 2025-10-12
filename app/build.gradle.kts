@@ -41,6 +41,8 @@ dependencies {
     implementation(libs.mpandroidchart)
     implementation(libs.core.animation)
     implementation ("com.github.chrisbanes:PhotoView:2.3.0")
+    implementation(libs.navigation.fragment)
+    implementation(libs.navigation.ui)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
