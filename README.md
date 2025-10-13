@@ -201,7 +201,8 @@ The following will reference `Arduino/main/main.ino` as the main program.
     </br>
 ### **Train your SVM model:**
   **Note:** This action is disabled after the first 2 minutes of runtime.
-  - Long press the button on your arduino until you hear confirmation beeps. The arduino is now streaming the FFT data
+#### Desktop Procedure
+  - Long press the button on your arduino and release when you begin hearing confirmation beeps in increasing pitch. The arduino is now streaming the FFT data
   - Run `fft_recorder_for_training`. read console for keys (c, n, s, any other key to suspend recording)
   - (n) Record data in the non clenching state: do not clench, stay still, move, cough, swallow, etc.
   - (any other key) Suspend recording
@@ -210,12 +211,21 @@ The following will reference `Arduino/main/main.ino` as the main program.
   - (s) Save
   - Move your `clenching.csv` and `non-clenching.csv` in the same folder of `data_classification_training.py`.
   - CMD to that folder, run `python data_classification_training.py`.
-  - You will get the C++ code to be pasted in the arduino sketch.</br>It will look like this:
+  - Continues below the android procedure section...
+#### Android procedure
+  - Long press the button on your arduino and release when you begin hearing confirmation beeps in increasing pitch. The arduino is now streaming the FFT data
+  - Open the application. You'll be brought to the tuning page automagically.
+  - Hold the "Non-clenching" button to record data in the non clenching state: do not clench, stay still, move, cough, swallow, etc.
+  - Hold the "Clenching" button to record data in the clenching state: begin the recording when you are already clenching. Don't go too hard, but do not let go. Add some variability.
+  You may hold and release as many times as you like and the recordings will be merged.</br>To start over, press the "delete old recordings" button.
+  - Tap "Calculate weights"
+- - - -
+ - You will get the C++ code to be pasted in the arduino sketch.</br>It will look like this:
   ```Cpp
   static const float weights[] = { 0.00000000, . . . , 0.00517570, };
   static const float bias = -0.2237529517562951;
   ```
-  - Edit `Settings.h` with your weights and bias (look for `weights`, `bias` variables) and load it.
+  - Edit `Settings.h` with your weights and bias (look for `weights`, `bias` variables) and upload the sketch.
     </br>Keep this file open you're going to edit it again.
     </br>
 ### **Tune your SVM model:**
