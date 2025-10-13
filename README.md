@@ -56,6 +56,11 @@ Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems 
 - [Other files](#other-files)
 ---------------
 
+# **NOTICE**
+
+The detection system output needs to be validated.</br>
+Please contact me if you have proper equipment to do so.
+
 # **SAFETY NOTICE**
 
 To reduce risk of electrocution, __NEVER__ connect electrodes to your body when the circuit is also attached to the wall in some way. Through the charger, a laptop, your desktop, etc.
