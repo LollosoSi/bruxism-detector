@@ -78,6 +78,7 @@ In simple terms, you should only wear electrodes when your circuit is attached t
 - A summary of your collected data. Use `generator.jar` or the Android app.
 - Beeps and alarms in case clenching is detected. [Configurable](https://github.com/LollosoSi/bruxism-detector#changing-detection-settings).
 - Detect correlations between your tagged sessions <sub>(Android)</sub>
+- Visually record clenching events with your smartphone camera <sub>(Android)</sub>
 
 <sub>*You will need to export the tracker data to a compatible format</sub>
 
@@ -177,13 +178,16 @@ Note: If you skipped a night, the app will still allow tagging it for reference:
 <img src="https://github.com/user-attachments/assets/6540fea7-7fa0-43f4-8ec4-44cf723825cd" width="22%">
 <img src="https://github.com/user-attachments/assets/4aea7393-ac43-4a46-8ecf-63a68c1f5d58" width="22%">
 
-<img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" width="22%">
+<img src="https://github.com/user-attachments/assets/dd4270e8-124d-4f21-83f4-4cd0c77aeec4" width="22%">
 <img src="https://github.com/user-attachments/assets/a203d53f-90f2-40be-b3c0-0d642c10d711" width="22%">
 
 <img src="https://github.com/user-attachments/assets/50bf9dab-e19e-45f1-a366-73962ad19c13" width="22%">
 
 <img src="https://github.com/user-attachments/assets/195a6b46-6cdd-4250-b837-13d67fe30351" width="22%">
 <img src="https://github.com/user-attachments/assets/0fd6d888-801a-4159-947d-09a5e7c440e4" width="22%">
+
+<img src="https://github.com/user-attachments/assets/a1ea4440-e60e-4a5d-81fc-1c454b20578f" width="66%">
+
 
 </div>
 
