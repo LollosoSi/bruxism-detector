@@ -202,6 +202,8 @@ public class MainActivity extends AppCompatActivity {
         if(prefs.getBoolean("tutorial",true)) {
             playTutorial();
         }
+
+        testAI();
     }
 
     @SuppressLint("SetTextI18n")
@@ -327,6 +329,33 @@ public class MainActivity extends AppCompatActivity {
         });
         swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
 
+        MaterialSwitch swrecordcamera = findViewById(R.id.switch_sharedpref_camera).findViewById(R.id.switch_item);
+        swrecordcamera.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_camera", swrecordcamera.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordcamera.setChecked(prefs.getBoolean("record_camera", false));
+
+        MaterialSwitch swrecordcamera_onlyalarms = findViewById(R.id.switch_sharedpref_camera_only_alarms).findViewById(R.id.switch_item);
+        swrecordcamera_onlyalarms.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_camera_onlyalarms", swrecordcamera_onlyalarms.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordcamera_onlyalarms.setChecked(prefs.getBoolean("record_camera_onlyalarms", true));
+
+
+        MaterialSwitch swrecordcamera_flash = findViewById(R.id.switch_sharedpref_camera_torch).findViewById(R.id.switch_item);
+        swrecordcamera_flash.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_camera_flash", swrecordcamera_flash.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordcamera_flash.setChecked(prefs.getBoolean("record_camera_flash", true));
 
         MaterialSwitch sw_notbeep = findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
         sw_notbeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -631,8 +660,16 @@ public class MainActivity extends AppCompatActivity {
         switchLabelMap.put(R.id.switch_autostart_listener, "Autostart Service");
         switchLabelMap.put(R.id.switch_recordnoise, "Record noise");
         switchLabelMap.put(R.id.switch_recordaccel, "Record movement");
+        switchLabelMap.put(R.id.switch_sharedpref_camera, "Record camera");
+        switchLabelMap.put(R.id.switch_sharedpref_camera_only_alarms, "Camera: Only alarms");
+        switchLabelMap.put(R.id.switch_sharedpref_camera_torch, "Camera: Flash");
+
+
+
         switchLabelMap.put(R.id.switch_do_not_alarm, "Do not alarm");
         switchLabelMap.put(R.id.switch_do_not_beep, "Do not beep");
+
+
 
 
 
@@ -1681,5 +1718,23 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    // Token here. Do not publish.
+    private final String HUGGING_FACE_TOKEN = "your hf token";
 
+    public void testAI() {
+
+        // Would love to use AI, but testing concluded it is as useful as a RNG.
+
+        // Just make one call to the utility class
+        //GenerativeAIUtil gai = new GenerativeAIUtil();
+        //gai.initializeAndDownloadModelWithDialogs(
+        //        MainActivity.this,
+        //        GenerativeAIUtil.modelUrl,
+        //        GenerativeAIUtil.modelFileName,
+        //        HUGGING_FACE_TOKEN,
+        //        ()->{gai.close();}
+        //);
+
+
+    }
 }

@@ -346,10 +346,16 @@ public class SessionTracker {
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STARTED"}, file_out);
                         cstart=millis();
                         clenching=true;
+                        if(!prefs.getBoolean("record_camera_onlyalarms", true)){
+                            servicereference.sendStartTrigger();
+                        }
                         break;
                     case CLENCH_STOP:
                         clenching=false;
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Clenching", "STOPPED", String.valueOf((millis()-cstart)/1000.0)}, file_out);
+                        if(!prefs.getBoolean("record_camera_onlyalarms", true)){
+                            servicereference.sendStopTrigger(alarmed);
+                        }
                         break;
                     case BUTTON_PRESS:
                         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Button"}, file_out);
@@ -363,6 +369,8 @@ public class SessionTracker {
                         alarmed=false;
                         servicereference.dismissVibrator();
 
+                        servicereference.sendStopTrigger(true);
+
                         break;
                     case ALARM_START:
                         if (!alarmed) {
@@ -372,6 +380,10 @@ public class SessionTracker {
                                 servicereference.runAlarm();
                                 servicereference.sendBytes(new byte[]{UDP_ALARM_CONFIRMED});
                             }
+
+                            servicereference.sendStartTrigger();
+
+
                         }
                         break;
                     case ALARM_STOP:

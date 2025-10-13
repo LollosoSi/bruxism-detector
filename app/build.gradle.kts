@@ -32,6 +32,8 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+
 }
 
 
@@ -47,6 +49,8 @@ dependencies {
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui)
     implementation(libs.preference.ktx)
+    implementation(libs.core)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

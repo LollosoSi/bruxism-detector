@@ -1,21 +1,70 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:animateLayoutChanges="true">
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager"
+    <!-- This LinearLayout will hold the ViewPager and the new AI panel -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:weightSum="10"
+        android:animateLayoutChanges="true">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/viewPager"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="10" />
+
+        <!-- In activity_graph_viewer.xml, replace the ScrollView inside aiEvaluationPanel -->
+
+        <LinearLayout
+            android:id="@+id/aiEvaluationPanel"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="?android:attr/colorBackground"
+            android:elevation="4dp"
+            android:visibility="gone"> <!-- Initially hidden -->
+
+            <TextView
+                android:id="@+id/aiTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Session vs. Average"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Replace the old ScrollView/TextView with this -->
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:id="@+id/barChartContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+
+        </LinearLayout>
+
+    </LinearLayout>
 
     <!-- Left arrow button -->
     <ImageButton
         android:id="@+id/btnLeft"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_marginStart="32dp"
         android:layout_alignParentStart="true"
         android:layout_centerVertical="true"
+        android:layout_marginStart="32dp"
         android:background="@android:color/transparent"
         android:contentDescription="Previous"
         android:src="@android:drawable/ic_media_previous" />
@@ -25,11 +74,11 @@
         android:id="@+id/btnRight"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_marginEnd="32dp"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
-        android:contentDescription="Next"
+        android:layout_marginEnd="32dp"
         android:background="@android:color/transparent"
+        android:contentDescription="Next"
         android:src="@android:drawable/ic_media_next" />
 
 </RelativeLayout>

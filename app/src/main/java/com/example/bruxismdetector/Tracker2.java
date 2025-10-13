@@ -25,6 +25,8 @@ import android.os.PowerManager;
 import android.os.Process;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+
+import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
 import android.se.omapi.Session;
 import android.util.Log;
@@ -44,8 +46,11 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -161,6 +166,10 @@ SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
             sendBytes(new byte[]{SessionTracker.DO_NOT_ALARM});
         }
 
+        if(prefs.getBoolean("record_camera", false)){
+            startVideoService();
+        }
+
 
         Notification n = buildNotification();
         n.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
@@ -181,6 +190,7 @@ SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
             startRecorderIntent.putExtra("filename4", filename4);
             startService(startRecorderIntent);
         }
+
     }
 
     @Override
@@ -210,6 +220,8 @@ SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
     @Override
     public void onDestroy() {
 
+
+
         dismissVibrator();
         unregisterReceiver(notification_and_screen_receiver);
         closeSockets();
@@ -226,6 +238,10 @@ SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
 
         if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {
             ServiceScheduler.scheduleUDPCatcherAtTime(this, prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
+        }
+
+        if(prefs.getBoolean("record_camera", false)){
+            stopVideoService();
         }
 
         if(prefs.getBoolean("collect_data_on_end",false)) {
@@ -609,5 +625,63 @@ public void sendBytes(byte[] data){
     }
 
 
+    private boolean isCameraGranted() {
+        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+    public void startVideoService() {
+        if (!isCameraGranted()) {
+            Toast.makeText(this, "Grant access to camera", Toast.LENGTH_SHORT).show();
+            SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+            preferences.edit().putBoolean("record_camera", false).apply();
+            return;
+        }
+
+        // sessionTracker.setup must be called BEFORE this line
+        String sessionFolderName = sessionTracker.formattedDate;
+
+        Intent intent = new Intent(this, VideoRecordingService.class);
+        intent.setAction(VideoRecordingService.ACTION_START_SERVICE);
+        intent.putExtra(VideoRecordingService.EXTRA_SESSION_FOLDER_NAME, sessionFolderName);
+
+        startForegroundService(intent);
+        Toast.makeText(this, "Camera service started.", Toast.LENGTH_SHORT).show();
+    }
+
+    // Metodo per fermare completamente il servizio
+    public void stopVideoService() {
+        Intent intent = new Intent(this, VideoRecordingService.class);
+        intent.setAction(VideoRecordingService.ACTION_STOP_SERVICE);
+        startService(intent);
+        Toast.makeText(this, "Service stopped.", Toast.LENGTH_SHORT).show();
+    }
+
+    // Metodo per inviare il trigger di inizio salvataggio
+    public void sendStartTrigger() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(!prefs.getBoolean("record_camera", false)){
+            return;
+        }
+        Intent intent = new Intent(this, VideoRecordingService.class);
+        intent.setAction(VideoRecordingService.ACTION_TRIGGER_START_SAVE);
+        startService(intent);
+        Toast.makeText(this, "Trigger START sent.", Toast.LENGTH_SHORT).show();
+    }
+
+    // Metodo per inviare il trigger di fine salvataggio
+    public void sendStopTrigger(boolean apply_delay) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(!prefs.getBoolean("record_camera", false)){
+            return;
+        }
+
+        Intent intent = new Intent(this, VideoRecordingService.class);
+        intent.setAction(VideoRecordingService.ACTION_TRIGGER_STOP_SAVE);
+
+        if(!apply_delay)
+            intent.putExtra(VideoRecordingService.EXTRA_NO_DELAY, true); // Aggiungo l'extra
+
+        startService(intent);
+        Toast.makeText(this, "Trigger STOP sent.", Toast.LENGTH_SHORT).show();
+    }
 
 }

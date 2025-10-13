@@ -37,6 +37,7 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
@@ -60,8 +61,16 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.BruxismDetector"
-        >
+        android:theme="@style/Theme.BruxismDetector">
+        <activity
+            android:name=".CameraTest"
+            android:exported="false" />
+
+        <service
+            android:name=".VideoRecordingService"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="camera" />
 
         <receiver
             android:name=".NoSessionNotificationReceiver"
@@ -155,10 +164,6 @@
             android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/Theme.Transparent" />
-        <activity
-            android:name=".CameraTest"
-            android:exported="true"
-            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar" />
 
         <receiver
             android:name=".BootReceiver"
