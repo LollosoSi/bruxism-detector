@@ -1,0 +1,1510 @@
+package com.example.bruxismdetector.bruxism_grapher2;
+
+import android.icu.text.SimpleDateFormat;
+import android.icu.util.Calendar;
+import android.util.Log;
+
+import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.GrapherInterface;
+import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.IconManager;
+import com.example.bruxismdetector.bruxism_grapher2.Colours.Color_element;
+import com.example.bruxismdetector.bruxism_grapher2.grapher_interfaces.TaskRunner;
+
+import java.lang.reflect.Array;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
+
+public class Grapher<Image, Color, Font> {
+
+	public void setPlatformSpecificAbstractions(GrapherInterface<Color, Image, Font> g, IconManager<Color, Image> im, TaskRunner tr) {
+		gi = g;
+		icm = im;
+		taskRunner = tr;
+		calculateGraphParameters();
+	}
+
+	public boolean only_info = false; // Do not draw graphs if this is true.. no data in file
+	StatData sd = null;
+	SleepData sleepData = null;
+
+	public SleepData getSleepData() {
+		return sleepData;
+	}
+
+	public void setSleepData(SleepData sleepData) {
+		this.sleepData = sleepData;
+	}
+
+	int graph_width, graph_height;
+	long min_time, max_time;
+	double time_scale, xhour;
+
+	int side_margin, side_info_margin;
+
+	int timeline_height, legend_height, first_slot_height, info_text_height;
+	int slot_spacing, slot_height;
+
+	int tick_length, tick_slot_length, xcharsize;
+
+	long sync_unix_second_time_start = 0;
+
+	int clenchline_height_low, clenchline_height_high;
+	int heartrate_height_low, heartrate_height_high;
+	int spo2_height_low, spo2_height_high;
+	int stress_height_low, stress_height_high;
+
+	int noise_height_low, noise_height_high;
+
+	static final int
+			alarm_slot = 0, alarm_slot_length = 3,
+			clenching_slot = 4, clenching_slot_length = 1,
+			button_slot = 1, button_slot_length = 2,
+			beep_slot = 0, beep_slot_length = 1;
+
+	String file_name;
+
+	ArrayList<Event> events;
+	ArrayList<RawEvent> raw_events = null;
+	ArrayList<NoiseEvent> noise_events = null;
+
+	ArrayList<NoiseEvent> accel_mag_events = null;
+
+
+	GrapherInterface<Color, Image, Font> gi = null;
+	IconManager<Color, Image> icm = null;
+	TaskRunner taskRunner = null;
+	Map<String, IconAndNiceness> icons = new HashMap<String, IconAndNiceness>();
+
+	public void addNoiseData(ArrayList<NoiseEvent> noises) {
+		noise_events = noises;
+	}
+
+	public void addAccelData(ArrayList<NoiseEvent> acceldata) {
+		accel_mag_events = acceldata;
+	}
+
+	public class IconAndNiceness{
+		public IconAndNiceness(Image ic, String nice) {
+			icon = ic;
+			niceness = nice;
+		}
+		Image icon;
+		String niceness = Neutral;
+	};
+
+	public Grapher(ArrayList<Event> event_list, String file_name, int width, int height) {
+		events = event_list;
+		this.file_name = file_name;
+
+		graph_width = width;
+		graph_height = height;
+
+		if(events.get(0).type.equals("ONLY_INFO") || events.get(1).type.equals("ONLY_INFO")){
+			only_info=true;
+		}
+	}
+
+	void calculateGraphParameters() {
+
+		tick_length = 20;
+		tick_slot_length = 20;
+
+		side_margin = graph_width / 12;
+		side_info_margin = graph_width / 20;
+		info_text_height = 50;
+
+		legend_height = graph_height - 80;
+
+		int line_height_temp = legend_height;
+
+		if(raw_events != null) {
+			if(!raw_events.isEmpty()) {
+				clenchline_height_low = (line_height_temp -= 25);
+				clenchline_height_high = (line_height_temp -= 30);
+			}
+		}
+
+		if(!sleepData.heartrate.isEmpty() || !sleepData.stress.isEmpty()) {
+			heartrate_height_low = (line_height_temp -= 25);
+			heartrate_height_high = (line_height_temp -= 30);
+		}
+
+		if(!sleepData.spo2.isEmpty() ) {
+			spo2_height_low = (line_height_temp -= 25);
+			spo2_height_high = (line_height_temp -= 30);
+		}
+
+		//if(!sleepData.stress.isEmpty()) {
+		//	stress_height_low = (line_height_temp -= 25);
+		//	stress_height_high = (line_height_temp -= 30);
+		//}
+
+		if(noise_events != null || accel_mag_events != null) {
+			noise_height_low = (line_height_temp -= 25);
+			noise_height_high = (line_height_temp -= 30);
+		}
+
+		timeline_height = (line_height_temp -= 80);
+
+		first_slot_height = timeline_height;
+		slot_height = 20;
+		slot_spacing = 5;
+
+		min_time = events.get(0).millis;
+		max_time = events.get(events.size() - 1).millis;
+		time_scale = (graph_width - 2 * side_margin) / (double) (max_time - min_time);
+		xhour = time_scale * (6000 * 60);
+		xcharsize = 9;
+
+		loadIcons();
+
+	}
+
+	static final String
+			Bad = "#F44336",        // Material Red 500
+			Mediocre = "#FF9800",   // Material Orange 500
+			Neutral = "#2196F3",    // Material Blue 500
+			Nice = "#4CAF50";       // Material Green 500
+
+	public void loadIcons() {
+
+
+		icons.put("android", new IconAndNiceness(icm.loadImage("android.png", Nice), Nice));
+		icons.put("medication", new IconAndNiceness(icm.loadImage("medication.png", Bad), Bad));
+		icons.put("stressed", new IconAndNiceness(icm.loadImage("stressed.png", Bad), Bad));
+		icons.put("alcohol", new IconAndNiceness(icm.loadImage("alcohol.png", Mediocre), Mediocre));
+		icons.put("skipped or late dinner", new IconAndNiceness(icm.loadImage("bad_meal.png", Mediocre), Mediocre));
+		icons.put("pain", new IconAndNiceness(icm.loadImage("day_pain.png", Bad), Bad));
+		icons.put("workout", new IconAndNiceness(icm.loadImage("workout.png", Nice), Nice));
+		icons.put("hydrated", new IconAndNiceness(icm.loadImage("hydrated.png", Neutral), Neutral));
+		icons.put("caffeine", new IconAndNiceness(icm.loadImage("coffee.png", Mediocre), Mediocre));
+		icons.put("life event", new IconAndNiceness(icm.loadImage("life_event.png", Mediocre), Mediocre));
+		icons.put("anxious", new IconAndNiceness(icm.loadImage("anxiety.png", Mediocre), Mediocre));
+		icons.put("sick", new IconAndNiceness(icm.loadImage("sick.png", Mediocre), Mediocre));
+		icons.put("bad", new IconAndNiceness(icm.loadImage("bad.png", Bad), Bad));
+		icons.put("good", new IconAndNiceness(icm.loadImage("good.png", Nice), Nice));
+		icons.put("botox", new IconAndNiceness(icm.loadImage("botox.png", Nice), Nice));
+		icons.put("onlyalarm", new IconAndNiceness(icm.loadImage("onlyalarms.png", Neutral), Neutral));
+		icons.put("tired", new IconAndNiceness(icm.loadImage("tired.png", Mediocre), Mediocre));
+		icons.put("mouth guard", new IconAndNiceness(icm.loadImage("mouthguard.png", Neutral), Neutral));
+
+	}
+
+
+	long findmsfromchars(int chars) {
+		return (long) (((chars * 9)) / time_scale);
+	}
+
+	int xtimescale(long millis) {
+		return side_margin + (int) (time_scale * millis);
+	}
+
+	void drawEventLine(long millis, String time, int slot_start, int slot_end, boolean text_right,
+					   Color cline, Color ctext) {
+		// drawTimeTick(millis, time, slot_start, text_right, cline, ctext);
+		gi.setColor(cline);
+		gi.drawLine(xtimescale(millis), getBaseYslot(slot_start), xtimescale(millis), getBaseYslot(slot_end));
+
+	}
+
+	void drawTimeTick(long millis, String time, int slot, boolean text_right, Color cline, Color ctext) {
+		gi.setColor(cline);
+		gi.drawLine(xtimescale(millis), timeline_height, xtimescale(millis),
+				timeline_height + tick_length + (tick_slot_length * slot));
+		gi.setColor(ctext);
+		gi.drawString(time, xtimescale(millis) - (text_right ? -5 : (xcharsize * time.length())),
+				timeline_height + tick_length + (tick_slot_length * slot));
+	}
+
+	void drawTimeBaseTick(long millis_start, String time_start, long millis_end) {
+		int hour = Integer.valueOf(time_start.split(":")[0]);
+		int minutes_to_hour = 60 - Integer.valueOf(time_start.split(":")[1]);
+		int minutes_to_half = 30 - Integer.valueOf(time_start.split(":")[1]);
+
+		long cur_millis = minutes_to_hour == 0 || minutes_to_hour == 60 ? millis_start
+				: millis_start + (60000 * minutes_to_hour);
+		long millis_half = minutes_to_half > 0 ? millis_start + (60000 * minutes_to_half) : cur_millis + (60000 * 30);
+		do {
+			hour++;
+			gi.drawLine(xtimescale(cur_millis), timeline_height, xtimescale(cur_millis),
+					(int) (timeline_height + tick_length + (tick_slot_length * 1)));
+			String time = String.format(" %02d:00", hour % 24);
+			gi.drawString(time, xtimescale(cur_millis) - (xcharsize * time.length()) / 2,
+					timeline_height + tick_length + (tick_slot_length * 2));
+
+			cur_millis += (60000 * 60);
+		} while (cur_millis < millis_end);
+
+		do {
+
+			gi.drawLine(xtimescale(millis_half), timeline_height, xtimescale(millis_half),
+					(int) (timeline_height + tick_length + (tick_slot_length * 0.2)));
+
+			millis_half += (60000 * 60);
+		} while (millis_half < millis_end);
+	}
+
+	int getBaseYslot(int slot) {
+		return first_slot_height - (slot * (slot_spacing + slot_height));
+	}
+
+	void drawDurationRectangle(long millis_start, long millis_stop, int slot, String text_top,
+							   Color cslot, Color ctext, Color fillcolor, int text_slot) {
+		gi.setColor(fillcolor);
+		gi.fillRect(xtimescale(millis_start), getBaseYslot(slot), xtimescale(millis_stop) - xtimescale(millis_start),
+				slot_height);
+		gi.setColor(cslot);
+		gi.drawRect(xtimescale(millis_start), getBaseYslot(slot), xtimescale(millis_stop) - xtimescale(millis_start),
+				slot_height);
+		gi.setColor(ctext);
+		gi.drawString(text_top, xtimescale(millis_stop) - (xcharsize * text_top.length()),
+				getBaseYslot(slot) - (16 * text_slot));
+	}
+public class Sample_Correlation {
+		long time;
+		double value;
+		public Sample_Correlation(long time, double value){
+			this.time = time;
+			this.value = value;
+		}
+
+};
+ArrayList<Sample_Correlation> samples_clench = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_hr = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_spo2 = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_stress = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_sleepstages = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_noise = new ArrayList<Sample_Correlation>();
+ArrayList<Sample_Correlation> samples_accel = new ArrayList<Sample_Correlation>();
+
+
+ArrayList<Correlations.CorrelationPair> delayed_corrs_spo2 = null;
+ArrayList<Correlations.CorrelationPair> delayed_corrs_accel = null;
+
+
+int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
+	if(time < mintime) time = mintime;
+	if(time > maxtime) time = maxtime;
+
+	int samples = (int)Math.ceil((double) (maxtime - mintime) /1000.0);
+	long step = (maxtime - mintime)/samples;
+
+	return (int) ((time-mintime)/step);
+}
+double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsamples){
+
+	double[] result = new double[numsamples];
+	Arrays.fill(result, 0);
+	for(int i = 0; i<samples.size()-1; i++){
+
+		int startfill = findIndexFromTime(min_time, max_time, samples.get(i).time, numsamples), endfill = findIndexFromTime(min_time, max_time, samples.get(i+1).time, numsamples);
+
+		if(startfill >= numsamples) startfill = numsamples;
+		if(endfill >= numsamples) endfill = numsamples;
+
+		for(int j = startfill; j<endfill; j++){
+			result[j] = samples.get(i).value;
+		}
+
+	}
+	return result;
+}
+
+	public double findValueForTime(ArrayList<Sample_Correlation> samples, long time){
+		Sample_Correlation psc = samples.get(0);
+		for(Sample_Correlation sc : samples){
+			if(time <= sc.time && time >= psc.time){
+				return psc.value;
+			}
+		}
+		return -1;
+	}
+
+	void drawSamplesLineDebug(double[] samples, String name, double floor, double scale){
+		int height_low =  getBaseYslot(0)-((int) ((slot_height+slot_spacing) * floor));
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		gi.drawString(name, xtimescale(min_time) - 9 * 4, height_low + 7);
+		ArrayList<Color> colors = new ArrayList<Color>();
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Spoline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Clenchline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Alarm, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Stressline, true)));
+
+		for(int i = 1; i < samples.length; i++) {
+			if(samples[i]<0 || samples[i]>=colors.size()){
+				gi.setColor(colors.get(0));
+			}else {
+				gi.setColor(colors.get((int) samples[i]));
+			}
+
+			gi.drawLine(xtimescale(min_time+((i-1)*1000L)), height_low-(int)((slot_spacing/scale)*samples[i-1]), xtimescale((long) min_time+(i*1000L)), height_low-(int)((slot_spacing/scale)*samples[i]));
+		}
+
+
+	}
+	void drawSamplesArraysLineDebug(ArrayList<Sample_Correlation> samples, String name, double floor, double scale){
+		int height_low =  getBaseYslot(0)-((int) ((slot_height+slot_spacing) * floor));
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		gi.drawString(name, xtimescale(min_time) - 9 * 4, height_low + 7);
+		ArrayList<Color> colors = new ArrayList<Color>();
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Spoline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Clenchline, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Alarm, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Text, true)));
+		colors.add(gi.convertColor(Colours.getColor(Color_element.Stressline, true)));
+
+		Sample_Correlation psc = samples.get(0);
+		for(Sample_Correlation sc : samples) {
+			if(sc.value<0 || sc.value>=colors.size()){
+				gi.setColor(colors.get(0));
+			}else {
+				gi.setColor(colors.get((int) sc.value));
+			}
+
+			gi.drawLine(xtimescale(psc.time), height_low-(int)((slot_spacing/scale)*psc.value), xtimescale(sc.time), height_low-(int)((slot_spacing/scale)*sc.value));
+		}
+
+
+	}
+
+	double clenching_spo2_corr = 0, clenching_hr_corr = 0, clenching_stress_corr = 0, noise_corr = 0, clenching_sleep_stage_deep_corr = 0, clenching_sleep_stage_light_corr = 0, clenching_sleep_stage_rem_corr = 0, clenching_sleep_stage_awake_corr = 0, accel_corr = 0;
+	void calculateCorrelations(){
+		int samples = (int)Math.ceil((double) (max_time - min_time) /1000.0);
+
+		Future<double[]> clenchFuture = taskRunner.submit(() -> createSampledArray(samples_clench, samples));
+		Future<double[]> hrFuture = taskRunner.submit(() -> createSampledArray(samples_hr, samples));
+		Future<double[]> spo2Future = taskRunner.submit(() -> createSampledArray(samples_spo2, samples));
+		Future<double[]> stressFuture = taskRunner.submit(() -> createSampledArray(samples_stress, samples));
+		Future<double[]> sleepFuture = taskRunner.submit(() -> createSampledArray(samples_sleepstages, samples));
+		Future<double[]> noiseFuture = taskRunner.submit(() -> createSampledArray(samples_noise, samples));
+
+		Future<double[]> accelFuture = taskRunner.submit(() -> createSampledArray(samples_accel, samples));
+
+		// Later: wait for results
+        try {
+            double[] clenching_night = clenchFuture.get();
+
+        	double[] hr_night = hrFuture.get();
+			double[] spo2_night = spo2Future.get();
+			double[] stress_night = stressFuture.get();
+
+			double[] sleepstages = sleepFuture.get();
+
+			double[] noise_night = noiseFuture.get();
+
+			double[] accel_night = accelFuture.get();
+
+			double[] sleep_stage_rem_night = new double[samples];
+			double[] sleep_stage_light_night = new double[samples];
+			double[] sleep_stage_deep_night = new double[samples];
+			double[] sleep_stage_awake_night = new double[samples];
+
+			if (!samples_sleepstages.isEmpty()) {
+				for(int i = 0; i<samples; i++) {
+					double value = sleepstages[i];
+
+					sleep_stage_rem_night[i] = (SleepData.REM == (int) value) ? 1.0 : 0.0;
+					sleep_stage_awake_night[i] = (SleepData.AWAKE == (int) value) ? 1.0 : 0.0;
+					sleep_stage_light_night[i] = (SleepData.LIGHT_SLEEP == (int) value) ? 1.0 : 0.0;
+					sleep_stage_deep_night[i] = (SleepData.DEEP_SLEEP == (int) value) ? 1.0 : 0.0;
+				}
+			}
+
+			boolean draw_debug = false;
+			double debugline = 2.0;
+			double increment = 0.7;
+
+
+			Future<Double> hr_corr_future = null, spo2_corr_future= null, stress_corr_future= null, noise_corr_future = null, deep= null, light= null, rem= null, awake= null, accel_corr_future = null;
+			if (!samples_hr.isEmpty()) {
+				hr_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, hr_night));
+			}
+
+			if (!samples_spo2.isEmpty()){
+				spo2_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, spo2_night));
+			}
+
+			if (!samples_stress.isEmpty()){
+				stress_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, stress_night));
+			}
+
+			if(!samples_noise.isEmpty()){
+				noise_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, noise_night));
+			}
+
+			if (!samples_accel.isEmpty()){
+				accel_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, accel_night));
+			}
+
+			if (!samples_sleepstages.isEmpty()) {
+
+				deep = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_deep_night));
+				light = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_light_night));
+				rem = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_rem_night));
+				awake = taskRunner.submit(() -> Correlations.pearsonCorrelation(clenching_night, sleep_stage_awake_night));
+			}
+
+			if (!samples_hr.isEmpty()) {
+				clenching_hr_corr = hr_corr_future.get();
+			}
+
+			if (!samples_spo2.isEmpty()){
+				clenching_spo2_corr = spo2_corr_future.get();
+
+				// We want a maximum delay of 60 mins for correlations.
+				// Samples are 1 per second, so we want 60*60 samples
+
+
+				delayed_corrs_spo2 = Correlations.calculateDelayedCorrelations(clenching_night, spo2_night, 0, 30*60, true);
+				if(delayed_corrs_spo2!=null){
+					System.out.println("The highest correlation for spo2 is at " + delayed_corrs_spo2.get(0).delay + " seconds ("+ delayed_corrs_spo2.get(0).correlation + "). While the lowest is at " + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay + " seconds (" + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation+").");
+				}
+			}
+
+			if (!samples_stress.isEmpty()){
+				clenching_stress_corr = stress_corr_future.get();
+			}
+
+			if(!samples_noise.isEmpty()){
+				noise_corr=noise_corr_future.get();
+			}
+
+			if (!samples_accel.isEmpty()){
+				accel_corr = accel_corr_future.get();
+
+				delayed_corrs_accel = Correlations.calculateDelayedCorrelations(clenching_night, accel_night, 0, 30*60, true);
+
+
+			}
+
+			if (!samples_sleepstages.isEmpty()) {
+
+				clenching_sleep_stage_deep_corr = deep.get();
+				clenching_sleep_stage_light_corr = light.get();
+				clenching_sleep_stage_rem_corr = rem.get();
+				clenching_sleep_stage_awake_corr = awake.get();
+
+			}
+
+
+
+			if(draw_debug) {
+				drawSamplesLineDebug(clenching_night, "Clench", debugline += increment, 1);
+				//drawSamplesArraysLineDebug(samples_clench, "Clench", debugline+=increment, 1);
+
+				if (!samples_hr.isEmpty()) {
+					drawSamplesLineDebug( hr_night, "HR", debugline+=increment, 100);
+				}
+
+				if (!samples_spo2.isEmpty()){
+					drawSamplesLineDebug( spo2_night, "SpO2", debugline+=increment, 100);
+					//drawSamplesArraysLineDebug(samples_spo2, "SPO2", debugline+=increment, 100.0);
+
+				}
+
+				if (!samples_stress.isEmpty()){
+					drawSamplesLineDebug( stress_night, "Stress", debugline+=increment, 100);
+					//drawSamplesArraysLineDebug(samples_stress, "Stress", debugline+=increment, 100.0);
+
+				}
+
+				if (!samples_sleepstages.isEmpty()) {
+					//drawSamplesArraysLineDebug(samples_sleepstages, "Sleep", debugline+=increment, 5);
+
+					drawSamplesLineDebug( sleep_stage_deep_night, "Deep", debugline+=increment, 1);
+					drawSamplesLineDebug( sleep_stage_light_night, "Light", debugline+=increment, 1);
+					drawSamplesLineDebug( sleep_stage_rem_night, "REM", debugline+=increment, 1);
+					drawSamplesLineDebug( sleep_stage_awake_night, "AWAKE", debugline+=increment, 1);
+
+				}
+
+			}
+
+			taskRunner.shutdown();
+
+		} catch (ExecutionException e) {
+			throw new RuntimeException(e);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	public float calculatePercentage(int value, int maxValue, int minValue) {
+		// Calculate percentage of value from the baseline relative to minAverage
+		return (float) (value - minValue) / (maxValue - minValue);
+	}
+	public int calculateHeightFromPercentage(float percentage, int HeightLow, int HeightHigh) {
+		// Map percentage to height between the low and high values
+		return (int) (HeightLow + ((HeightHigh - HeightLow) * percentage));
+	}
+
+	public void setStartUnixSeconds(String session_name) {
+
+		for (Event e : events) {
+			if (e.type.equals("Start")) {
+				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+				try {
+					Date date = formatter.parse(session_name);
+					Calendar calendar = Calendar.getInstance();
+					calendar.setTime(date);
+					calendar.set(Calendar.HOUR, Integer.parseInt(e.time.split(":")[0]));
+					calendar.set(Calendar.MINUTE, Integer.parseInt(e.time.split(":")[1]));
+					calendar.set(Calendar.SECOND, 0);
+					sync_unix_second_time_start = (int)(calendar.getTimeInMillis()/1000.0);
+					System.out.println("Session started at: " + calendar.getTime() + " : " + sync_unix_second_time_start);
+
+				} catch (ParseException ee) {
+					ee.printStackTrace();
+				}
+			}
+			if (e.type.equals("UnixSeconds")) {
+				sync_unix_second_time_start = Long.parseLong(e.notes);
+				System.out.println("Session started (using UnixSec) at: " + sync_unix_second_time_start);
+
+				break;
+			}
+
+		}
+
+	}
+
+	int sleepStageHeightConvert(int stagevalue) {
+		int[] conversion = new int[] {4,4,2,1,3,4};
+		if(stagevalue >= conversion.length)
+			return 4;
+		return conversion[stagevalue];
+	}
+
+	boolean drawSleepStageOutline(SleepData.SleepStage previous_stage, SleepData.SleepStage current_stage, long unixcorrection) {
+
+		int sleepYstart = timeline_height;
+
+		int sleepstagespacing = (2*slot_height)/4;
+
+		boolean end_here = false;
+
+		int prev_value;
+		long prev_unix_sec;
+		if(previous_stage!=null) {
+			prev_value = previous_stage.value;
+			prev_unix_sec = previous_stage.unix_sec_end;
+
+			if(1000*(current_stage.unix_sec_end+unixcorrection) < min_time) {
+				return true;
+			}
+
+		}else {
+			prev_value = 1;
+			prev_unix_sec = -unixcorrection;
+		}
+
+		if(prev_value==0)
+			prev_value = 4;
+
+		if(current_stage.value==0)
+			current_stage.value = 4;
+
+
+		long prev_end_ms = 1000*(prev_unix_sec+unixcorrection);
+		long cur_end_ms = 1000*(current_stage.unix_sec_end+unixcorrection);
+
+		if(prev_end_ms<min_time)prev_end_ms=min_time;
+		if(prev_end_ms>max_time) {
+			prev_end_ms=max_time;
+		}
+
+		if(cur_end_ms<min_time)cur_end_ms=min_time;
+
+		if(cur_end_ms>max_time) {
+			cur_end_ms=max_time;
+		}
+
+
+		String[] sleepcolors = new String[]{
+				"#FDD835",	// Unknown
+				"#FDD835",	// Awake
+				"#4FC3F7",	// Light sleep
+				"#0091EA",	// Deep sleep
+				"#18FFFF",	// REM
+				"#FDD835"	// Unknown
+		};
+
+		int prev_stage_height = sleepYstart-(sleepStageHeightConvert(prev_value)*sleepstagespacing);
+		int cur_stage_height = sleepYstart-(sleepStageHeightConvert(current_stage.value)*sleepstagespacing);
+
+		samples_sleepstages.add(new Sample_Correlation(prev_end_ms,current_stage.value));
+
+
+		Color colorA, colorB = gi.convertColor(sleepcolors[current_stage.value]);
+		colorA = sleepStageHeightConvert(prev_value)>sleepStageHeightConvert(current_stage.value) ? gi.convertColor(sleepcolors[prev_value]) : colorB;
+
+		gi.setColor(colorA);
+		gi.drawLine(xtimescale(prev_end_ms), prev_stage_height, xtimescale(prev_end_ms), cur_stage_height);
+		gi.setColor(colorB);
+		gi.drawLine(xtimescale(prev_end_ms), cur_stage_height, xtimescale(cur_end_ms), cur_stage_height);
+
+		//if(previous_stage==null)
+		//	drawEventLine(xtimescale(1000*(current_stage.unix_sec+unixcorrection)), "", -2, 5, false,
+		//			gi.convertColor(sleepcolors[1]),
+		//			gi.convertColor(sleepcolors[1]));
+		//if(end_here)
+		//	drawEventLine(xtimescale(cur_end_ms), "", 0, 4, false,
+		//				gi.convertColor(sleepcolors[1]),
+		//				gi.convertColor(sleepcolors[1]));
+
+		return end_here;
+
+	}
+
+	void drawSleepStages(ArrayList<SleepData.SleepStage> data) {
+		if(data.isEmpty())
+			return;
+
+		long unixcorrection = data.get(0).unix_sec-sync_unix_second_time_start;
+		// Let's adjust the first item
+		data.get(0).unix_sec = 0;
+
+		samples_sleepstages.add(new Sample_Correlation(min_time, SleepData.AWAKE));
+
+		SleepData.SleepStage previous = null;
+		for(SleepData.SleepStage ss : data) {
+			if(drawSleepStageOutline(previous, ss, unixcorrection)) {
+				if (previous == null)
+					continue;
+				else
+					break;
+			}
+			previous = ss;
+
+
+
+		}
+
+	}
+
+	void drawNoise(String name, ArrayList<NoiseEvent> data, int height_high, int height_low, boolean use_dark_mode, ColorBands colorbands, int standard_minval, int standard_maxval, boolean drawRight, ArrayList<Sample_Correlation> fillsamples_array, boolean use_previous_color_if_increased) {
+
+		if(data==null)
+			return;
+
+		if(data.isEmpty())
+			return;
+
+
+		// Initialize the baseline with a large value or Integer.MAX_VALUE
+		double baseline = Integer.MAX_VALUE;
+		double minFvalue = Integer.MAX_VALUE; // To store the minimum fvalue
+		double maxFvalue = Integer.MIN_VALUE; // To store the maximum fvalue
+
+		// Minimum average
+		double avgFvalue = 0;
+		double countValues = 0;
+
+		// Iterate through the events array
+		for (NoiseEvent event : data) {
+
+			avgFvalue += event.db;
+			countValues++;
+
+			// Track the minimum and maximum value for events where value is false
+			if (event.db < minFvalue) {
+				minFvalue = event.db;
+			}
+			if (event.db > maxFvalue) {
+				maxFvalue = event.db;
+			}
+
+		}
+		if(countValues!=0)
+			avgFvalue = avgFvalue/countValues;
+		baseline = avgFvalue;
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenchline_guide, use_dark_mode)));
+		gi.drawLine(xtimescale(min_time), height_high, xtimescale(max_time), height_high);
+		gi.drawLine(xtimescale(min_time), height_low, xtimescale(max_time), height_low);
+
+		if(!drawRight) {
+			gi.drawString(String.valueOf(minFvalue), xtimescale(min_time) - 9 * 4, height_low + 7);
+			gi.drawString(String.valueOf(avgFvalue), xtimescale(min_time) - 9 * 4, height_low - ((height_low-height_high)/2) + 7);
+			gi.drawString(String.valueOf(maxFvalue), xtimescale(min_time) - 9 * 4, height_high + 7);
+
+			gi.setColor(colorbands.getDefaultcolor());
+			gi.drawString(name, xtimescale(min_time) - 9 * 10, height_low - ((height_low-height_high)/2) + 7);
+
+		}else {
+			gi.drawString(String.valueOf(minFvalue), xtimescale(max_time) + 9, height_low + 7);
+			gi.drawString(String.valueOf(avgFvalue), xtimescale(max_time) + 9, height_low - ((height_low-height_high)/2) + 7);
+			gi.drawString(String.valueOf(maxFvalue), xtimescale(max_time) + 9, height_high + 7);
+
+			gi.setColor(colorbands.getDefaultcolor());
+			gi.drawString(name, xtimescale(max_time) + (9*4), height_low - ((height_low-height_high)/2) + 7);
+
+		}
+
+
+		if(standard_maxval>0)
+			maxFvalue = standard_maxval;
+		if(standard_minval>0)
+			minFvalue = standard_minval;
+
+
+		NoiseEvent last_event = null;
+		for (NoiseEvent re : data) {
+
+			if (re.millis > max_time)
+				continue;
+
+			if (re.millis < min_time)
+				continue;
+
+
+			if (last_event == null) {
+				last_event = re;
+				continue;
+			}
+
+			gi.setColor(colorbands.getColorFromValue((int) (use_previous_color_if_increased && re.db>last_event.db ? last_event.db : re.db)));
+			gi.drawLine(xtimescale(last_event.millis),
+					calculateHeightFromPercentage(calculatePercentage((int)last_event.db, (int)maxFvalue, (int)minFvalue), height_low, height_high),
+					xtimescale(re.millis),
+					calculateHeightFromPercentage(calculatePercentage((int) re.db, (int)maxFvalue, (int)minFvalue), height_low, height_high));
+
+			fillsamples_array.add(new Sample_Correlation(re.millis, re.db));
+
+
+			last_event = re;
+		}
+
+		if(baseline != maxFvalue) {
+			gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)));
+			int baseline_line = calculateHeightFromPercentage(calculatePercentage((int) baseline, (int)maxFvalue, (int)minFvalue), height_low, height_high);
+			//gi.drawLine(xtimescale(min_time), baseline_line, xtimescale(max_time), baseline_line);
+		}
+	}
+
+	void drawSleepRecords(String name, ArrayList<SleepData.Record> data, int height_high, int height_low, boolean use_dark_mode, ColorBands colorbands, int standard_minval, int standard_maxval, boolean drawRight, ArrayList<Sample_Correlation> fillsamples_array, boolean use_previous_color_if_increased) {
+
+		if(data.isEmpty())
+			return;
+
+		long unixcorrection = data.get(0).unix_sec-sync_unix_second_time_start;
+		// Let's adjust the first item
+		data.get(0).unix_sec = 0;
+
+		// Initialize the baseline with a large value or Integer.MAX_VALUE
+		int baseline = Integer.MAX_VALUE;
+		int minFvalue = Integer.MAX_VALUE; // To store the minimum fvalue
+		int maxFvalue = Integer.MIN_VALUE; // To store the maximum fvalue
+
+		// Minimum average
+		int avgFvalue = 0;
+		int countValues = 0;
+
+		// Iterate through the events array
+		for (SleepData.Record event : data) {
+
+			if (((event.unix_sec+unixcorrection)*1000) > max_time)
+				continue;
+
+			if (((event.unix_sec+unixcorrection)*1000) < min_time)
+				continue;
+
+
+			avgFvalue += event.value;
+			countValues++;
+
+			// Track the minimum and maximum value for events where value is false
+			if (event.value < minFvalue) {
+				minFvalue = event.value;
+			}
+			if (event.value > maxFvalue) {
+				maxFvalue = event.value;
+			}
+
+		}
+		if(countValues!=0)
+			avgFvalue = avgFvalue/countValues;
+		baseline = avgFvalue;
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenchline_guide, use_dark_mode)));
+		gi.drawLine(xtimescale(min_time), height_high, xtimescale(max_time), height_high);
+		gi.drawLine(xtimescale(min_time), height_low, xtimescale(max_time), height_low);
+
+		if(!drawRight) {
+			gi.drawString(String.valueOf(minFvalue), xtimescale(min_time) - 9 * 4, height_low + 7);
+			gi.drawString(String.valueOf(avgFvalue), xtimescale(min_time) - 9 * 4, height_low - ((height_low-height_high)/2) + 7);
+			gi.drawString(String.valueOf(maxFvalue), xtimescale(min_time) - 9 * 4, height_high + 7);
+
+			gi.setColor(colorbands.getDefaultcolor());
+			gi.drawString(name, xtimescale(min_time) - 9 * 10, height_low - ((height_low-height_high)/2) + 7);
+
+		}else {
+			gi.drawString(String.valueOf(minFvalue), xtimescale(max_time) + 9, height_low + 7);
+			gi.drawString(String.valueOf(avgFvalue), xtimescale(max_time) + 9, height_low - ((height_low-height_high)/2) + 7);
+			gi.drawString(String.valueOf(maxFvalue), xtimescale(max_time) + 9, height_high + 7);
+
+			gi.setColor(colorbands.getDefaultcolor());
+			gi.drawString(name, xtimescale(max_time) + (9*4), height_low - ((height_low-height_high)/2) + 7);
+
+		}
+
+
+		if(standard_maxval>0)
+			maxFvalue = standard_maxval;
+		if(standard_minval>0)
+			minFvalue = standard_minval;
+
+
+		SleepData.Record last_event = null;
+		for (SleepData.Record re : data) {
+
+			if (((re.unix_sec+unixcorrection)*1000) > max_time)
+				continue;
+
+			if (((re.unix_sec+unixcorrection)*1000) < min_time)
+				continue;
+
+
+			if (last_event == null) {
+				last_event = re;
+				continue;
+			}
+
+			boolean stop_drawing = ((re.unix_sec+unixcorrection)*1000) > max_time;
+
+			if (((re.unix_sec+unixcorrection)*1000) > max_time)
+				re.unix_sec = max_time/1000;
+
+			if (((re.unix_sec+unixcorrection)*1000) < min_time) {
+				last_event = re;
+				continue;
+			}
+
+			gi.setColor(colorbands.getColorFromValue(use_previous_color_if_increased && re.value>last_event.value ? last_event.value : re.value));
+			gi.drawLine(xtimescale(((last_event.unix_sec+unixcorrection)*1000)),
+					calculateHeightFromPercentage(calculatePercentage(last_event.value, maxFvalue, minFvalue), height_low, height_high),
+					xtimescale(((re.unix_sec+unixcorrection)*1000)),
+					calculateHeightFromPercentage(calculatePercentage(re.value, maxFvalue, minFvalue), height_low, height_high));
+
+			fillsamples_array.add(new Sample_Correlation((re.unix_sec+unixcorrection)*1000, re.value));
+
+			if (stop_drawing)
+				break;
+
+
+
+			last_event = re;
+		}
+
+		if(baseline != maxFvalue) {
+			gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)));
+			int baseline_line = calculateHeightFromPercentage(calculatePercentage(baseline, maxFvalue, minFvalue), height_low, height_high);
+			//gi.drawLine(xtimescale(min_time), baseline_line, xtimescale(max_time), baseline_line);
+		}
+	}
+
+	void drawRaw(boolean use_dark_mode) {
+
+		if (raw_events == null)
+			return;
+
+		boolean fallback_nofvalues = false;
+
+		// Initialize the baseline with a large value or Integer.MAX_VALUE
+		int baseline = Integer.MAX_VALUE;
+		int minFvalue = Integer.MAX_VALUE; // To store the minimum fvalue
+		int maxFvalue = Integer.MIN_VALUE; // To store the maximum fvalue
+
+		// Minimum average
+		int sumFvalue = 0;
+		int countFalseValues = 0;
+
+		// Iterate through the events array
+		for (RawEvent event : raw_events) {
+			if (event.value) {
+				// If the event value is true, check if its fvalue is smaller than the current baseline
+				if (event.fvalue < baseline) {
+					baseline = event.fvalue;
+				}
+			} else {
+				// If the event value is false, add the fvalue to the sum and increment the count
+				sumFvalue += event.fvalue;
+				countFalseValues++;
+			}
+			// Track the minimum and maximum fvalue for events where value is false
+			if (event.fvalue < minFvalue) {
+				minFvalue = event.fvalue;
+			}
+			if (event.fvalue > maxFvalue) {
+				maxFvalue = event.fvalue;
+			}
+		}
+
+		// Calculate the minimum average if there are events where value is false
+		float minAverage = 0;
+		if (countFalseValues > 0) {
+			minAverage = (float) sumFvalue / countFalseValues;
+		}
+
+		fallback_nofvalues = baseline == 0;
+
+		long syncmillis = -1;
+
+		for (Event e : events) {
+			if (e.type.equals("Sync")) {
+				syncmillis = Long.valueOf(e.notes) - e.millis;
+				break;
+			}
+		}
+
+		if (syncmillis == -1) {
+			System.out.println("Could not find the Sync tag, can't synchronize RAW data");
+			return;
+		}
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenchline_guide, use_dark_mode)));
+		gi.drawLine(xtimescale(min_time), clenchline_height_high, xtimescale(max_time), clenchline_height_high);
+		gi.drawLine(xtimescale(min_time), clenchline_height_low, xtimescale(max_time), clenchline_height_low);
+
+		gi.drawString("Undetected", xtimescale(min_time) - 9 * 10, clenchline_height_low + 5);
+		gi.drawString("Detected", xtimescale(min_time) - 9 * 10, clenchline_height_high + 5);
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenchline, use_dark_mode)));
+		RawEvent last_event = null;
+		for (RawEvent re : raw_events) {
+			if (last_event == null) {
+				last_event = re;
+				continue;
+			}
+
+			boolean stop_drawing = (re.millis - syncmillis) > max_time;
+
+			if ((re.millis - syncmillis) > max_time)
+				re.millis = max_time;
+
+			if ((re.millis - syncmillis) < min_time) {
+				last_event = re;
+				continue;
+			}
+
+			if(fallback_nofvalues)
+				gi.drawLine(xtimescale(last_event.millis - syncmillis),
+						(last_event.value ? clenchline_height_high : clenchline_height_low),
+						xtimescale(re.millis - syncmillis), (re.value ? clenchline_height_high : clenchline_height_low));
+			else
+				gi.drawLine(xtimescale(last_event.millis - syncmillis),
+						calculateHeightFromPercentage(calculatePercentage(last_event.fvalue, maxFvalue, minFvalue), clenchline_height_low, clenchline_height_high),
+						xtimescale(re.millis - syncmillis),
+						calculateHeightFromPercentage(calculatePercentage(re.fvalue, maxFvalue, minFvalue), clenchline_height_low, clenchline_height_high));
+
+			if (stop_drawing)
+				break;
+
+			last_event = re;
+		}
+
+		if(baseline != maxFvalue) {
+			gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)));
+			int baseline_line = calculateHeightFromPercentage(calculatePercentage(baseline, maxFvalue, minFvalue), clenchline_height_low, clenchline_height_high);
+			gi.drawLine(xtimescale(min_time), baseline_line, xtimescale(max_time), baseline_line);
+		}
+	}
+
+	public void drawIcons(int graphX, int graphY) {
+		int incremental = 0;
+		int sessionincremental = 0;
+
+		// Collect these to print by niceness
+		ArrayList<IconAndNiceness> infoicons = new ArrayList<>();
+
+		Image androidIcon = null;
+		Image moodIcon = null;
+		ArrayList<IconAndNiceness> sessionicons = new ArrayList<>();
+
+		for (Event e : events) {
+			if (e.type.equals("ANDROID") && androidIcon==null) {
+				androidIcon =  icons.get("android").icon;
+			}
+
+			if (e.type.toLowerCase().equals("info")) {
+				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+				if(ian==null) {
+					System.out.println("Info icon is null: " + e.notes.toLowerCase());
+					continue;
+				}
+				infoicons.add(icons.get(e.notes.toLowerCase()));
+
+			}
+
+			if (e.type.equals("SESSION")) {
+
+				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+				if(ian==null) {
+					System.out.println("Session icon is null: " + e.notes.toLowerCase());
+					continue;
+				}
+				sessionicons.add(ian);
+
+			}
+
+			if (e.type.equals("MOOD") && moodIcon==null) {
+				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+				if(ian==null) {
+					System.out.println("Mood icon is null: " + e.notes.toLowerCase());
+					continue;
+				}
+				moodIcon = ian.icon;
+
+
+			}
+		}
+
+		if(androidIcon!=null) {
+			drawIconToSessionGrid(sessionincremental++, androidIcon, graph_width - 60, 30);
+		}
+		if(moodIcon!=null) {
+			drawIconToSessionGrid(sessionincremental++, moodIcon, graph_width - 60, 30);
+		}
+
+		String [] nicenesses = {Bad, Mediocre, Neutral, Nice};
+		// Loop for niceness levels
+		for(int i = nicenesses.length-1; i>=0; i--)
+			for(IconAndNiceness e : sessionicons) {
+				if(!e.niceness.equals(nicenesses[i])) {continue;}
+				drawIconToSessionGrid(sessionincremental++, e.icon, graph_width - 60, 30);
+			}
+
+		// Loop for niceness levels
+		for(int i = nicenesses.length-1; i>=0; i--)
+			for(IconAndNiceness e : infoicons) {
+				if(!e.niceness.equals(nicenesses[i])) {continue;}
+
+				Image icon = e.icon;
+
+				drawIconToGrid(incremental++, icon, graphX-(20), graphY);
+			}
+	}
+
+	void drawIconToGrid(int iconincremental, Image icon, int graphX, int graphY) {
+		int iconSize = 32;
+		int spacing = 10;
+		int startY = graphY;
+		int startX = graphX;
+
+
+		int numcolumns = 6;
+
+		int row = iconincremental/numcolumns;
+		int column = iconincremental%numcolumns;
+
+		int x = startX-(column*(spacing+iconSize));
+		int y = startY+(row*(spacing+iconSize));
+
+		if (icon != null) {
+			gi.drawImage(icon, x, y, iconSize, iconSize);
+		}
+
+	}
+
+	void drawIconToSessionGrid(int iconincremental, Image icon, int graphX, int graphY) {
+		int iconSize = 40;
+		int spacing = 10;
+		int startY = graphY;
+		int startX = graphX-spacing;
+
+		int numcolumns = 1;
+
+		int row = iconincremental/numcolumns;
+		int column = iconincremental%numcolumns;
+
+		int x = startX-(column*(spacing+iconSize));
+		int y = startY+(row*(spacing+iconSize));
+
+		if (icon != null) {
+			gi.drawImage(icon, x, y, iconSize, iconSize);
+		}
+
+	}
+
+	void drawResets(boolean use_dark_mode){
+		long lastmillis = 0;
+		for(Event e : events){
+			if(e.type.equals("ResetDetectedStartMs")){
+				lastmillis = Long.parseLong(e.notes);
+			}else if(e.type.equals("ResetDetectedEndMs")){
+				long endmillis = Long.parseLong(e.notes);
+				drawDurationRectangle(lastmillis, endmillis, 1, "Arduino down", gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),gi.convertColor(Colours.getColor(Color_element.ResetBlock, use_dark_mode)),2);
+			}
+		}
+	}
+	void drawInfoStats(ArrayList<String> values, int rows, boolean use_dark_mode) {
+		boolean ignoredate = true;
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+
+		int[] maxchars_row = new int[values.size()];
+		Arrays.fill(maxchars_row, 0);
+
+		int row_spacing = 20;
+
+		int element_count = 0;
+
+		for(String v : values) {
+			int current_column = (((element_count)/rows));
+			if(!ignoredate) {
+				if(v.length()>maxchars_row[current_column]) {
+					maxchars_row[current_column]=v.length();
+				}
+				if((element_count%rows)==0) {
+					element_count++;
+				}
+			}else {
+				ignoredate=false;
+			}
+
+			gi.drawString(v, side_info_margin + columnOffset(maxchars_row, current_column), info_text_height + (row_spacing * (element_count%rows)));
+			element_count++;
+		}
+	}
+
+	int columnOffset(int[] maxchars_row, int cc) {
+		int sum = 0;
+		for(int i = 1; i <= cc; i++) {
+			sum+=maxchars_row[i-1]*7;
+		}
+		return sum;
+	}
+
+	public Event findStart() {
+		for (Event e : events) {
+			if(e.type.equals("Start"))
+				return e;
+		}
+		return null;
+	}
+
+
+	public String findSessionName(){
+		String[] startnote = findStart().notes.split(" ");
+		return startnote[startnote.length-1]; // It's a string date YYYY-MM-DD;
+	}
+
+	void printInfoIfMeaningful(ArrayList<String> info, String beforevalue, Double value, Double threshold_abs, String aftervalue){
+		if(Math.abs(value) >= threshold_abs){
+			info.add(beforevalue + ((int)(value*100.0))/100.0 + aftervalue);
+		}
+	}
+
+	class ColorBands{
+		public ColorBands(Color defaultcolor){
+		this.defaultcolor=defaultcolor;
+		}
+
+		Color defaultcolor;
+
+		public void addColorBand(BandColor bc){
+			colors.add(bc);
+		}
+		ArrayList<BandColor> colors = new ArrayList<>();
+		public Color getDefaultcolor(){return defaultcolor;}
+		public Color getColorFromValue(int value){
+			for(BandColor bc : colors) {
+				if (value >= bc.min && value <= bc.max)
+					return bc.getColor();
+			}
+			return defaultcolor;
+		}
+
+	};
+	class BandColor{
+		public BandColor(int min, int max, Color_element color, boolean use_dark_mode){
+			this.min = min;
+			this.max = max;
+			this.color = color;
+			this.use_dark_mode = use_dark_mode;
+		}
+		public Color getColor(){return gi.convertColor(Colours.getColor(color, use_dark_mode));}
+		int min, max;
+		boolean use_dark_mode;
+		Color_element color;
+	};
+	ColorBands spocolors;
+	ColorBands hrcolors;
+	ColorBands stresscolors;
+
+
+	public Image generateGraph(boolean use_dark_mode) {
+
+		if(gi==null)
+			throw new NullPointerException("You did not call platformSpecificAbstractions() before generating the graph");
+
+		String session_name = findSessionName();
+		setStartUnixSeconds(session_name);
+
+		// Dark mode background
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Background, use_dark_mode)));
+		gi.fillRect(0, 0, graph_width, graph_height);
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+		gi.setFont("Arial", 16);
+
+		gi.drawLine(xtimescale(min_time), timeline_height, xtimescale(max_time), timeline_height);
+
+		drawTimeTick(events.get(0).millis, events.get(0).time, 0, false,
+				gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)),
+				gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+
+		drawTimeTick(events.get(events.size() - 1).millis, events.get(events.size() - 1).time, 2, true,
+				gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)),
+				gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+
+		drawTimeBaseTick(events.get(0).millis, events.get(0).time, events.get(events.size() - 1).millis);
+
+
+		int startx_legend = graph_width / 8;
+		int y_legend = legend_height;
+		int spacing = 300;
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Button, use_dark_mode)));
+		gi.fillRect(startx_legend + (spacing * 0), y_legend, 20, 20);
+		gi.drawString("Button", startx_legend + (spacing * 0) + 30, y_legend + 15);
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Warning, use_dark_mode)));
+		gi.fillRect(startx_legend + (spacing * 1), y_legend, 20, 20);
+		gi.drawString("Beep", startx_legend + (spacing * 1) + 30, y_legend + 15);
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)));
+		gi.fillRect(startx_legend + (spacing * 2), y_legend, 20, 20);
+		gi.drawString("Clenching", startx_legend + (spacing * 2) + 30, y_legend + 15);
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Alarm, use_dark_mode)));
+		gi.fillRect(startx_legend + (spacing * 3), y_legend, 20, 20);
+		gi.drawString("Alarm", startx_legend + (spacing * 3) + 30, y_legend + 15);
+
+		drawIcons(graph_width - 100, 35);
+
+		// Mark not clenching initially for correlations later
+		samples_clench.add(new Sample_Correlation(min_time, 0.0));
+
+		int c = 0, cc = 1;
+		long last_beep = 0, last_button = 0, last_alarm = 0, last_clench = 0, last_alarm_stop = 0;
+		int countbeeps = 0;
+		long lastbeepwrite = 0;
+		Event le = null;
+		for (Event e : events) {
+
+			if (countbeeps != 0 && !e.type.equals("Beep")) {
+
+				if (le.millis - lastbeepwrite < findmsfromchars(2))
+					cc++;
+				else {
+					cc = 1;
+					lastbeepwrite = le.millis;
+				}
+
+				gi.setFont("Arial", 14);
+				gi.setColor(gi.convertColor(Colours.getColor(Color_element.Warning, use_dark_mode)));
+				gi.drawString(String.valueOf(countbeeps), xtimescale(le.millis), timeline_height + (14 * cc));
+
+				gi.setFont("Arial", 16);
+				countbeeps = 0;
+			}
+
+			switch (e.type) {
+
+				case "Beep":
+					countbeeps++;
+					//drawEventLine(e.millis, (e.millis - last_beep > findmsfromchars(5) ? e.time : ""), beep_slot, beep_slot+beep_slot_length, false,
+					//		gi.convertColor(Colours.getColor(Color_element.Warning, use_dark_mode)),
+					//		gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+
+					last_beep = e.millis;
+
+					break;
+
+				case "Alarm":
+					if (e.notes.equals("STARTED")) {
+						drawEventLine(e.millis, e.time, alarm_slot, alarm_slot+alarm_slot_length, false,
+								gi.convertColor(Colours.getColor(Color_element.Alarm, use_dark_mode)),
+								gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+						last_alarm = e.millis;
+					} else {
+						last_alarm_stop = e.millis;
+					}
+					break;
+
+				case "Button":
+					drawEventLine(e.millis, "", button_slot, button_slot+button_slot_length, false, gi.convertColor(Colours.getColor(Color_element.Button, use_dark_mode)),
+							gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+					last_button = e.millis;
+					break;
+
+				case "Clenching":
+
+					if (e.notes.equals("STARTED")) {
+						if (e.millis - last_clench > 60000 * 10)
+							c = 0;
+						last_clench = e.millis;
+
+						// Mark clenching for correlations later
+						samples_clench.add(new Sample_Correlation(e.millis, 1.0));
+
+						//drawEventLine(e.millis, "", 2, 1, false,
+						//		gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)),
+						//		gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+					} else {
+
+						double duration = (double) (e.duration - ((last_alarm_stop == e.millis) ? 0 : 4));
+						duration = (int) (duration * 10.0) / 10.0;
+						// double duration = e.duration;
+						String d = duration + "s";
+
+						// Mark not clenching for correlations later
+						samples_clench.add(new Sample_Correlation(e.millis, 0.0));
+
+						drawDurationRectangle(last_clench, e.millis, clenching_slot, (duration < 1) ? "" : d,
+								gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)),
+								gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)),
+								gi.convertColor(Colours.getColor(Color_element.Clenching, use_dark_mode)), (duration < 1) ? 0 : c++ % 25);
+					}
+					break;
+				default:
+					continue;
+			}
+
+			le = e;
+		}
+
+		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
+		gi.setFont("Arial", 14);
+		gi.drawString("The data presented here has been corrected (-8s) for events that don't end with the alarm.",
+				side_info_margin, graph_height - 32);
+		gi.drawString("Clenching events which lasted less than 1s are only drawn as red lines.", side_info_margin,
+				graph_height - 16);
+
+		drawResets(use_dark_mode);
+
+
+		// Session info table
+
+		sd = getStats();
+		ArrayList<String> infostats = new ArrayList<>(Arrays.asList(new String[]{
+				"Date: " + session_name + " Filename: " + file_name,
+				"Duration: " + sd.getItem("Duration").split(":")[0] + "h " + sd.getItem("Duration").split(":")[1] + "m",
+				"Warnings: " + sd.getItem("Beep Count"),
+				"Alarms: " + sd.getItem("Alarm Triggers"),
+				"Stop After Beeps: " + sd.getItem("Stopped after beep"),
+				"Clenching Events: " + sd.getItem("Jaw Events"),
+				"Avg beeps per event: " + sd.getItem("Avg beeps per event") + (Double.parseDouble(sd.getItem("Avg beeps per event")) <= 2.0 ? " <-- Cool!" : ""),
+
+				"Total clenching time: " + sd.getItem("Total clench time (seconds)") + "s",
+				"Clenching Rate: " + String.format(Locale.ENGLISH, "%.2f", Double.valueOf(sd.getItem("Clenching Rate (per hour)"))) + " /h",
+				"Average pauses: " + sd.getItem("Average clenching event pause (minutes)") + "m",
+				"Average clench duration: " + sd.getItem("Average clenching duration (seconds)") + "s" + (Double.parseDouble(sd.getItem("Average clenching duration (seconds)")) <= 5.0 ? " <-- Remarkable!" : ""),
+				"Alarm percentage: " + sd.getItem("Alarm %") + "%",
+				"Stop After Beeps %: " + sd.getItem("Stopped after beep %") + "%" + (Double.parseDouble(sd.getItem("Stopped after beep %")) > 95.0 ? " <-- Awesome!" : ""),
+
+				"Active time: " + sd.getItem("Active time (permille)") + "‰"
+		}));
+
+		drawRaw(use_dark_mode);
+
+		drawNoise("Noise", noise_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Spoline, use_dark_mode))),-1,-1,false, samples_noise, true);
+		drawNoise("Accel", accel_mag_events, noise_height_high, noise_height_low, use_dark_mode,new ColorBands(gi.convertColor(Colours.getColor(Color_element.Stressline, use_dark_mode))),-1,-1,true, samples_accel, true);
+
+		if(!sleepData.sleep_stages.isEmpty()) {
+			drawSleepStages(sleepData.sleep_stages);
+
+			spocolors = new ColorBands(gi.convertColor(Colours.getColor(Color_element.Spoline, use_dark_mode)));
+			hrcolors = new ColorBands(gi.convertColor(Colours.getColor(Color_element.Hrline, use_dark_mode)));
+			stresscolors = new ColorBands(gi.convertColor(Colours.getColor(Color_element.Stressline, use_dark_mode)));
+
+			spocolors.addColorBand(new BandColor(95,100,Color_element.Spoline, use_dark_mode));
+			spocolors.addColorBand(new BandColor(88,95,Color_element.Spoline_warning, use_dark_mode));
+			spocolors.addColorBand(new BandColor(0,88,Color_element.Spoline_danger, use_dark_mode));
+
+			hrcolors.addColorBand(new BandColor(0,300,Color_element.Hrline, use_dark_mode));
+
+			stresscolors.addColorBand(new BandColor(0,30,Color_element.Stressline, use_dark_mode));
+			stresscolors.addColorBand(new BandColor(30,100,Color_element.Spoline_warning, use_dark_mode));
+
+			drawSleepRecords("BPM", sleepData.heartrate,heartrate_height_high, heartrate_height_low, use_dark_mode, hrcolors, 30, -1,false, samples_hr, true);
+			drawSleepRecords("SpO2", sleepData.spo2,spo2_height_high, spo2_height_low, use_dark_mode, spocolors, 0, 100,false, samples_spo2, true);
+			drawSleepRecords("Stress", sleepData.stress,heartrate_height_high, heartrate_height_low, use_dark_mode, stresscolors, 0, 100,true, samples_stress, true);
+
+			calculateCorrelations();
+
+			int p1 = (int)(100.0f*calculatePercentage(sleepData.duration_lightsleep, sleepData.duration_sleep, 0)), p2 = (int)(100.0f*calculatePercentage(sleepData.duration_deepsleep, sleepData.duration_sleep, 0)), p3 = (int)(100.0f*calculatePercentage(sleepData.duration_rem, sleepData.duration_sleep, 0));
+
+			infostats.add("Sleep duration: " + sleepData.duration_sleep/60 + "h "+ sleepData.duration_sleep%60 +"m");
+			infostats.add("Light sleep: " + sleepData.duration_lightsleep/60 + "h "+ sleepData.duration_lightsleep%60 +"m (" + (p1) +"%)");
+			infostats.add("Deep sleep: " + sleepData.duration_deepsleep/60 + "h "+ sleepData.duration_deepsleep%60 +"m (" + (p2) +"%)");
+			infostats.add("REM: " + sleepData.duration_rem/60 + "h "+ sleepData.duration_rem%60 +"m (" + (p3) +"%)");
+			infostats.add("Awake: " + sleepData.duration_awake/60 + "h "+ sleepData.duration_awake%60 +"m ("+sleepData.awake_count+")");
+
+			infostats.add("Average BPM: " + sleepData.average_hr);
+			infostats.add("Breath Quality: " + sleepData.average_breath_quality + "%" );
+
+			printInfoIfMeaningful(infostats, "Correlation with BPM: ", clenching_hr_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with SpO2: ", clenching_spo2_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Stress: ", clenching_stress_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Awake: ", clenching_sleep_stage_awake_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Light Sleep: ", clenching_sleep_stage_light_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with Deep Sleep: ", clenching_sleep_stage_deep_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with REM: ", clenching_sleep_stage_rem_corr, 0.2, "");
+
+			if(delayed_corrs_spo2 != null){
+				printInfoIfMeaningful(infostats, "Highest SpO2 corr: ", delayed_corrs_spo2.get(0).correlation , 0.2, " at " + (delayed_corrs_spo2.get(0).delay/60) + " minutes.");
+				printInfoIfMeaningful(infostats, "Highest negative SpO2 corr: ",  delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation, 0.2, " at " + (delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay/60) + " minutes.");
+
+			}
+
+		}
+
+		if(noise_corr!=0){
+			printInfoIfMeaningful(infostats, "Noise corr: ", noise_corr, 0.2, "");
+		}
+
+		if(accel_corr!=0){
+			printInfoIfMeaningful(infostats, "Accel corr: ", accel_corr, 0.2, "");
+			if(delayed_corrs_accel != null){
+				printInfoIfMeaningful(infostats, "Highest accel corr: ", delayed_corrs_accel.get(0).correlation, 0.2, " at " + (delayed_corrs_accel.get(0).delay/60) + " minutes.");
+				printInfoIfMeaningful(infostats, "Highest negative accel corr: ", delayed_corrs_accel.get(delayed_corrs_accel.size()-1).correlation, 0.2,  " at " + (delayed_corrs_accel.get(delayed_corrs_accel.size()-1).delay/60) + " minutes.");
+
+			}
+		}
+
+		drawInfoStats(infostats, 7, use_dark_mode);
+
+		return gi.getImage();
+	}
+
+	public StatData getStats() {
+		if(events == null) {
+			throw new NullPointerException("You did not provide events for this file!");
+		}
+		if(sd==null) {
+			String session_name = findSessionName();
+			sd = Statistics.calcStats(session_name, events);
+		}
+		return sd;
+	}
+
+	public boolean writeImage(Image img, String file_name) {
+		return gi.writeImage(img, file_name);
+	}
+
+	public void addRawData(ArrayList<RawEvent> raw_events) {
+		this.raw_events = raw_events;
+	}
+
+}

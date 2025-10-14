@@ -1,0 +1,1828 @@
+package com.example.bruxismdetector;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.app.TimePickerDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.icu.util.Calendar;
+import android.net.Uri;
+import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import androidx.preference.PreferenceManager;
+
+import android.util.Log;
+import android.util.Pair;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.SeekBar;
+import android.widget.TextView;
+import android.widget.TimePicker;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.constraintlayout.widget.ConstraintSet;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
+import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
+import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.google.android.material.elevation.SurfaceColors;
+import com.google.android.material.materialswitch.MaterialSwitch;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class MainActivity extends AppCompatActivity {
+    public final static String LAUNCH_GRAPHER = "Launch_Grapher_Please";
+    private MulticastSocket receiveSocket;
+    private DatagramSocket sendSocket;
+    private InetAddress multicastAddress;
+    boolean running = false;
+    private int sendPort;
+
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static final String TAG = "Main activity";
+
+    Thread bleThread = null;
+    SwitchManager switchManager;
+    boolean is_user_editing_classification_thumb = false;
+
+    BLEWifiSender bleWifiSender = null;
+
+    BLEWifiSender.BLECallback blc = new BLEWifiSender.BLECallback() {
+        @Override
+        public void onIPReceived(String ip) {
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    ((MaterialSwitch)findViewById(R.id.switch_tcp).findViewById(R.id.switch_item)).setChecked(true);
+
+                }
+            });
+
+
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
+
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+
+        final int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+         //       | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        //getWindow().getDecorView().setSystemUiVisibility(flags);
+
+
+
+        //EdgeToEdge.enable(this);
+
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        //getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        setContentView(R.layout.activity_main);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
+        //SleepAsAndroidExtractor.extract(this, this);
+
+        getWindow().setStatusBarColor( SurfaceColors.SURFACE_0.getColor(this));
+
+        if(!launchActivityforPermissionsIfNecessary()){
+            checkAndRequestBluetoothPermissions();
+
+
+        }
+
+        chart = findViewById(R.id.fft_chart);
+        chart.getDescription().setEnabled(false);
+        chart.setDrawGridBackground(false);
+        chart.setExtraOffsets(40f, 10f, 10f, 40f); // spazio per le etichette
+        chart.setAutoScaleMinMaxEnabled(false);
+        chart.setPinchZoom(false);
+        chart.setScaleEnabled(false);
+        chart.setHighlightPerTapEnabled(false);
+        chart.getAxisRight().setEnabled(false);
+
+
+
+
+        setupUDP(4001, 4000);
+
+        Intent launchintent = getIntent();
+        if(launchintent!=null){
+            if(launchintent.getAction()!=null){
+                if (launchintent.getAction().equals(LAUNCH_GRAPHER)) {
+                    tryGraphing(null);
+                }
+        }
+            }
+
+
+        initialSetup();
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("tutorial",true)) {
+            playTutorial();
+        }
+
+        testAI();
+
+        checkAppUpdates(new Consumer<Integer>() {
+            @Override
+            public void accept(Integer remoteVersionCode) {
+                if (remoteVersionCode == -1) {
+                    Log.e("UpdateCheck", "Failed to fetch remote version.");
+                    return;
+                }
+
+                try {
+                    // Ottieni il versionCode dell'app installata
+                    android.content.pm.PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                    int currentVersionCode = pInfo.versionCode;
+
+                    Log.d("UpdateCheck", "Remote version: " + remoteVersionCode + ", Current version: " + currentVersionCode);
+
+                    // Confronta le versioni
+                    if (remoteVersionCode > currentVersionCode) {
+                        // C'è un aggiornamento disponibile
+                        TextView updateText = findViewById(R.id.update_clickme);
+                        updateText.setVisibility(View.VISIBLE);
+                        // Aggiungi qui l'onClick per aprire il link di download
+                        updateText.setOnClickListener(v -> {
+                            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/LollosoSi/bruxism-detector/releases/latest"));
+                            startActivity(browserIntent);
+                        });
+                    } else {
+                        // L'app è aggiornata
+                        Log.d("UpdateCheck", "Application is up to date.");
+                        findViewById(R.id.update_clickme).setVisibility(View.GONE);
+                    }
+
+                } catch (PackageManager.NameNotFoundException e) {
+                    Log.e("UpdateCheck", "Could not get package info", e);
+                }
+            }
+        });
+    }
+
+    @SuppressLint("SetTextI18n")
+    public void initialSetup(){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        setupSwitchLabels();
+        setupSessionToggle();
+
+        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        File recordingsDir = new File(documentsDir, "RECORDINGS");
+        File summaryDir = new File(recordingsDir, "Summary");
+        File summaryFile = new File(summaryDir, "Summary.csv");
+
+        File graphDir = new File(recordingsDir, "Graphs");
+
+        findViewById(R.id.button_makegraphs).setEnabled(graphDir.exists() && Objects.requireNonNull(graphDir.listFiles()).length > 0);
+        findViewById(R.id.button_makecharts).setEnabled(summaryFile.exists());
+
+
+
+        MaterialSwitch swsh = findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
+        swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
+                findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
+
+            }
+        });
+        swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
+
+
+        View autostartListenerRow = findViewById(R.id.switch_autostart_listener);
+        autostartListenerRow.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                showAutostartTimePicker();
+                return true; // Consume the long click
+            }
+        });
+
+        MaterialSwitch swshl = autostartListenerRow.findViewById(R.id.switch_item);
+        swshl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @SuppressLint("ScheduleExactAlarm")
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("schedule_listener_after_tracker_ends", swshl.isChecked()).apply();  // or false when unchecked
+
+                Intent intent = new Intent(MainActivity.this, UDPCatcher.class);
+
+                // Try to retrieve the existing PendingIntent (without creating it)
+                PendingIntent existingIntent = PendingIntent.getService(
+                        MainActivity.this, 0, intent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
+                );
+
+                // If it exists, cancel it
+                if (existingIntent != null && !swshl.isChecked()) {
+                    Log.i("Autostart Listener", "Autostart cancelled");
+                    ServiceScheduler.cancelUDPCatcherSchedule(MainActivity.this);
+                }else if(swshl.isChecked()){
+                    Log.i("Autostart Listener", "Autostart set");
+                    ServiceScheduler.scheduleUDPCatcherAtTime(MainActivity.this, prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
+
+                }
+
+
+            }
+        });
+        swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
+
+
+
+
+        MaterialSwitch swthr = findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
+        swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("use_threshold", swthr.isChecked()).apply();  // or false when unchecked
+
+            }
+        });
+        swthr.setChecked(prefs.getBoolean("use_threshold", false));
+
+
+        View ardubeep_row = findViewById(R.id.switch_sharedpref_arduino_beep);
+        if (ardubeep_row != null) {
+            TextView materialSwitch = ardubeep_row.findViewById(R.id.switch_label);
+            if (materialSwitch != null) {
+                materialSwitch.setText("Arduino beeps");
+            }
+        }
+
+        setSwitchThreshold_sharedpref_text();
+
+        MaterialSwitch swardubeep = ardubeep_row.findViewById(R.id.switch_item);
+        swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("arduino_beep", swardubeep.isChecked()).apply();  // or false when unchecked
+
+            }
+        });
+        swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
+
+        MaterialSwitch swoalarmondevice = findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
+        swoalarmondevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("alarm_on_device", swoalarmondevice.isChecked()).apply();  // or false when unchecked
+                ((TextView)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_label)).setText("Alarm on: " + (swoalarmondevice.isChecked()?"Android":"Arduino"));
+            }
+        });
+        swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
+
+
+
+        MaterialSwitch swrecordnoise = findViewById(R.id.switch_recordnoise).findViewById(R.id.switch_item);
+        swrecordnoise.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_noise", swrecordnoise.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordnoise.setChecked(prefs.getBoolean("record_noise", false));
+
+
+        MaterialSwitch swrecordaccel = findViewById(R.id.switch_recordaccel).findViewById(R.id.switch_item);
+        swrecordaccel.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_accel", swrecordaccel.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
+
+        MaterialSwitch swrecordcamera = findViewById(R.id.switch_sharedpref_camera).findViewById(R.id.switch_item);
+        swrecordcamera.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_camera", swrecordcamera.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordcamera.setChecked(prefs.getBoolean("record_camera", false));
+
+        MaterialSwitch swrecordcamera_onlyalarms = findViewById(R.id.switch_sharedpref_camera_only_alarms).findViewById(R.id.switch_item);
+        swrecordcamera_onlyalarms.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_camera_onlyalarms", swrecordcamera_onlyalarms.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordcamera_onlyalarms.setChecked(prefs.getBoolean("record_camera_onlyalarms", true));
+
+
+        MaterialSwitch swrecordcamera_flash = findViewById(R.id.switch_sharedpref_camera_torch).findViewById(R.id.switch_item);
+        swrecordcamera_flash.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("record_camera_flash", swrecordcamera_flash.isChecked()).apply();  // or false when unchecked
+            }
+        });
+        swrecordcamera_flash.setChecked(prefs.getBoolean("record_camera_flash", true));
+
+        MaterialSwitch sw_notbeep = findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
+        sw_notbeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("do_not_beep", sw_notbeep.isChecked()).apply();  // or false when unchecked
+
+                if(sw_notbeep.isChecked()){
+                    findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.GONE);
+                }else{
+                    findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.VISIBLE);
+                }
+            }
+        });
+        sw_notbeep.setChecked(prefs.getBoolean("do_not_beep", false));
+
+        MaterialSwitch sw_notalarm = findViewById(R.id.switch_do_not_alarm).findViewById(R.id.switch_item);
+        sw_notalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("do_not_alarm", sw_notalarm.isChecked()).apply();  // or false when unchecked
+
+                if(sw_notalarm.isChecked()){
+                    findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.GONE);
+                }else{
+                    findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.VISIBLE);
+                }
+            }
+        });
+        sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
+
+        MaterialSwitch swtcp = findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
+        swtcp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @SuppressLint("SetTextI18n")
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("use_tcp", swtcp.isChecked()).apply();  // or false when unchecked
+                String ip = prefs.getString("tcp_address", "");
+                ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
+                swtcp.setEnabled(!ip.isEmpty());
+            }
+        });
+        swtcp.setChecked(prefs.getBoolean("use_tcp", false));
+        String ip = prefs.getString("tcp_address", "");
+        ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
+        swtcp.setEnabled(!ip.isEmpty());
+
+
+        SeekBar sbar = findViewById(R.id.reception);
+        sbar.setMax(100);
+        sbar.setMin(0);
+        sbar.setProgress(50);      // User cursor
+        sbar.setSecondaryProgress(30);    // Dynamic underlying bar
+
+        sbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                // Called when progress is changed
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                is_user_editing_classification_thumb=true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                is_user_editing_classification_thumb=false;
+                prefs.edit().putInt("classification_threshold", sbar.getProgress()).apply();
+                setSwitchThreshold_sharedpref_text();
+                sendUDP(new byte[]{12, (byte)(sbar.getProgress() & 0xFF), (byte)((sbar.getProgress() >> 8) & 0xFF)});
+            }
+        });
+
+
+
+        switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
+        new MoodSeekbarClass(findViewById(android.R.id.content), this);
+
+
+
+    }
+
+    private void showAutostartTimePicker() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        int currentHour = prefs.getInt("ServiceHour", 21);
+        int currentMinute = prefs.getInt("ServiceMinute", 0);
+
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                MainActivity.this,
+                // R.style.YourCustomTimePickerTheme, // Optional: Apply a custom theme
+                new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                        // Save the new time to SharedPreferences
+                        prefs.edit()
+                                .putInt("ServiceHour", hourOfDay)
+                                .putInt("ServiceMinute", minute)
+                                .apply();
+
+                        Log.i("Autostart Listener", "New time selected: " + hourOfDay + ":" + minute);
+
+                        // If the main switch is currently checked, reschedule with the new time
+                        MaterialSwitch swshl = findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item);
+                        if (swshl.isChecked()) {
+                            ServiceScheduler.scheduleUDPCatcherAtTime(MainActivity.this, hourOfDay, minute);
+                            Log.i("Autostart Listener", "Rescheduled with new time.");
+                        }
+                    }
+                },
+                currentHour,
+                currentMinute,
+                true // true for 24-hour view, false for 12-hour AM/PM view
+        );
+        timePickerDialog.setTitle("Set Autostart Time"); // Optional: Set a title
+        timePickerDialog.show();
+
+
+    }
+    public void playTutorial(){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        new Handler(Looper.getMainLooper()).post(() -> {
+            List<Pair<View, String>> steps = Arrays.asList(
+                    new Pair<>(findViewById(R.id.menu_content), "Set the switches that best describe your day"),
+                    new Pair<>(findViewById(R.id.sessioncard), "These settings affect your user experience, it's recommended to leave as is."),
+                    new Pair<>(findViewById(R.id.session_settings_textview_handle), "Tap here to expand/collapse the session settings.\n\nLong press to replay this tutorial."),
+
+                    new Pair<>(findViewById(R.id.switch_sharedpref_use_threshold), "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device."),
+                    new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
+                    new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time."),
+
+                    new Pair<>(findViewById(R.id.switch_do_not_beep), "Don't fire and record beeps during the session."),
+                    new Pair<>(findViewById(R.id.switch_do_not_alarm), "Don't fire and record alarms during the session."),
+
+                    new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
+                    new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
+
+
+
+
+                    new Pair<>(findViewById(R.id.button), "Tap this button to start tracking"),
+                    new Pair<>(findViewById(R.id.button2), "Send all data to the grapher application on your computer."),
+                    new Pair<>(findViewById(R.id.button_makegraphs), "Generate and see your graphs."),
+                    new Pair<>(findViewById(R.id.button_makecharts), "See your stats and data correlations\n(if any)"),
+                    new Pair<>(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from a Mi Fitness database."),
+                    new Pair<>(findViewById(R.id.button_tageditor), "Edit your session tags"),
+
+                    new Pair<>(findViewById(R.id.button_tageditor), "Have fun!\nRefer to GitHub should you have any issues.")
+
+            );
+
+
+            new TutorialOverlayManager(MainActivity.this, steps).start(() -> prefs.edit().putBoolean("tutorial", false).apply());
+        });
+    }
+    public void launchcameratest(View v){
+        Intent intent = new Intent(this, CameraTest.class);
+        startActivity(intent);
+
+    }
+
+    private boolean launchActivityforPermissionsIfNecessary() {
+        if (!PermissionsActivity.hasAllPermissions(this)) {
+            Intent intent = new Intent(this, PermissionsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+        return false;
+    }
+
+
+    private static final int PICK_FILE_REQUEST_CODE = 1;
+
+    public void openFilePicker(View v) {
+        ProgressingDialog ad = showProgressDialog(MainActivity.this, "Handling your database");
+        ad.setMessage("Converting your database");
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                MiBandDBConverter.ProgressReport pr = new MiBandDBConverter.ProgressReport() {
+                    @Override
+                    public void setProgress(int progress) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                ad.updateProgress(progress);
+                            }
+                        });
+                        }
+                    };
+
+
+                if(MiBandDBConverter.tryRoot(MainActivity.this, pr)){
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ad.dismiss();
+                        }
+                    });
+
+                    return;
+                }
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        ad.dismiss();
+                    }
+                });
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                        intent.setType("*/*"); // You can restrict this to specific MIME types like "text/plain", "application/json", etc.
+
+                        startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
+                    }
+                });
+
+            }
+        }).start();
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == PICK_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            if (data != null) {
+                Uri uri = data.getData();
+
+
+                if(uri!=null) {
+                    ProgressingDialog ad = showProgressDialog(this, "Converting your database");
+                    Thread t = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            getContentResolver().takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            );
+
+                            MiBandDBConverter.ProgressReport pr = new MiBandDBConverter.ProgressReport() {
+                                @Override
+                                public void setProgress(int progress) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            ad.updateProgress(progress);
+                                        }
+                                    });
+                                }
+                            };
+
+                            // Use the Uri to read the file
+                            Log.d("FilePicker", "Selected file: " + uri.getPath());
+                            // You can now open the stream: getContentResolver().openInputStream(uri)
+                            MiBandDBConverter mbdbc = new MiBandDBConverter();
+                            mbdbc.convert(MainActivity.this, uri, pr);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    ad.dismiss();
+                                }
+                            });
+                        }
+                    });
+
+                    t.start();
+                }
+            }
+        }
+    }
+
+    public ProgressingDialog showProgressDialog(Activity context, String message) {
+        ProgressingDialog asyncDialog = new ProgressingDialog();
+        //set message of the dialog
+
+
+        asyncDialog.updateProgress(0);
+
+        //show dialog
+        asyncDialog.show(getSupportFragmentManager(), "ProgressingDialogDatabase");
+        asyncDialog.setCancelable(false);
+        asyncDialog.setMessage(message);
+
+        return asyncDialog;
+    }
+
+
+
+    private void setupSwitchLabels() {
+        Map<Integer, String> switchLabelMap = new HashMap<>();
+
+        switchLabelMap.put(R.id.switch_sharedpref, "Autostart Trainer");
+        switchLabelMap.put(R.id.switch_sharedpref_alarm_on_device, "Alarm on device");
+        switchLabelMap.put(R.id.switch_autostart_listener, "Autostart Service");
+        switchLabelMap.put(R.id.switch_recordnoise, "Record noise");
+        switchLabelMap.put(R.id.switch_recordaccel, "Record movement");
+        switchLabelMap.put(R.id.switch_sharedpref_camera, "Record camera");
+        switchLabelMap.put(R.id.switch_sharedpref_camera_only_alarms, "Camera: Only alarms");
+        switchLabelMap.put(R.id.switch_sharedpref_camera_torch, "Camera: Flash");
+
+
+
+        switchLabelMap.put(R.id.switch_do_not_alarm, "Do not alarm");
+        switchLabelMap.put(R.id.switch_do_not_beep, "Do not beep");
+
+
+
+
+
+        for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
+            View row = findViewById(entry.getKey());
+            if (row != null) {
+                TextView materialSwitch = row.findViewById(R.id.switch_label);
+                if (materialSwitch != null) {
+                    materialSwitch.setText(entry.getValue());
+                }
+            }
+        }
+    }
+
+    public void launchChartActivity(View v){
+        makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
+            @Override
+            public void onGraphTaskCompleted() {
+                Intent intent = new Intent(MainActivity.this, SummaryCharts.class);
+                startActivity(intent);
+            }
+        });
+
+    }
+
+    @SuppressLint("SetTextI18n")
+    void setSwitchThreshold_sharedpref_text(){
+        View row = findViewById(R.id.switch_sharedpref_use_threshold);
+        if (row != null) {
+            TextView materialSwitch = row.findViewById(R.id.switch_label);
+            if (materialSwitch != null) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                materialSwitch.setText("Threshold: " + prefs.getInt("classification_threshold", 0));
+            }
+        }
+    }
+
+    // In your Activity, before creating BLEWifiSender or starting a scan:
+    private static final int BLEREQUEST_CODE = 123;
+
+    private void checkAndRequestBluetoothPermissions() {
+        List<String> permissionsToRequest = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Android 12+
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_SCAN);
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_CONNECT);
+            }
+        } else { // Below Android 12
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH);
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_ADMIN);
+            }
+        }
+        // Location permission is always needed for scanning on API 23+ (unless using companion device pairing)
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(android.Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+
+
+        if (!permissionsToRequest.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toArray(new String[0]), BLEREQUEST_CODE);
+        } else {
+            // Permissions are already granted, proceed with BLE operations
+            bleThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    bleWifiSender = new BLEWifiSender(MainActivity.this, blc);
+
+                }
+            });
+            bleThread.start();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == BLEREQUEST_CODE) {
+            boolean allGranted = true;
+            for (int grantResult : grantResults) {
+                if (grantResult != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (allGranted) {
+                // All permissions granted, proceed
+                bleThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        bleWifiSender = new BLEWifiSender(MainActivity.this, blc);
+
+                    }
+                });
+                bleThread.start();
+            } else {
+                Toast.makeText(this, "Permissions denied. BLE scanning will not work.", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        Log.d(TAG, "The activity is destroyed");
+
+        closeSockets();
+        if (executor != null) {
+            executor.shutdownNow(); // Shutdown the executor
+        }
+
+        if(bleWifiSender!=null)
+             bleWifiSender.stop();
+
+        if(bleThread!=null) {
+            try {
+                bleThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+
+        super.onDestroy();
+    }
+
+    private boolean isServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        List<ActivityManager.RunningServiceInfo> runningServices = manager.getRunningServices(Integer.MAX_VALUE);
+        for (ActivityManager.RunningServiceInfo service : runningServices) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    private void reOpenApp() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+    }
+
+    public void startService(View v) {
+        Intent intent = new Intent(this, Tracker2.class);
+
+        // Mood SeekBar
+        SeekBar moodSeekBar = findViewById(R.id.seekBar_mood);
+        int moodValue = moodSeekBar.getProgress(); // 0 = Ill, 4 = Good
+        intent.putExtra("mood", moodValue);
+        intent.putExtra("info", this.switchManager.extractInfo());
+
+        // Start the service
+        ContextCompat.startForegroundService(this, intent);
+        finish();
+    }
+
+
+    public void sendMyFolder(View v) {
+        new Thread(() -> {
+            String serverIp = ServerDiscovery.discoverServerIP();
+            if (serverIp == null) {
+                Log.e("Send", "Server not found.");
+                return;
+            }
+
+            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+            File recordingsDir = new File(documentsDir, "RECORDINGS");
+            FileSenderClient.sendFolder(recordingsDir, recordingsDir, serverIp, 5000, this);
+        }).start();
+    }
+
+    public void startTrainer(View v) {
+        Intent intent = new Intent(this, RingReceiver.class);
+        sendBroadcast(intent);
+        //RingReceiver.schedule(this);
+        //Toast.makeText(this, "The phone will beep randomly every 30 minutes to 2 hours", Toast.LENGTH_LONG).show();
+        showAdviceDialogIfNeeded(this);
+    }
+
+    public void stopTrainer(View v) {
+        RingReceiver.cancel(this);
+        Toast.makeText(this, "Trainer canceled", Toast.LENGTH_SHORT).show();
+
+    }
+
+    private void showAdviceDialogIfNeeded(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean shouldShow = prefs.getBoolean("show_advice", true);
+
+        if (!shouldShow) return;
+
+        new AlertDialog.Builder(context)
+                .setTitle("About this trainer")
+                .setMessage("Your phone will beep randomly every 30 minutes to 2 hours.\n - When you hear the beep, relax your jaw.\n - To temporarily mute beeping, turn down notifications volume.\n - Beeps end at 19\n\nThis is required for better chances of conditioning night bruxism without waking up.\n - When you eventually relax without thinking about the beep, that's around the time you should see an improvement.")
+                .setPositiveButton("Awesome", null)
+                .setNegativeButton("Don't show again", (dialog, which) -> {
+                    prefs.edit().putBoolean("show_advice", false).apply();
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+
+    public void hideReception(View v){
+        running=false;
+        closeSockets();
+        if (executor != null) {
+            executor.shutdownNow(); // Shutdown the executor
+        }
+
+        findViewById(R.id.main_container).setVisibility(View.VISIBLE);
+        findViewById(R.id.reception_layout).setVisibility(View.GONE);
+
+
+    }
+
+    public void setupUDP(int sendPort, int receivePort) {
+        try {
+            this.sendPort = sendPort;
+            multicastAddress = InetAddress.getByName("239.255.0.1");
+
+            // Set up receiving socket
+            receiveSocket = new MulticastSocket(receivePort);
+            receiveSocket.joinGroup(multicastAddress);
+            receiveSocket.setReuseAddress(true);
+
+            // Set up sending socket
+            sendSocket = new DatagramSocket();
+            sendSocket.setReuseAddress(true);
+
+            running = true;
+            executor.execute(this::receiveUDP);
+            Log.d(TAG, "UDP setup complete. Receiving on port " + receivePort + ", sending on port " + sendPort);
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error setting up UDP", e);
+        }
+    }
+    private void closeSockets() {
+        running = false;
+        if (receiveSocket != null && !receiveSocket.isClosed()) {
+            try {
+                receiveSocket.leaveGroup(multicastAddress);
+                receiveSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing receive socket", e);
+            }
+        }
+        if (sendSocket != null && !sendSocket.isClosed()) {
+            sendSocket.close();
+        }
+    }
+
+    private void fetchLatestVersionFromGitHub(Consumer<Integer> callback) {
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://raw.githubusercontent.com/LollosoSi/bruxism-detector/main/Arduino/main/version.h");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                InputStream in = new BufferedInputStream(conn.getInputStream());
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                String line;
+                int version = -1;
+
+                while ((line = reader.readLine()) != null) {
+                    if (line.contains("VersionIncremental")) {
+                        // Example: const static uint16_t VersionIncremental = 123;
+                        Pattern pattern = Pattern.compile("VersionIncremental\\s*=\\s*(\\d+)");
+                        Matcher matcher = pattern.matcher(line);
+                        if (matcher.find()) {
+                            version = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
+                            break;
+                        }
+                    }
+                }
+
+                reader.close();
+                in.close();
+                conn.disconnect();
+
+                int finalVersion = version;
+                new Handler(Looper.getMainLooper()).post(() -> callback.accept(finalVersion));
+
+            } catch (Exception e) {
+                Log.i("Exception", "Error while fetching latest version", e);
+                new Handler(Looper.getMainLooper()).post(() -> callback.accept(-1));
+            }
+        }).start();
+    }
+
+    int min_result = 0, max_result = 0;
+
+    private float[] fftData = null;
+    private int samplingFrequency = 0;
+    private int sampleCount = 0;
+    private int numBins = 0;
+
+    private BarChart chart;
+    private BarDataSet fftDataSet;
+    private BarData fftBarData;
+    private final int muscleMinFreq = 80;
+    private final int muscleMaxFreq = 230;
+
+    private final boolean reverseBins = false;
+
+    boolean recording_clenching = false, recording_non_clenching = false;
+    PrintWriter current_outputfile = null;
+
+    public void receiveUDP() {
+        byte[] buffer = new byte[10000];
+
+        WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+        WifiManager.MulticastLock multicastLock = wifiManager.createMulticastLock("multicastLock");
+        multicastLock.setReferenceCounted(true);
+        multicastLock.acquire();
+
+        boolean check_version = true;
+        sendUDP(new byte[]{(byte)15});
+        while (running) {
+            try {
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                receiveSocket.receive(packet);
+                byte[] data = packet.getData();
+                int length = packet.getLength();
+                //String message = new String(packet.getData(), 0, packet.getLength());
+                Log.d(TAG, "Received bytes: " + packet.getLength());
+
+                if(check_version){
+                    sendUDP(new byte[]{(byte)15});
+                }
+                if(length == 3){
+
+                    if(data[0] == 15){
+                        check_version=false;
+                        ByteBuffer bb = ByteBuffer.wrap(new byte[]{data[1], data[2]});
+                        bb.order(ByteOrder.LITTLE_ENDIAN); // match Arduino's byte order!
+                        int versionincremental =  bb.getShort();
+
+                        // Now compare:
+                        fetchLatestVersionFromGitHub(latestVersion -> {
+                            if (latestVersion == -1) {
+                                Log.e("VersionCheck", "Failed to fetch version from GitHub.");
+                            } else {
+                                if (versionincremental < latestVersion) {
+                                    Log.i("VersionCheck", "Update available! Arduino=" + versionincremental + ", GitHub=" + latestVersion);
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+
+                                            new AlertDialog.Builder(MainActivity.this)
+                                                    .setTitle("Update Available")
+                                                    .setMessage("A new firmware version is available.\n\n" +
+                                                            "Please update your Arduino device.")
+                                                    .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                                                    .setCancelable(true)
+                                                    .show();
+                                        }
+                                    });
+
+                                } else {
+                                    Log.i("VersionCheck", "Arduino is up to date.");
+                                    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                                    if(prefs.getInt("lastversionarduino", 0) != versionincremental){
+                                        prefs.edit().putInt("lastversionarduino", versionincremental).apply();
+                                        findViewById(R.id.updatedtextnotification).setVisibility(View.VISIBLE);
+                                    }
+                                }
+                            }
+                        });
+
+                    }
+                }else if(length == 11) {
+
+                    if (data[0] == 11 && data[5]==data[10]) {
+
+                        runOnUiThread(new Runnable() {
+                            @SuppressLint("SetTextI18n")
+                            @Override
+                            public void run() {
+                                findViewById(R.id.main_container).setVisibility(View.GONE);
+                                findViewById(R.id.reception_layout).setVisibility(View.VISIBLE);
+
+                                ByteBuffer bb = ByteBuffer.wrap(new byte[]{data[1], data[2], data[3], data[4]});
+                                bb.order(ByteOrder.LITTLE_ENDIAN); // match Arduino's byte order!
+                                int classification_result = (int) bb.getFloat();
+
+                                boolean classification = data[5] != 0;
+
+
+                                ByteBuffer bbb = ByteBuffer.wrap(new byte[]{data[6], data[7], data[8], data[9]});
+                                bbb.order(ByteOrder.LITTLE_ENDIAN);
+                                int classification_threshold = bbb.getInt();
+
+
+                                if (classification_result < min_result) min_result = classification_result;
+                                if (classification_result > max_result) max_result = classification_result;
+
+                                ((SeekBar) findViewById(R.id.reception)).setMin(min_result);
+                                ((SeekBar) findViewById(R.id.reception)).setMax(max_result);
+
+                                ((SeekBar) findViewById(R.id.reception)).setSecondaryProgress(classification_result);
+
+                                if (!is_user_editing_classification_thumb) {
+                                    ((SeekBar) findViewById(R.id.reception)).setProgress(classification_threshold);
+                                }
+
+                                ((TextView) findViewById(R.id.infotext)).setText("\nClassification result:\t" + classification_result + "\nValue:\t" + (classification ? "YES" : "NO"));
+                                ((TextView) findViewById(R.id.infotext)).setTextColor(classification ? Color.RED : Color.GREEN);
+                                ((TextView) findViewById(R.id.mintext)).setText("Min:\n" + min_result);
+                                ((TextView) findViewById(R.id.maxtext)).setText("Max:\n" + max_result);
+                                ((TextView) findViewById(R.id.curval_text)).setText("Current Threshold:\n" + classification_threshold);
+
+                            }
+                        });
+
+                    }
+                } else if (length == 4) {
+                    // ricezione parametri: fs e sampleCount (little-endian uint16)
+                    samplingFrequency = ((data[0] & 0xFF) | ((data[1] & 0xFF) << 8));
+                    sampleCount = ((data[2] & 0xFF) | ((data[3] & 0xFF) << 8));
+
+                    // numero di bin = sampleCount/2 (metà spettro)
+                    fftData = new float[sampleCount / 2];
+                    numBins = fftData.length;
+
+                    Log.i("FFT","Received Parameters: fs=" + samplingFrequency + ", samples=" + sampleCount + ", bins=" + numBins);
+
+                    // inizializza il chart con N barre a zero (UI thread)
+                    chart.post(() -> setupChart(numBins));
+                    if(findViewById(R.id.recording_holder).getVisibility() == View.GONE) {
+
+                    runOnUiThread(new Runnable() {
+                        @SuppressLint("SetTextI18n")
+                        @Override
+                        public void run() {
+                                ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
+                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                findViewById(R.id.recording_holder).setVisibility(View.VISIBLE);
+
+
+                            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                            File recordingsDir = new File(documentsDir, "RECORDINGS");
+                            File recordingsTrainingDir = new File(recordingsDir, "TrainingData");
+
+                            if (!recordingsTrainingDir.exists()) {
+                                if (!recordingsTrainingDir.mkdirs()) {}}
+
+                            String non_clenching_filenamepath = recordingsTrainingDir.getAbsolutePath()+"/non_clenching.csv";
+                            String clenching_filenamepath = recordingsTrainingDir.getAbsolutePath()+"/clenching.csv";
+
+
+                            findViewById(R.id.button_start_over).setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View view) {
+                                    File nonClenchingFile = new File(non_clenching_filenamepath);
+                                    if (nonClenchingFile.exists()) {
+                                        if (nonClenchingFile.delete()) {
+                                            Log.i("FileCleanup", "Successfully deleted non_clenching.csv");
+                                        } else {
+                                            Log.e("FileCleanup", "Failed to delete non_clenching.csv");
+                                        }
+                                    }
+
+                                    File clenchingFile = new File(clenching_filenamepath);
+                                    if (clenchingFile.exists()) {
+                                        if (clenchingFile.delete()) {
+                                            Log.i("FileCleanup", "Successfully deleted clenching.csv");
+                                        } else {
+                                            Log.e("FileCleanup", "Failed to delete clenching.csv");
+                                        }
+                                    }
+                                }
+                            });
+
+                            findViewById(R.id.button_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                            findViewById(R.id.button_clenching).setOnTouchListener(new View.OnTouchListener() {
+                                @Override
+                                public boolean onTouch(View view, MotionEvent motionEvent) {
+                                    if(!recording_non_clenching) {
+                                        switch (motionEvent.getAction()) {
+                                            case MotionEvent.ACTION_DOWN:
+                                                Log.i("Pressed", "DOWN");
+                                                findViewById(R.id.button_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
+                                                recording_clenching = true;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Recording clenching...");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
+                                                findViewById(R.id.button_start_over).setEnabled(false);
+
+                                                try {
+                                                    // Use FileOutputStream with the 'append' flag set to true
+                                                    current_outputfile = new PrintWriter(new java.io.FileOutputStream(new File(clenching_filenamepath), true));
+                                                } catch (FileNotFoundException e) {
+                                                    Log.e(TAG, "Error creating PrintWriter for file: " + clenching_filenamepath, e);
+                                                }
+                                                break;
+                                            case MotionEvent.ACTION_UP:
+                                                Log.i("Pressed", "UP");
+                                                findViewById(R.id.button_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                                recording_clenching = false;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                                findViewById(R.id.button_start_over).setEnabled(true);
+
+                                                current_outputfile.flush();
+                                                current_outputfile.close();
+                                                current_outputfile = null;
+
+                                                break;
+                                        }
+                                    }
+
+                                    return true;
+                                }
+                            });
+
+
+                            findViewById(R.id.button_non_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                            findViewById(R.id.button_non_clenching).setOnTouchListener(new View.OnTouchListener() {
+                                @SuppressLint("SetTextI18n")
+                                @Override
+                                public boolean onTouch(View view, MotionEvent motionEvent) {
+                                    if(!recording_clenching) {
+                                        switch (motionEvent.getAction()) {
+                                            case MotionEvent.ACTION_DOWN:
+                                                Log.i("Pressed", "DOWN");
+                                                findViewById(R.id.button_non_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
+                                                recording_non_clenching = true;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Recording non clenching...");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_red_500));
+                                                findViewById(R.id.button_start_over).setEnabled(false);
+
+                                                try {
+                                                    // Use FileOutputStream with the 'append' flag set to true
+                                                    current_outputfile = new PrintWriter(new java.io.FileOutputStream(new File(non_clenching_filenamepath), true));
+                                                } catch (FileNotFoundException e) {
+                                                    Log.e(TAG, "Error creating PrintWriter for file: " + non_clenching_filenamepath, e);
+                                                }
+
+                                                break;
+                                            case MotionEvent.ACTION_UP:
+                                                Log.i("Pressed", "UP");
+                                                findViewById(R.id.button_non_clenching).setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                                recording_non_clenching = false;
+                                                ((TextView) findViewById(R.id.fft_status_text)).setText("Ready");
+                                                ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_green_500));
+                                                findViewById(R.id.button_start_over).setEnabled(true);
+
+                                                current_outputfile.flush();
+                                                current_outputfile.close();
+                                                current_outputfile = null;
+
+                                                break;
+                                        }
+                                    }
+
+                                    return true;
+                                }
+                            });
+
+                            findViewById(R.id.button_calculate_weights).setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View view) {
+                                    try {
+                                        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                        SVMTrainer.ProgressCallback pcb = new SVMTrainer.ProgressCallback() {
+                                            @Override
+                                            public void onProgress(int progress) {
+                                                runOnUiThread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        ((ProgressBar)findViewById(R.id.weights_progress_bar)).setProgress(progress);
+                                                    }
+                                                });
+                                            }
+                                        };
+
+                                        (findViewById(R.id.weights_progress_bar)).setVisibility(View.VISIBLE);
+
+                                        ((TextView) findViewById(R.id.fft_status_text)).setText("Calculating your weights..");
+                                        ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_orange_500));
+
+                                        findViewById(R.id.button_start_over).setEnabled(false);
+                                        findViewById(R.id.button_clenching).setEnabled(false);
+                                        findViewById(R.id.button_non_clenching).setEnabled(false);
+                                        findViewById(R.id.button_calculate_weights).setEnabled(false);
+
+
+
+                                        // --- Start a new background thread for the training task ---
+                                        new Thread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                try {
+                                                    // This is now running on a background thread
+                                                    final String result = SVMTrainer.train_for_result(clenching_filenamepath, non_clenching_filenamepath, pcb);
+
+                                                    // --- Switch back to the UI thread to update the UI ---
+                                                    runOnUiThread(new Runnable() {
+                                                        @SuppressLint("SetTextI18n")
+                                                        @Override
+                                                        public void run() {
+                                                            EditText weightsOutput = findViewById(R.id.weights_output);
+                                                            weightsOutput.setText(result);
+                                                            weightsOutput.setVisibility(View.VISIBLE);
+                                                            findViewById(R.id.weights_progress_bar).setVisibility(View.GONE);
+                                                            findViewById(R.id.button_start_over).setEnabled(true);
+                                                            findViewById(R.id.button_clenching).setEnabled(true);
+                                                            findViewById(R.id.button_non_clenching).setEnabled(true);
+                                                            findViewById(R.id.button_calculate_weights).setEnabled(true);
+                                                            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+                                                            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                                                            ClipData clip = ClipData.newPlainText("SVM Weights", result);
+                                                            clipboard.setPrimaryClip(clip);
+
+                                                            ((TextView) findViewById(R.id.fft_status_text)).setText("Result copied to clipboard");
+                                                            ((TextView) findViewById(R.id.fft_status_text)).setTextColor(ContextCompat.getColor(MainActivity.this, R.color.material_blue_500));
+
+                                                        }
+                                                    });
+
+                                                } catch (Exception e) {
+                                                    // It's good practice to handle potential exceptions
+                                                    Log.e("SVMTrainer", "Training failed", e);
+                                                    // Optionally, show an error message on the UI thread
+                                                    runOnUiThread(() -> {
+                                                        Toast.makeText(MainActivity.this, "Training failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                                        findViewById(R.id.weights_progress_bar).setVisibility(View.GONE);
+                                                        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                                        findViewById(R.id.button_start_over).setEnabled(true);
+                                                        findViewById(R.id.button_clenching).setEnabled(true);
+                                                        findViewById(R.id.button_non_clenching).setEnabled(true);
+                                                        findViewById(R.id.button_calculate_weights).setEnabled(true);
+                                                    });
+                                                }
+                                            }
+                                        }).start(); // Don't forget to start the thread!
+
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                            });
+
+                            }
+
+
+
+                    });
+
+
+
+                    }
+
+
+
+                } else if (length==1 ||(length % 5 == 0) ) {
+                    // We don't need this, but I left it to avoid forgetting there is a reserved message size
+                } else if(fftData!=null) {
+                    // ricezione dati FFT: ogni float = 4 byte (little-endian)
+                    int receivedBins = Math.min(length / 4, fftData.length);
+
+                    //StringBuilder sb = new StringBuilder();
+                    //sb.append("Inbound data:");
+                    //sb.append(" Bins: ").append(receivedBins);
+
+                    for (int i = 0; i < receivedBins; i++) {
+                        float v = ByteBuffer.wrap(data, i * 4, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+                        fftData[i] = v;
+                        //sb.append(" ").append(i).append(":").append(v);
+                    }
+                    // se sono arrivati meno bin di quelli attesi, azzera il resto
+                    for (int i = receivedBins; i < fftData.length; i++) fftData[i] = 0f;
+
+                    //Log.i("FFTDATA", sb.toString());
+
+                    // aggiorna il chart (UI thread)
+                    chart.post(this::updateChartFromFFT);
+
+                    if((recording_clenching || recording_non_clenching)&&current_outputfile!=null){
+
+                        try {
+                                DecimalFormat df = new DecimalFormat("#.##########", DecimalFormatSymbols.getInstance(Locale.US));
+                                boolean first = true;
+                                for (float val : fftData) {
+
+                                    current_outputfile.print((first ? "" : ",") + df.format(val));
+                                    if (first) first = false;
+                                }
+                                current_outputfile.println();
+
+                        }catch (NullPointerException ignored){}
+
+
+                    }
+
+
+                }
+            } catch (IOException e) {
+                if (running) {
+                    Log.e(TAG, "Error receiving UDP packet", e);
+                }
+            }
+        }
+
+        if(multicastLock.isHeld())
+            multicastLock.release();
+
+    }
+
+    private void setupChart(int bins) {
+        ArrayList<BarEntry> initial = new ArrayList<>(bins);
+        for (int i = 0; i < bins; i++) initial.add(new BarEntry(i, 0f));
+
+        fftDataSet = new BarDataSet(initial, null); // nessuna label
+        fftDataSet.setDrawValues(false);            // niente valori sopra le barre
+
+        // Colori iniziali (grigio)
+        List<Integer> initialColors = new ArrayList<>(bins);
+        for (int i = 0; i < bins; i++) initialColors.add(Color.GRAY);
+        fftDataSet.setColors(initialColors);
+
+        fftBarData = new BarData(fftDataSet);
+        fftBarData.setBarWidth(1.0f);               // barre più larghe
+        chart.setData(fftBarData);
+
+        // Rimuove legenda e descrizione
+        chart.getLegend().setEnabled(false);
+        chart.getDescription().setEnabled(false);
+
+        // X Axis (frequenze)
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false);
+        xAxis.setDrawAxisLine(false);
+        xAxis.setTextSize(10f);
+        xAxis.setLabelRotationAngle(90f);
+        xAxis.setLabelCount(Math.min(10, bins), true);
+        xAxis.setAxisMinimum(-0.5f);
+        xAxis.setAxisMaximum(bins - 0.5f);
+        xAxis.setValueFormatter(new IndexAxisValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                int idx = Math.round(value);
+                if (idx < 0 || idx >= numBins) return "";
+                float binWidth = (float) samplingFrequency / (float) sampleCount;
+                int freq = Math.round(idx * binWidth);
+                return freq + " Hz";
+            }
+        });
+
+        // Disattiva asse Y completamente
+        chart.getAxisLeft().setEnabled(false);
+        chart.getAxisRight().setEnabled(false);
+
+        // Disattiva interazioni inutili
+        chart.setTouchEnabled(false);
+        chart.setHighlightPerTapEnabled(false);
+        chart.setHighlightPerDragEnabled(false);
+        chart.setScaleEnabled(false);
+        chart.setDragEnabled(false);
+        chart.setPinchZoom(false);
+
+        // Margini extra per allargare il grafico
+        chart.setExtraOffsets(20, 10, 20, 60);
+
+        chart.setFitBars(true);
+        chart.invalidate();
+    }
+
+    private void updateChartFromFFT() {
+        if (fftDataSet == null || fftBarData == null) return;
+
+        ArrayList<BarEntry> entries = new ArrayList<>(numBins);
+        ArrayList<Integer> colors = new ArrayList<>(numBins);
+        float binWidth = (float) samplingFrequency / (float) sampleCount;
+
+        for (int i = 0; i < numBins; i++) {
+            float mag = Math.abs(fftData[i]);
+            entries.add(new BarEntry(i, mag));
+
+            float freq = i * binWidth;
+            if (freq >= muscleMinFreq && freq <= muscleMaxFreq)
+                colors.add(Color.RED);
+            else
+                colors.add(Color.GRAY);
+        }
+
+        fftDataSet.setValues(entries);
+        fftDataSet.setColors(colors);
+
+        fftBarData.notifyDataChanged();
+        chart.notifyDataSetChanged();
+        chart.invalidate();
+    }
+
+
+
+    public void sendUDP(byte[] data) {
+
+        Thread thread = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                try {
+                    try {
+                        DatagramPacket packet = new DatagramPacket(data, data.length, multicastAddress, sendPort);
+                        sendSocket.send(packet);
+                        Log.d(TAG, "Sent data to port " + sendPort);
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error sending UDP packet", e);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error in sendUDP", e);
+                }
+            }
+        });
+
+        thread.start();
+
+    }
+
+
+    @SuppressLint("ScheduleExactAlarm")
+    public void startListener(View v){
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.SECOND,2);
+
+        if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DATE, 1); // Next day if already passed
+        }
+
+        Intent intent = new Intent(this, UDPCatcher.class);
+        PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+
+    }
+
+
+
+
+
+
+    public void tryGraphing(View v){
+
+        makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
+            @Override
+            public void onGraphTaskCompleted() {
+                startActivity(new Intent(MainActivity.this, GraphViewer.class));
+            }
+        });
+    }
+
+    public static void makeGraphs(MainActivity ctx, GrapherAsyncTask.GraphTaskCallback callback){
+
+        // Acquire a WakeLock to keep the screen on
+        PowerManager powerManager = (PowerManager) ctx.getSystemService(POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "MyApp:MyWakeLockTag");
+        wakeLock.acquire(10*60*1000L /*10 minutes*/);
+
+        GrapherAsyncTask task = new GrapherAsyncTask(ctx);
+
+        // Set a completion listener
+        task.setTaskCallback(callback);
+        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+
+        // Release the WakeLock when the task is done
+        if (wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+
+    }
+
+
+    private void vibrate() {
+        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator.hasVibrator()) {
+
+            Random random = new Random();
+            List<Long> timings = new ArrayList<>();
+            List<Integer> amplitudes = new ArrayList<>();
+
+            // Initial delay
+            timings.add(0L);
+            amplitudes.add(0);
+
+            long vibrationDuration = 50; // Starting vibration duration
+            long pauseDuration = 50;     // Starting pause duration
+
+            // Generate many short irregular vibrations
+            for (int i = 0; i < 20; i++) {
+                // Randomize vibration and pause durations with gradual increase
+                vibrationDuration += random.nextInt(10);  // increase gradually
+                pauseDuration += random.nextInt(10);
+
+                timings.add(vibrationDuration);
+                amplitudes.add(VibrationEffect.DEFAULT_AMPLITUDE); // Full power
+
+                timings.add(pauseDuration);
+                amplitudes.add(0); // Pause (no vibration)
+            }
+
+            // Final long vibration (5 seconds)
+            timings.add(5000L);
+            amplitudes.add(VibrationEffect.DEFAULT_AMPLITUDE);
+
+            // Convert to arrays
+            long[] timingArray = new long[timings.size()];
+            int[] amplitudeArray = new int[amplitudes.size()];
+            for (int i = 0; i < timings.size(); i++) {
+                timingArray[i] = timings.get(i);
+                amplitudeArray[i] = amplitudes.get(i);
+            }
+
+            VibrationEffect effect = VibrationEffect.createWaveform(timingArray, amplitudeArray, 0);
+            vibrator.vibrate(effect);
+
+        }
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+
+        initialSetup();
+        switchManager.ReloadAll();
+
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // New configuration, window might have resized.
+        // You can get new dimensions here if needed.
+        int newWidth = newConfig.screenWidthDp;
+        int newHeight = newConfig.screenHeightDp;
+        Log.d("Resize", "onConfigurationChanged: New DpWidth=" + newWidth + ", New DpHeight=" + newHeight);
+
+        initialSetup();
+        switchManager.ReloadAll();
+    }
+
+
+    public void LaunchSwitchEditor(View v){
+        startActivity(new Intent(MainActivity.this, SwitchEditor.class));
+
+    }
+
+
+
+    private boolean isSessionExpanded = true;
+    private ConstraintLayout rootLayout;
+    boolean initialCopy = true;
+    private final ConstraintSet expandedSet = new ConstraintSet();
+    private final ConstraintSet collapsedSet = new ConstraintSet();
+
+    private void setupSessionToggle() {
+        
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        rootLayout = findViewById(R.id.session_card_root); // the root ConstraintLayout inside your CardView
+
+        // Clone current layout as "expanded" state
+        if(initialCopy) {
+            expandedSet.clone(rootLayout);
+            initialCopy=false;
+        }
+
+        // Define collapsed layout
+        collapsedSet.clone(rootLayout);
+
+
+        // Hide other buttons (optional)
+        collapsedSet.setVisibility(R.id.button_extractdb, View.GONE);
+        collapsedSet.setVisibility(R.id.button_tageditor, View.GONE);
+        collapsedSet.setVisibility(R.id.right_column_switches, View.GONE);
+        collapsedSet.setVisibility(R.id.left_column_switches, View.GONE);
+        collapsedSet.setVisibility(R.id.button2, View.GONE);
+        collapsedSet.setVisibility(R.id.button_start_trainer, View.GONE);
+
+        View toggleHandle = findViewById(R.id.session_settings_textview_handle);
+
+        toggleHandle.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+
+                playTutorial();
+
+                return true;
+            }
+        });
+
+        toggleHandle.setOnClickListener(v -> {
+            isSessionExpanded = !isSessionExpanded;
+
+            //TransitionManager.beginDelayedTransition(rootLayout);
+
+            if (isSessionExpanded) {
+                expandedSet.applyTo(rootLayout);
+            } else {
+                collapsedSet.applyTo(rootLayout);
+            }
+            prefs.edit().putBoolean("session_collapsed", !isSessionExpanded).apply();
+            vibrateHaptic();
+
+        });
+
+        if(prefs.getBoolean("session_collapsed", false)) {
+            collapsedSet.applyTo(rootLayout);
+        } else {
+            expandedSet.applyTo(rootLayout);
+        }
+    }
+
+
+    void vibrateHaptic(){
+        Vibrator vibrator = (Vibrator) this.getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator.hasVibrator()) {
+            VibrationEffect ve = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ve = VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK);
+            }else{
+                ve = VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE);
+            }
+            vibrator.vibrate(ve);
+        }
+    }
+
+    public void scheduleUDPCatcher(View v){
+        ServiceScheduler.scheduleUDPCatcherAtTime(this, System.currentTimeMillis()+10000);
+    }
+
+    public void startCalendar(View v){
+        // Launch Calendar activity
+        Intent intent = new Intent(this, CalendarViewer.class);
+        startActivity(intent);
+    }
+
+    // Token here. Do not publish.
+    private final String HUGGING_FACE_TOKEN = "your hf token";
+
+    public void testAI() {
+
+        // Would love to use AI, but testing concluded it is as useful as a RNG.
+
+        // Just make one call to the utility class
+        //GenerativeAIUtil gai = new GenerativeAIUtil();
+        //gai.initializeAndDownloadModelWithDialogs(
+        //        MainActivity.this,
+        //        GenerativeAIUtil.modelUrl,
+        //        GenerativeAIUtil.modelFileName,
+        //        HUGGING_FACE_TOKEN,
+        //        ()->{gai.close();}
+        //);
+
+
+    }
+
+    private void checkAppUpdates(Consumer<Integer> callback) {
+        new Thread(() -> {
+            try {
+                // MODIFICA: URL aggiornato per puntare al build.gradle.kts nel branch Android
+                URL url = new URL("https://raw.githubusercontent.com/LollosoSi/bruxism-detector/refs/heads/Android/app/build.gradle.kts");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                InputStream in = new BufferedInputStream(conn.getInputStream());
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                String line;
+                int version = -1;
+
+                while ((line = reader.readLine()) != null) {
+                    // MODIFICA: Cerca la riga che contiene "versionCode"
+                    if (line.trim().startsWith("versionCode")) {
+                        // Esempio: versionCode = 123
+                        Pattern pattern = Pattern.compile("versionCode\\s*=\\s*(\\d+)");
+                        Matcher matcher = pattern.matcher(line);
+                        if (matcher.find()) {
+                            version = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
+                            break; // Trovato, esci dal ciclo
+                        }
+                    }
+                }
+
+                reader.close();
+                in.close();
+                conn.disconnect();
+
+                int finalVersion = version;
+                new Handler(Looper.getMainLooper()).post(() -> callback.accept(finalVersion));
+
+            } catch (Exception e) {
+                Log.i("Exception", "Error while fetching latest version", e);
+                new Handler(Looper.getMainLooper()).post(() -> callback.accept(-1));
+            }
+        }).start();
+    }
+}
