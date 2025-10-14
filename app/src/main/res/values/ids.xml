@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <item name="metric_label" type="id"/>
-    <item name="metric_value" type="id"/>
-    <item name="spacer_left" type="id"/>
-    <item name="spacer_right" type="id"/>
-    <item name="fill_neg" type="id"/>
-    <item name="fill_pos" type="id"/>
-</resources>
