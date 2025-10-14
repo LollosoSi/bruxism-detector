@@ -133,7 +133,8 @@ public class SummaryChartFragment extends Fragment {
                 ll.removeAllViews();
                 if (switchesbox.isEmpty())
                     createFiltersSwitches();
-                addGraphs();
+                if(summaryTitles!=null)
+                    addGraphs();
             }
         });
     }

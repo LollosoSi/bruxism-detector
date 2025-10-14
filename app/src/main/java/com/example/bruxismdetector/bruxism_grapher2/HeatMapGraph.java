@@ -57,6 +57,16 @@ public class HeatMapGraph<Image, Color, Font> {
         int rows = tag_names.size();
         int cols = data_names.size();
 
+
+        gi.setImageSize(graph_width, graph_height);
+        gi.setColor(gi.convertColor("#FFFFFF"));
+        gi.fillRect(0, 0, graph_width, graph_height);
+
+        if(rows == 0 || cols == 0){
+            return gi.getImage();
+        }
+
+
         // Dynamic sizing based on available image size
         int maxCellSizeX = (graph_width * 3 / 5) / cols;
         int maxCellSizeY = (graph_height * 3 / 5) / rows;
@@ -75,9 +85,7 @@ public class HeatMapGraph<Image, Color, Font> {
         int offsetX = (graph_width - totalWidth) / 2;
         int offsetY = (graph_height - totalHeight) / 2;
 
-        gi.setImageSize(graph_width, graph_height);
-        gi.setColor(gi.convertColor("#FFFFFF"));
-        gi.fillRect(0, 0, graph_width, graph_height);
+
 
         gi.setFont("Arial", fontSize);
 

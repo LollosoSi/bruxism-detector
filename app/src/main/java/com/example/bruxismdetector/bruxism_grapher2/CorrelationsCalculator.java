@@ -85,7 +85,7 @@ public class CorrelationsCalculator {
         //  filter2-contained in tuple1?, filter2-contained in tuple2?, ecc
 
         // total length - 3 : (skip date, mood, info)
-        int effectivedatalength = summaryTuples.get(0).length-3;
+        int effectivedatalength = !summaryTuples.isEmpty() ? summaryTuples.get(0).length-3 : 0;
         int startcolumn = 1;
 
         double[][] filterstats = new double[filterNames.size()][summaryTuples.size()];

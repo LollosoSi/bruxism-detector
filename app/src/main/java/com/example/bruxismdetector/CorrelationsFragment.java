@@ -50,7 +50,9 @@ public class CorrelationsFragment extends Fragment {
             @Override
             public void run() {
                 readSummary();
-                prepareCorrelationArrays();
+                if(summaryTitles!=null)
+                    if(summaryTitles.length>3)
+                        prepareCorrelationArrays();
                 if(show_error){
                     ((TextView)root.findViewById(R.id.errortext)).setText("There was an error while interpreting the data.\nAre you up to date?");
                     ((TextView)root.findViewById(R.id.errortext)).setTextColor(getResources().getColor(R.color.material_red_500, requireContext().getTheme()));
@@ -220,7 +222,7 @@ public class CorrelationsFragment extends Fragment {
         //  filter2-contained in tuple1?, filter2-contained in tuple2?, ecc
 
         // total length - 3 : (skip date, mood, info)
-        int effectivedatalength = summaryTuples.get(0).length-3;
+        int effectivedatalength = !summaryTuples.isEmpty() ? summaryTuples.get(0).length-3 : 0;
         int startcolumn = 1;
 
         double[][] filterstats = new double[filterNames.size()][summaryTuples.size()];

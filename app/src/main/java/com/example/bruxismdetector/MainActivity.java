@@ -213,6 +213,17 @@ public class MainActivity extends AppCompatActivity {
         setupSwitchLabels();
         setupSessionToggle();
 
+        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        File recordingsDir = new File(documentsDir, "RECORDINGS");
+        File summaryDir = new File(recordingsDir, "Summary");
+        File summaryFile = new File(summaryDir, "Summary.csv");
+
+        File graphDir = new File(recordingsDir, "Graphs");
+
+        findViewById(R.id.button_makegraphs).setEnabled(graphDir.exists() && Objects.requireNonNull(graphDir.listFiles()).length > 0);
+        findViewById(R.id.button_makecharts).setEnabled(summaryFile.exists());
+
+
 
         MaterialSwitch swsh = findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
         swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
