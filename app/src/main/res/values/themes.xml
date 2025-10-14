@@ -1,0 +1,21 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.BruxismDetector" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <style name="Theme.BruxismDetector" parent="Base.Theme.BruxismDetector" />
+
+    <style name="Theme.Transparent" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+
+            <item name="android:backgroundDimEnabled">true</item>
+            <item name="android:windowIsFloating">true</item>
+
+
+    </style>
+
+</resources>

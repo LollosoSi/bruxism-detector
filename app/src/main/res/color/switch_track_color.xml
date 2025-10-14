@@ -1,0 +1,6 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Active track -->
+    <item android:state_checked="true" android:state_enabled="true" android:color="?attr/colorPrimaryContainer" />
+    <!-- Inactive track -->
+    <item android:color="?attr/colorSurfaceVariant" />
+</selector>
