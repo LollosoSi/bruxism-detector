@@ -19,6 +19,9 @@ public class BootReceiver extends BroadcastReceiver {
     @SuppressLint("ScheduleExactAlarm")
     @Override
     public void onReceive(Context context, Intent intent) {
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(context));
+        UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
+
         if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction()) && PermissionsActivity.isExactAlarmPermissionGranted(context)) {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
             if(prefs.getBoolean("schedule_listener_after_tracker_ends",true)) {

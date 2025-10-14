@@ -70,6 +70,9 @@ public class RingReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(context));
+        UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
+
         if(intent.getAction()!=null) {
             if (intent.getAction().equals(cancel_action_notif)) {
                 cancel(context);

@@ -73,6 +73,10 @@ public class UDPCatcher extends Service {
             stopSelf();
         }
 
+        Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
+        UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
+
+
         return START_NOT_STICKY;
     }
 

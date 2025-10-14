@@ -1,6 +1,10 @@
 package com.example.bruxismdetector;
 
 import android.animation.ValueAnimator;
+import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
+
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -8,18 +12,22 @@ import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.PreferenceManager;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.bruxismdetector.bruxism_grapher2.CorrelationsCalculator;
+import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
 import com.example.bruxismdetector.bruxism_grapher2.SummaryReader;
 
 import java.io.File;
@@ -30,16 +38,26 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class GraphViewer extends AppCompatActivity {
 
     private File[] graphFiles;
     private ViewPager2 viewPager;
     private LinearLayout aiEvaluationPanel;
-    private LinearLayout barChartContainer; // Container for the bars
+    private LinearLayout barChartContainer;
+    private ImageView dragHandle;
+    private ValueAnimator weightAnimator;
+    private float startX;
+    private static final int CLICK_ACTION_THRESHOLD = 20;
+
     private ImagePagerAdapter adapter;
 
-    private int defaultTextColor;
+    private static final float DEFAULT_VIEWPAGER_WEIGHT = 6.8f;
+    private static final float DEFAULT_AI_PANEL_WEIGHT = 3.2f;
+
+    private boolean isAiPanelOpen = true;
 
     // Data for averages
     String[] summaryTitles;
@@ -47,12 +65,18 @@ public class GraphViewer extends AppCompatActivity {
     float[] averages;
     int[] average_idx_to_column;
 
+    int generated_upto = 0;
+
+    private ExecutorService executorService;
+
+
     private final HashMap<String, View> activeRows = new HashMap<>();
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // ... (il tuo codice di setup della UI non cambia)
+
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         Window window = getWindow();
@@ -67,6 +91,9 @@ public class GraphViewer extends AppCompatActivity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_graph_viewer);
+
+        int coreCount = Runtime.getRuntime().availableProcessors();
+        executorService = Executors.newFixedThreadPool(coreCount);
 
         viewPager = findViewById(R.id.viewPager);
         ImageButton btnLeft = findViewById(R.id.btnLeft);
@@ -102,6 +129,10 @@ public class GraphViewer extends AppCompatActivity {
             }
         });
 
+        GrapherAsyncTask gat = new GrapherAsyncTask(this);
+        generated_upto = graphFiles.length;
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
@@ -110,8 +141,38 @@ public class GraphViewer extends AppCompatActivity {
                 btnRight.setVisibility(position != graphFiles.length - 1 ? View.VISIBLE : View.INVISIBLE);
                 updateAiPanelVisibility(position);
                 Log.d("GraphViewer", "Page selected: " + position);
+
+
+                if(prefs.getBoolean("regen_graph_scroll", false)){
+                for (int i = 0; i < 5; i++) {
+                    final int currentPosition = position - i;
+                    if (currentPosition >= 0 && currentPosition < generated_upto) {
+                        generated_upto = currentPosition;
+                        File csv = checkCorrespondingCsv(currentPosition);
+                        if (csv != null) {
+                            // Invia il task al thread pool invece di creare un nuovo thread
+                            executorService.submit(() -> {
+                                try {
+                                    gat.makeGraph(csv, false);
+                                    Log.i("GraphViewer", "Graph regenerated in background for: " + csv.getName());
+                                } catch (Exception e) {
+                                    Log.e("GraphViewer", "Error regenerating graph for " + csv.getName(), e);
+                                }
+                            });
+                        }
+                    }}
+                }
             }
         });
+
+
+
+        dragHandle = findViewById(R.id.drag_handle);
+        aiEvaluationPanel.setVisibility(View.VISIBLE);
+        dragHandle.setVisibility(View.VISIBLE);
+        setupDragHandle();
+        animateWeights(DEFAULT_VIEWPAGER_WEIGHT, DEFAULT_AI_PANEL_WEIGHT);
+
 
         // Calculate averages on creation
         try {
@@ -123,6 +184,14 @@ public class GraphViewer extends AppCompatActivity {
         viewPager.setCurrentItem(graphFiles.length - 1, true);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null && !executorService.isShutdown()) {
+            Log.i("GraphViewer", "Shutting down thread pool.");
+            executorService.shutdown();
+        }
+    }
     private File[] getGraphs() {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         File recordingsDir = new File(documentsDir, "RECORDINGS");
@@ -136,29 +205,76 @@ public class GraphViewer extends AppCompatActivity {
     }
 
     private void updateAiPanelVisibility(int position) {
+        displayAveragesChart(position);
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupDragHandle() {
+        dragHandle.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    if (weightAnimator != null && weightAnimator.isRunning()) {
+                        weightAnimator.cancel();
+                    }
+                    startX = event.getX();
+                    return true;
+
+                case MotionEvent.ACTION_MOVE:
+                    // La logica del DRAG rimane invariata
+                    float totalWidth = findViewById(R.id.main_container).getWidth();
+                    if (totalWidth == 0) return true; // Evita divisione per zero
+
+                    float newAiPanelWidth = totalWidth - event.getRawX();
+                    float minWidth = totalWidth * 0.10f;
+                    float maxWidth = totalWidth * 0.70f;
+                    newAiPanelWidth = Math.max(minWidth, Math.min(newAiPanelWidth, maxWidth));
+                    float aiPanelWeight = (newAiPanelWidth / totalWidth) * 10.0f;
+                    float viewPagerWeight = 10.0f - aiPanelWeight;
+
+                    setWeights(viewPagerWeight, aiPanelWeight);
+                    // Mentre trasciniamo, consideriamo il pannello "aperto"
+                    isAiPanelOpen = true;
+                    return true;
+
+                case MotionEvent.ACTION_UP:
+                    float endX = event.getX();
+                    if (Math.abs(endX - startX) < CLICK_ACTION_THRESHOLD) {
+                        // È un TAP
+                        if (isAiPanelOpen) {
+                            // Se è aperto, chiudilo
+                            animateWeights(10.0f, 0f);
+                            isAiPanelOpen = false;
+                        } else {
+                            // Se è chiuso, aprilo alla dimensione di default
+                            animateWeights(DEFAULT_VIEWPAGER_WEIGHT, DEFAULT_AI_PANEL_WEIGHT);
+                            isAiPanelOpen = true;
+                        }
+                    } else {
+                        // È un DRAG (rilascio)
+                        // Anima il ritorno alla posizione di default se è aperto
+                        if (isAiPanelOpen) {
+                            animateWeights(DEFAULT_VIEWPAGER_WEIGHT, DEFAULT_AI_PANEL_WEIGHT);
+                        }
+                        // Se fosse stato chiuso, un drag non è possibile, quindi non serve un else.
+                    }
+                    return true;
+            }
+            return false;
+        });
+    }
+
+    private void setWeights(float viewPagerWeight, float aiPanelWeight) {
         LinearLayout.LayoutParams viewPagerParams = (LinearLayout.LayoutParams) viewPager.getLayoutParams();
         LinearLayout.LayoutParams aiPanelParams = (LinearLayout.LayoutParams) aiEvaluationPanel.getLayoutParams();
 
-        if (position == (graphFiles.length - 1)) {
-            // Show the AI panel for the last item
-            aiEvaluationPanel.setVisibility(View.VISIBLE);
-            viewPagerParams.weight = 7.0f;
-            aiPanelParams.weight = 3.0f;
+        viewPagerParams.weight = viewPagerWeight;
+        aiPanelParams.weight = aiPanelWeight;
 
-            // Display the bar chart instead of text
-
-
-        } else {
-            // Hide the AI panel for all other items
-            //aiEvaluationPanel.setVisibility(View.GONE);
-            viewPagerParams.weight = 7.0f;
-            aiPanelParams.weight = 3.0f;
-        }
-
-        displayAveragesChart(position);
+        // Applica le modifiche
         viewPager.setLayoutParams(viewPagerParams);
         aiEvaluationPanel.setLayoutParams(aiPanelParams);
     }
+
 
     // Sostituisci il tuo metodo displayAveragesChart con questo
     private void displayAveragesChart(int wanted_pos) {
@@ -261,7 +377,6 @@ public class GraphViewer extends AppCompatActivity {
         return row;
     }
 
-    // Metodo helper per creare la struttura della barra (evita duplicazione)
     private LinearLayout createBarContainer() {
         LinearLayout barContainer = new LinearLayout(this);
         barContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -278,7 +393,6 @@ public class GraphViewer extends AppCompatActivity {
         centerLine.setLayoutParams(new LinearLayout.LayoutParams(4, LinearLayout.LayoutParams.MATCH_PARENT));
         centerLine.setBackgroundColor(Color.WHITE); // Changed to white as requested
 
-        // --- CORRECTED INITIAL WEIGHTS ---
         // Each side (left and right) has a total weight of 1.
         // Initially, the spacers take up all the space.
         leftSpacer.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
@@ -291,6 +405,7 @@ public class GraphViewer extends AppCompatActivity {
         barContainer.addView(centerLine);
         barContainer.addView(posFill);
         barContainer.addView(rightSpacer);
+
         return barContainer;
     }
 
@@ -440,6 +555,58 @@ public class GraphViewer extends AppCompatActivity {
                 averages[i] /= totalRows;
                 Log.i("GraphViewer", summaryTitles[average_idx_to_column[i]] + ": " + averages[i]);
             }
+        }
+    }
+
+    private void animateWeights(float targetViewPagerWeight, float targetAiPanelWeight) {
+        // Ottieni i pesi di partenza
+        LinearLayout.LayoutParams viewPagerParams = (LinearLayout.LayoutParams) viewPager.getLayoutParams();
+        LinearLayout.LayoutParams aiPanelParams = (LinearLayout.LayoutParams) aiEvaluationPanel.getLayoutParams();
+        final float startViewPagerWeight = viewPagerParams.weight;
+        final float startAiPanelWeight = aiPanelParams.weight;
+
+        // Se c'è un'animazione precedente, cancellala
+        if (weightAnimator != null && weightAnimator.isRunning()) {
+            weightAnimator.cancel();
+        }
+
+        // Crea un animatore che va da 0 a 1
+        weightAnimator = ValueAnimator.ofFloat(0f, 1f);
+        weightAnimator.setDuration(400); // Durata dell'animazione in ms
+        weightAnimator.setInterpolator(new android.view.animation.OvershootInterpolator(1.0f)); // Aggiunge l'effetto "overshoot"
+
+        weightAnimator.addUpdateListener(animation -> {
+            // Calcola il valore interpolato per ogni frame
+            float fraction = animation.getAnimatedFraction();
+            float currentViewPagerWeight = startViewPagerWeight + (targetViewPagerWeight - startViewPagerWeight) * fraction;
+            float currentAiPanelWeight = startAiPanelWeight + (targetAiPanelWeight - startAiPanelWeight) * fraction;
+
+            // Applica i nuovi pesi
+            setWeights(currentViewPagerWeight, currentAiPanelWeight);
+        });
+
+        weightAnimator.start();
+    }
+
+    private File checkCorrespondingCsv(int position) {
+        if (graphFiles == null || position >= graphFiles.length) {
+            return null;
+        }
+
+        File pngFile = graphFiles[position];
+        String csvFileName = pngFile.getName().replace(".png", ".csv");
+
+        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        File recordingsDir = new File(documentsDir, "RECORDINGS");
+        File csvFile = new File(recordingsDir, csvFileName);
+
+
+        if (csvFile.exists()) {
+            Log.i("GraphViewer", "Corresponding CSV file found: " + csvFile.getName());
+            return csvFile;
+        } else {
+            Log.w("GraphViewer", "Corresponding CSV file NOT found: " + csvFile.getName());
+            return null;
         }
     }
 }

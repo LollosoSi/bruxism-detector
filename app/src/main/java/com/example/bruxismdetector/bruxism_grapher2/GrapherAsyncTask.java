@@ -1,5 +1,6 @@
 package com.example.bruxismdetector.bruxism_grapher2;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -40,12 +41,12 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
 
     GraphTaskCallback taskcallback = null;
     public void setTaskCallback(GraphTaskCallback callback) {taskcallback=callback;}
-    public GrapherAsyncTask(MainActivity context){
+    public GrapherAsyncTask(Activity context){
         ctx = context;
     }
 
     static String TAG = "Async";
-    private MainActivity ctx;
+    private Activity ctx;
 
 
 
@@ -61,19 +62,25 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
         ctx.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                asyncDialog = new ProgressingDialog();
-                //set message of the dialog
-                asyncDialog.setMessage("Creating Graphs..");
+                // Controlla se il contesto è un'istanza di FragmentActivity (o una sua sottoclasse come AppCompatActivity)
+                if (ctx instanceof androidx.fragment.app.FragmentActivity) {
+                    androidx.fragment.app.FragmentActivity activity = (androidx.fragment.app.FragmentActivity) ctx;
 
-                asyncDialog.updateProgress(0);
+                    asyncDialog = new ProgressingDialog();
+                    //set message of the dialog
+                    asyncDialog.setMessage("Creating Graphs..");
+                    asyncDialog.updateProgress(0);
 
-                //show dialog
-                asyncDialog.show(ctx.getSupportFragmentManager(), "ProgressingDialog");
-                asyncDialog.setMessage("Creating Graphs..");
-                asyncDialog.setCancelable(false);
+                    //show dialog
+                    asyncDialog.show(activity.getSupportFragmentManager(), "ProgressingDialog");
+                    asyncDialog.setMessage("Creating Graphs..");
+                    asyncDialog.setCancelable(false);
+                } else {
+                    // Se il contesto non è adatto, logga un errore. Il dialogo non verrà mostrato.
+                    Log.e(TAG, "The provided context is not a FragmentActivity and cannot show a DialogFragment.");
+                }
             }
         });
-
 
         super.onPreExecute();
     }
@@ -235,7 +242,7 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
     }
 
 
-    StatData makeGraph(File file, boolean onlyStats){
+    public StatData makeGraph(File file, boolean onlyStats){
 
         // We could use the display size if we wanted to, but the image doesn't scale properly and should be zoomed
         DisplayMetrics displayMetrics = new DisplayMetrics();

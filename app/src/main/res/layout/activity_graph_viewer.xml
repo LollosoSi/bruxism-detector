@@ -1,47 +1,58 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/main"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:animateLayoutChanges="true">
+    tools:context=".GraphViewer"
+    android:background="?attr/colorSurfaceContainer">
 
-    <!-- This LinearLayout will hold the ViewPager and the new AI panel -->
+    <!-- Contenitore principale con orientamento orizzontale -->
     <LinearLayout
+        android:id="@+id/main_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:weightSum="10"
-        android:animateLayoutChanges="true">
+        android:baselineAligned="false">
 
+        <!-- Pannello Sinistro: ViewPager -->
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/viewPager"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="10" />
+            android:layout_weight="7" /> <!-- Peso iniziale -->
 
-        <!-- In activity_graph_viewer.xml, replace the ScrollView inside aiEvaluationPanel -->
+        <ImageView
+            android:id="@+id/drag_handle"
+            android:layout_width="24dp"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:src="@drawable/baseline_drag_handle_24"
+            app:tint="?attr/colorPrimary"
+            android:scaleType="center"
+            android:contentDescription="Drag to resize"
+            android:visibility="gone"/> <!-- Inizialmente nascosto -->
 
+        <!-- Pannello Destro: AI Evaluation -->
         <LinearLayout
             android:id="@+id/aiEvaluationPanel"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="0"
+            android:layout_weight="3"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:background="?android:attr/colorBackground"
-            android:elevation="4dp"
-            android:visibility="gone"> <!-- Initially hidden -->
+            android:visibility="gone"
+            android:padding="8dp"
+            android:background="?attr/colorSurfaceContainer"> <!-- Sfondo per visibilità -->
 
             <TextView
-                android:id="@+id/aiTitle"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Session vs. Average"
-                android:textAppearance="?android:attr/textAppearanceLarge"
-                android:textStyle="bold"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="16dp"/>
+                android:text="Session vs Average"
+                android:gravity="center"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?attr/colorOnSurface"
+                android:paddingBottom="8dp"/>
 
-            <!-- Replace the old ScrollView/TextView with this -->
             <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
@@ -50,35 +61,34 @@
                     android:id="@+id/barChartContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:orientation="vertical"
+                    android:animateLayoutChanges="true"/>
             </ScrollView>
-
         </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Left arrow button -->
+    <!-- Pulsanti di navigazione sopra il ViewPager -->
     <ImageButton
         android:id="@+id/btnLeft"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
-        android:layout_marginStart="32dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="Previous"
-        android:src="@android:drawable/ic_media_previous" />
+        android:layout_marginStart="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_previous"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Right arrow button -->
     <ImageButton
         android:id="@+id/btnRight"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:layout_marginEnd="32dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="Next"
-        android:src="@android:drawable/ic_media_next" />
+        android:layout_marginEnd="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_next"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

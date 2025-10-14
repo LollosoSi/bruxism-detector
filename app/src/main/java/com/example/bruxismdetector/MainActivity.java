@@ -35,6 +35,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -136,6 +137,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
+        UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.DIALOG);
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
@@ -241,6 +243,18 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+
+        ((Button)findViewById(R.id.button_makegraphs)).setLongClickable(true);
+        ((Button)findViewById(R.id.button_makegraphs)).setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                prefs.edit().putBoolean("regen_graph_scroll", true).apply();
+                Toast.makeText(MainActivity.this, "Regen scrolling is now enabled", Toast.LENGTH_LONG).show();
+                return true;
+            }
+        });
+
     }
 
     @SuppressLint("SetTextI18n")

@@ -108,7 +108,9 @@ public class Tracker2 extends Service {
         super.onCreate();
 
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
-SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
+        UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
+
+        SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
         useTcp = p.getBoolean("use_tcp",false);
         p.edit().putBoolean("use_tcp",false).apply();
 
@@ -211,6 +213,9 @@ SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
 
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         preferences.edit().putLong("last_tracker_start_ms", System.currentTimeMillis()).apply();
+
+
+        UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
 
 
         return START_STICKY;
