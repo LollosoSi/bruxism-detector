@@ -24,6 +24,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
+
 import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
@@ -191,6 +193,55 @@ public class RingReceiver extends BroadcastReceiver {
             },
                 (long) (durationSeconds * 1000));
     }
+
+
+    public static void playTone(Context context, int frequency, int durationMs) {
+        int sampleRate = 44100;
+        int numSamples = (int) ((durationMs/1000.0) * sampleRate);
+        double[] sample = new double[numSamples];
+        byte[] generatedSound = new byte[2 * numSamples];
+
+        // Generate sine wave
+        for (int i = 0; i < numSamples; ++i) {
+            sample[i] = Math.sin(2 * Math.PI * i * frequency / sampleRate);
+        }
+
+        // Convert to 16-bit PCM
+        int idx = 0;
+        for (double dVal : sample) {
+            short val = (short) ((dVal * 32767));
+            generatedSound[idx++] = (byte) (val & 0x00ff);
+            generatedSound[idx++] = (byte) ((val & 0xff00) >>> 8);
+        }
+
+        // Respect notification volume
+        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
+        if (volume == 0) return;
+
+        SoundState.getInstance().setRinging(true);
+
+        // Play sound
+        AudioTrack audioTrack = new AudioTrack(
+                AudioManager.STREAM_ALARM,
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                generatedSound.length,
+                AudioTrack.MODE_STATIC
+        );
+
+        audioTrack.write(generatedSound, 0, generatedSound.length);
+        audioTrack.play();
+
+        // Auto release after playing
+        new Handler(Looper.getMainLooper()).postDelayed(()->{
+                    SoundState.getInstance().setRinging(false);
+                    audioTrack.release();
+                },
+                (long) (durationMs));
+    }
+
 
 
     @SuppressLint("ScheduleExactAlarm")

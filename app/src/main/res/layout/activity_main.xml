@@ -151,6 +151,9 @@
                 android:id="@+id/switch_sharedpref_arduino_beep"
                 layout="@layout/switch_row" />
 
+            <include
+                android:id="@+id/switch_sharedpref_alarm_on_device"
+                layout="@layout/switch_row" />
 
         </LinearLayout>
 
@@ -190,8 +193,10 @@
                 layout="@layout/switch_row" />
 
 
+
+
             <include
-                android:id="@+id/switch_sharedpref_alarm_on_device"
+                android:id="@+id/switch_sharedpref_alarm_audio"
                 layout="@layout/switch_row" />
 
 

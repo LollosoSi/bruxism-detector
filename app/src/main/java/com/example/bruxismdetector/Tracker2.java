@@ -36,6 +36,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.fragment.app.FragmentManager;
 
+import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -94,6 +96,8 @@ public class Tracker2 extends Service {
     private boolean tcpRunning = false;
 
 
+    TunePlayer tunePlayer;
+
 
     boolean useTcp=false;
     public Tracker2() {
@@ -113,6 +117,10 @@ public class Tracker2 extends Service {
         SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(this);
         useTcp = p.getBoolean("use_tcp",false);
         p.edit().putBoolean("use_tcp",false).apply();
+
+        tunePlayer = new TunePlayer();
+        tunePlayer.setCurrentTuneIndex(p.getInt("playtuneindex", 0));
+
 
         sessionTracker = new SessionTracker();
         sessionTracker.servicereference = this;
@@ -390,12 +398,20 @@ public class Tracker2 extends Service {
             vibrator.vibrate(effect);
 
         }
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("noisy_alarm", false)){
+            tunePlayer.start();
+        }
     }
 
     public void dismissVibrator() {
         if (vibrator != null && vibrating) {
             vibrating=false;
             vibrator.cancel();
+        }
+        if(tunePlayer != null && tunePlayer.isPlaying()){
+            tunePlayer.stop();
         }
     }
 

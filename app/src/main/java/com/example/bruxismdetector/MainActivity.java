@@ -57,7 +57,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
+import com.example.bruxismdetector.bruxism_grapher2.Notes;
 import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
+import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
 import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -282,7 +284,6 @@ public class MainActivity extends AppCompatActivity {
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
                 findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
-
             }
         });
         swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
@@ -366,10 +367,30 @@ public class MainActivity extends AppCompatActivity {
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("alarm_on_device", swoalarmondevice.isChecked()).apply();  // or false when unchecked
                 ((TextView)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_label)).setText("Alarm on: " + (swoalarmondevice.isChecked()?"Android":"Arduino"));
+                findViewById(R.id.switch_sharedpref_alarm_audio).setVisibility(swoalarmondevice.isChecked()?View.VISIBLE:View.GONE);
             }
         });
         swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
 
+        MaterialSwitch swnoisyalarm = findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item);
+        swnoisyalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                prefs.edit().putBoolean("noisy_alarm", swnoisyalarm.isChecked()).apply();
+            }
+        });
+        swnoisyalarm.setChecked(prefs.getBoolean("noisy_alarm", false));
+
+
+        findViewById(R.id.switch_sharedpref_alarm_audio).setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+
+                showTuneSelectionDialog();
+
+                return true;
+            }
+        });
 
 
         MaterialSwitch swrecordnoise = findViewById(R.id.switch_recordnoise).findViewById(R.id.switch_item);
@@ -500,8 +521,78 @@ public class MainActivity extends AppCompatActivity {
 
 
 
+
     }
 
+    TunePlayer tunePlayer;
+    int currentlySelectedIndex; // Per tenere traccia della selezione nel dialogo
+
+    private void showTuneSelectionDialog() {
+        tunePlayer = new TunePlayer(); // Player per l'anteprima
+
+
+        // Ferma qualsiasi riproduzione precedente prima di aprire il dialogo
+        if (tunePlayer.isPlaying()) {
+            tunePlayer.stop();
+        }
+
+        // 1. Prepara i nomi delle melodie per il dialogo
+        String[] tuneNames = new String[Notes.tunes.length];
+        for (int i = 0; i < Notes.tunes.length; i++) {
+            tuneNames[i] = Notes.tunes[i].name;
+        }
+
+        // 2. Leggi l'indice salvato per preselezionare l'elemento corretto
+        SharedPreferences prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        currentlySelectedIndex = prefs.getInt("playtuneindex", 0);
+
+        // 3. Crea il dialogo
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Alarm Tune");
+
+        builder.setSingleChoiceItems(tuneNames, currentlySelectedIndex, (dialog, which) -> {
+            // Questo codice viene eseguito ogni volta che l'utente clicca su un elemento della lista
+            if (tunePlayer.isPlaying()) {
+                tunePlayer.stop();
+            }
+
+            currentlySelectedIndex = which; // Aggiorna l'indice selezionato
+
+            // Avvia l'anteprima della nuova melodia
+            tunePlayer.setCurrentTuneIndex(currentlySelectedIndex);
+            tunePlayer.start();
+        });
+
+        // 4. Aggiungi i pulsanti OK e Annulla
+        builder.setPositiveButton("OK", (dialog, which) -> {
+            // Salva l'indice selezionato nelle SharedPreferences
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putInt("playtuneindex", currentlySelectedIndex);
+            editor.apply();
+
+            // Ferma l'anteprima quando si conferma
+            if (tunePlayer.isPlaying()) {
+                tunePlayer.stop();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            // Ferma l'anteprima quando si annulla
+            if (tunePlayer.isPlaying()) {
+                tunePlayer.stop();
+            }
+        });
+
+        // Gestisci la chiusura del dialogo (es. premendo indietro)
+        builder.setOnDismissListener(dialog -> {
+            if (tunePlayer.isPlaying()) {
+                tunePlayer.stop();
+            }
+        });
+
+        // 5. Mostra il dialogo
+        builder.create().show();
+    }
     private void showAutostartTimePicker() {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         int currentHour = prefs.getInt("ServiceHour", 21);
@@ -725,6 +816,9 @@ public class MainActivity extends AppCompatActivity {
         switchLabelMap.put(R.id.switch_sharedpref_camera, "Record camera");
         switchLabelMap.put(R.id.switch_sharedpref_camera_only_alarms, "Camera: Only alarms");
         switchLabelMap.put(R.id.switch_sharedpref_camera_torch, "Camera: Flash");
+
+        switchLabelMap.put(R.id.switch_sharedpref_alarm_audio, "Noisy alarm");
+
 
 
 
