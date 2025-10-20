@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.TextUtils;
@@ -16,6 +17,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.animation.OvershootInterpolator;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -23,6 +25,8 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.animation.ArgbEvaluator;
+import androidx.core.animation.ObjectAnimator;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -69,6 +73,12 @@ public class GraphViewer extends AppCompatActivity {
 
     private ExecutorService executorService;
 
+    private TextView comparisonModeTextView;
+    private enum ComparisonMode {
+        VS_AVERAGE,
+        VS_PREVIOUS
+    }
+    private ComparisonMode currentComparisonMode = ComparisonMode.VS_AVERAGE;
 
     private final HashMap<String, View> activeRows = new HashMap<>();
 
@@ -101,6 +111,18 @@ public class GraphViewer extends AppCompatActivity {
 
         aiEvaluationPanel = findViewById(R.id.aiEvaluationPanel);
         barChartContainer = findViewById(R.id.barChartContainer); // Get the new container
+
+        comparisonModeTextView = findViewById(R.id.comparisonModeTextView);
+        barChartContainer.setOnClickListener(v -> {
+            // Cambia la modalità di confronto
+            if (currentComparisonMode == ComparisonMode.VS_AVERAGE) {
+                currentComparisonMode = ComparisonMode.VS_PREVIOUS;
+            } else {
+                currentComparisonMode = ComparisonMode.VS_AVERAGE;
+            }
+            // Forza l'aggiornamento del grafico con la nuova modalità
+            displayAveragesChart(viewPager.getCurrentItem());
+        });
 
         graphFiles = getGraphs();
         if (graphFiles == null || graphFiles.length == 0) {
@@ -278,79 +300,121 @@ public class GraphViewer extends AppCompatActivity {
 
     // Sostituisci il tuo metodo displayAveragesChart con questo
     private void displayAveragesChart(int wanted_pos) {
-        if (summaryTuples == null || summaryTuples.isEmpty() || averages == null) {
+        if (summaryTuples == null || summaryTuples.isEmpty()) {
             return;
         }
 
-        // Calcola l'indice corretto per la sessione desiderata
-        // L'array summaryTuples è ordinato dal più vecchio al più nuovo.
-        // L'adapter del ViewPager è ordinato per nome file (dal più vecchio al più nuovo).
-        // Quindi, la posizione 'wanted_pos' corrisponde direttamente all'indice in summaryTuples.
         int sessionIndex = wanted_pos;
         if (sessionIndex < 0 || sessionIndex >= summaryTuples.size()) {
             Log.e("GraphViewer", "Invalid session index: " + sessionIndex);
             return;
         }
-        String[] sessionData = summaryTuples.get(sessionIndex);
 
-        // Set per tenere traccia delle metriche rilevanti in questa sessione
+        // --- LOGICA DI SELEZIONE MODALITÀ ---
+        boolean isVsPreviousMode = (currentComparisonMode == ComparisonMode.VS_PREVIOUS && sessionIndex > 0);
+
+        if (isVsPreviousMode) {
+            comparisonModeTextView.setText("Session vs Previous");
+        } else {
+            // Se la modalità è VS_PREVIOUS ma siamo all'indice 0, torna a VS_AVERAGE
+            currentComparisonMode = ComparisonMode.VS_AVERAGE;
+            comparisonModeTextView.setText("Session vs Average");
+        }
+        // Abilita/disabilita il click se non si può cambiare modalità
+        barChartContainer.setClickable(sessionIndex > 0);
+
+
+        String[] currentSessionData = summaryTuples.get(sessionIndex);
+        String[] comparisonData = isVsPreviousMode ? summaryTuples.get(sessionIndex - 1) : null;
+
         HashSet<String> relevantMetrics = new HashSet<>();
 
-        for (int i = 0; i < averages.length; i++) {
+        for (int i = 0; i < average_idx_to_column.length; i++) {
             int colIdx = average_idx_to_column[i];
             String title = summaryTitles[colIdx];
-            float lastValue = Float.parseFloat(sessionData[colIdx]);
-            float avgValue = averages[i];
+            float lastValue = Float.parseFloat(currentSessionData[colIdx]);
 
-            float deviation = (avgValue > 0) ? (lastValue - avgValue) / avgValue : 0;
+            float comparisonValue;
+            if (isVsPreviousMode) {
+                comparisonValue = Float.parseFloat(comparisonData[colIdx]);
+            } else {
+                comparisonValue = averages[i];
+            }
 
+            float deviation = (comparisonValue > 0) ? (lastValue - comparisonValue) / comparisonValue : 0;
             byte trend = CorrelationsCalculator.isGoingToBetter(deviation, title);
 
-            // CONDIZIONI DI RILEVANZA: trend non neutrale E deviazione > 20%
             if (trend != CorrelationsCalculator.NeutralCorr && Math.abs(deviation) >= 0.20) {
                 relevantMetrics.add(title);
-
                 View row = activeRows.get(title);
                 if (row == null) {
-                    // La riga non esiste, creala e aggiungila
-                    row = createMetricRow(title, deviation, trend);
+                    // --- MODIFICA PER LA CREAZIONE ---
+                    // 1. Crea la riga (che ora è trasparente e con la barra a zero di default)
+                    row = createMetricRow(title);
                     activeRows.put(title, row);
                     barChartContainer.addView(row);
-                    // Animazione di fade-in per la nuova riga
-                    row.setAlpha(0f);
-                    row.animate().alpha(1f).setDuration(300).start();
+
+                    // 2. Avvia l'animazione di fade-in. Al termine, avvia l'animazione della barra.
+                    final View finalRow = row; // Necessario per la lambda
+                    row.animate()
+                            .alpha(1f)
+                            .setDuration(300) // Durata del fade-in
+                            .withEndAction(() -> {
+                                // Questa parte viene eseguita DOPO il fade-in
+                                updateMetricRow(finalRow, deviation, trend);
+                            })
+                            .start();
+
                 } else {
-                    // La riga esiste già, aggiornala
+                    // --- MODIFICA PER L'AGGIORNAMENTO ---
+                    // Se la riga esiste già, aggiorna direttamente la barra (l'animazione è in updateMetricRow)
                     updateMetricRow(row, deviation, trend);
                 }
             }
         }
 
-        // Rimuovi le righe che non sono più rilevanti
+
         Iterator<HashMap.Entry<String, View>> iterator = activeRows.entrySet().iterator();
         while (iterator.hasNext()) {
             HashMap.Entry<String, View> entry = iterator.next();
             if (!relevantMetrics.contains(entry.getKey())) {
                 View rowToRemove = entry.getValue();
                 iterator.remove();
-                // Animazione di fade-out prima della rimozione
-                rowToRemove.animate().alpha(0f).setDuration(300).withEndAction(() -> {
-                    barChartContainer.removeView(rowToRemove);
-                }).start();
+
+                // ==================== CORREZIONE CHIAVE ====================
+                // Recupera il barContainer dal tag della riga prima di passarlo ad animateBar.
+                LinearLayout barContainer = (LinearLayout) rowToRemove.getTag();
+                //if (barContainer != null) {
+                //    animateBar(barContainer, 0, 0); // Anima la barra a zero
+                //}
+                // =========================================================
+
+                // 2. Al termine dell'animazione della barra, avvia il fade-out e rimuovi la vista.
+                //rowToRemove.animate()
+                //        //.setStartDelay(200) // Attendi che l'animazione della barra finisca
+                //        .alpha(0f)
+                //        .setDuration(300)
+                //        .withEndAction(() -> barChartContainer.removeView(rowToRemove))
+                //        .start();
+                barChartContainer.removeView(rowToRemove);
             }
         }
     }
 
     // Metodo helper per creare una nuova riga (migliora la leggibilità)
-    private View createMetricRow(String title, float deviation, byte trend) {
+    private View createMetricRow(String title) { // Rimuovi i parametri deviation e trend da qui
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 80));
         row.setGravity(Gravity.CENTER_VERTICAL);
 
+        // --- IMPOSTAZIONE INIZIALE ---
+        // La riga viene creata trasparente, pronta per il fade-in.
+        row.setAlpha(0f);
+
         // 1. Label
         TextView label = new TextView(this);
-        label.setId(R.id.metric_label); // Usa ID per trovarlo dopo
+        label.setId(R.id.metric_label);
         label.setText(title);
         label.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         label.setPadding(8, 0, 8, 0);
@@ -359,20 +423,21 @@ public class GraphViewer extends AppCompatActivity {
 
         // 2. Bar Container
         LinearLayout barContainer = createBarContainer();
-        row.setTag(barContainer); // Salva il bar container nel tag della riga per un facile accesso
+        row.setTag(barContainer);
 
         // 3. Value Label
         TextView valueLabel = new TextView(this);
-        valueLabel.setId(R.id.metric_value); // Usa ID per trovarlo dopo
+        valueLabel.setId(R.id.metric_value);
         valueLabel.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.8f));
         valueLabel.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         valueLabel.setPadding(16, 0, 8, 0);
+        valueLabel.setText(""); // Inizia vuoto
 
         row.addView(label);
         row.addView(barContainer);
         row.addView(valueLabel);
 
-        updateMetricRow(row, deviation, trend); // Applica i valori iniziali e avvia l'animazione
+        // NON chiamare updateMetricRow qui. Verrà chiamato dopo il fade-in.
 
         return row;
     }
@@ -436,8 +501,12 @@ public class GraphViewer extends AppCompatActivity {
         View posFill = barContainer.findViewById(R.id.fill_pos);
         View rightSpacer = barContainer.findViewById(R.id.spacer_right);
 
-        negFill.setBackgroundColor(barColor);
-        posFill.setBackgroundColor(barColor);
+
+        animateBarColor(negFill, barColor);
+        animateBarColor(posFill, barColor);
+
+        //negFill.setBackgroundColor(barColor);
+        //posFill.setBackgroundColor(barColor);
 
         // Normalize deviation to be between -1 and 1 for weight calculation
         float absNormalizedDev = Math.min(Math.abs(deviation), 1.0f);
@@ -453,6 +522,17 @@ public class GraphViewer extends AppCompatActivity {
         // Use a single animator to handle both cases
         ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
         animator.setDuration(500);
+
+        // ==================== NUOVA LOGICA ====================
+        // 1. Crea un'istanza dell'OvershootInterpolator.
+        //    Il parametro nel costruttore controlla la "tensione" dell'overshoot.
+        //    Un valore tra 1.0 e 2.0 è solitamente un buon punto di partenza.
+        OvershootInterpolator overshootInterpolator = new OvershootInterpolator(1.5f);
+
+        // 2. Applica l'interpolatore all'animatore.
+        animator.setInterpolator(overshootInterpolator);
+        // ======================================================
+
         animator.addUpdateListener(animation -> {
             float fraction = animation.getAnimatedFraction();
 
@@ -476,7 +556,37 @@ public class GraphViewer extends AppCompatActivity {
             // Request a layout update for the whole container
             barContainer.requestLayout();
         });
+        animator.setStartDelay(500);
         animator.start();
+    }
+
+    /**
+     * Anima il colore di sfondo di una View da quello attuale a un colore di destinazione.
+     * @param view La View di cui animare il colore (es. negFill o posFill).
+     * @param targetColor Il colore finale desiderato.
+     */
+    private void animateBarColor(View view, int targetColor) {
+        int startColor = Color.TRANSPARENT;
+        if (view.getBackground() instanceof ColorDrawable) {
+            startColor = ((ColorDrawable) view.getBackground()).getColor();
+        }
+        // Se il colore di partenza è trasparente (prima animazione), non animare, imposta direttamente.
+        if (startColor == Color.TRANSPARENT) {
+            view.setBackgroundColor(targetColor);
+            return;
+        }
+
+        // Usa ObjectAnimator per animare la proprietà "backgroundColor"
+        ObjectAnimator colorAnimator = ObjectAnimator.ofObject(
+                view,
+                "backgroundColor",
+                ArgbEvaluator.getInstance(),
+                startColor,
+                targetColor
+        );
+        colorAnimator.setDuration(500); // Stessa durata dell'animazione della dimensione
+        colorAnimator.setStartDelay(500);
+        colorAnimator.start();
     }
 
     // Anima il valore di testo (percentuale)

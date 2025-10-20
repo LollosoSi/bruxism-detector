@@ -114,7 +114,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="Draw base graph"
+                    android:text="Draw base"
                     android:hapticFeedbackEnabled="true"
                     android:layout_marginBottom="-5dp"
                     />
@@ -123,9 +123,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="false"
-                    android:text="Separate conditions"
+                    android:text="Split conditions"
                     android:hapticFeedbackEnabled="true"
                     android:layout_marginBottom="-5dp"
+                    />
+                <CheckBox
+                    android:id="@+id/rollingaveragecheckbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Average"
+                    android:hapticFeedbackEnabled="true"
+                    android:layout_marginBottom="-5dp"
+                    android:checked="true"
                     />
             </LinearLayout>
 

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Locale;
 
 public class SummaryReader {
 
@@ -92,7 +93,7 @@ public class SummaryReader {
                 }
                 String[] splitline = line.split(";");
                 boolean shouldskip = splitline[1].equals("0:0");
-                splitline[1]=String.valueOf(Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
+                splitline[1]=String.format(Locale.US, "%.2f",Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
                 summaryTuples.add(splitline);
                 dateLabels.add(splitline[0]);
 

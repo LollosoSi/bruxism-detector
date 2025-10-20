@@ -51,7 +51,7 @@ public class HeatMapGraph<Image, Color, Font> {
     }
 
     public Image generateGraph(double[][] data, ArrayList<String> tag_names, ArrayList<String> data_names) {
-        final double threshold = 0.2;
+        final double threshold = 0.5;
         final String[] evals = new String[]{"Negative", "Mostly negative", "Neutral", "Mostly positive", "Positive"};
 
         int rows = tag_names.size();

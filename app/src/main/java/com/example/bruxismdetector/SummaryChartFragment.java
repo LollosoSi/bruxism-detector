@@ -92,6 +92,14 @@ public class SummaryChartFragment extends Fragment {
             }
         });
 
+        ((CheckBox)root.findViewById(R.id.rollingaveragecheckbox)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                vibrateHaptic();
+                recalculateGraphs(null);
+            }
+        });
+
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -156,6 +164,65 @@ public class SummaryChartFragment extends Fragment {
 
         return dataSet;
     }
+
+    private LineDataSet makeDatasetAverageWithDate(LineDataSet originalDataSet, int windowSize) {
+
+
+        // 1. Calcola i dati della media mobile usando l'helper esistente
+        List<Entry> rollingAvgEntries = calculateRollingAverage(originalDataSet.getValues(), windowSize);
+
+        // 2. Crea un nuovo dataset per la media mobile
+        LineDataSet rollingAvgDataSet = new LineDataSet(rollingAvgEntries, originalDataSet.getLabel() + " Avg");
+
+        // 3. Applica uno stile distintivo per renderlo riconoscibile
+        rollingAvgDataSet.setColor(originalDataSet.getColor()); // Usa lo stesso colore della linea originale
+        rollingAvgDataSet.setLineWidth(2f);
+        rollingAvgDataSet.enableDashedLine(10f, 5f, 0f); // Linea tratteggiata
+        rollingAvgDataSet.setDrawValues(false);
+        rollingAvgDataSet.setHighlightEnabled(false);
+        rollingAvgDataSet.setDrawCircleHole(false);
+        rollingAvgDataSet.setDrawCircles(false);
+
+        return rollingAvgDataSet;
+    }
+
+    /**
+     * Calcola la media mobile per una serie di dati (Entry).
+     * @param data La lista di Entry originali.
+     * @param windowSize La dimensione della finestra per la media (es. 6).
+     * @return Una nuova lista di Entry che rappresenta la media mobile.
+     */
+    private List<Entry> calculateRollingAverage(List<Entry> data, int windowSize) {
+        List<Entry> rollingAvgEntries = new ArrayList<>();
+        if (data == null || data.size() < 1) {
+            return rollingAvgEntries;
+        }
+
+        // Ordina i dati per asse X per assicurare il corretto funzionamento della finestra
+        data.sort((e1, e2) -> Float.compare(e1.getX(), e2.getX()));
+
+        // Usiamo una Queue per mantenere la finestra di valori corrente in modo efficiente
+        java.util.Queue<Float> window = new java.util.LinkedList<>();
+        float sum = 0.0f;
+
+        for (int i = 0; i < data.size(); i++) {
+            Entry currentEntry = data.get(i);
+            float currentValue = currentEntry.getY();
+
+            window.add(currentValue);
+            sum += currentValue;
+
+            if (window.size() > windowSize) {
+                sum -= window.poll(); // Rimuove l'elemento più vecchio
+            }
+
+            // Aggiunge un punto di media mobile usando l'indice X dell'entry corrente
+            float average = sum / window.size();
+            rollingAvgEntries.add(new Entry(currentEntry.getX(), average));
+        }
+
+        return rollingAvgEntries;
+    }
     private boolean isTupleCompliantFilter(String[] data, int conditionindex) {
         ArrayList<String> infoextracted = new ArrayList<>(Arrays.asList(data[data.length-1].split(",")));
 
@@ -202,6 +269,32 @@ public class SummaryChartFragment extends Fragment {
         ArrayList<LineDataSet> a = new ArrayList<>();
         if(((CheckBox)root.findViewById(R.id.basedrawcheckbox)).isChecked())
             a.add(makeDatasetWithDate(index, summaryTitles[index], false, -1, getResources().getColor(R.color.material_blue_500)));
+
+        if (((CheckBox)root.findViewById(R.id.rollingaveragecheckbox)).isChecked()) {
+            // Crea una copia della lista di dataset per evitare ConcurrentModificationException
+            ArrayList<LineDataSet> originalDataSets = new ArrayList<>(a);
+            for (LineDataSet originalDataSet : originalDataSets) {
+                // Calcola la media mobile per il dataset corrente
+                List<Entry> rollingAvgEntries = calculateRollingAverage(originalDataSet.getValues(), 6);
+
+                if (!rollingAvgEntries.isEmpty()) {
+                    // Crea un nuovo dataset per la media mobile
+                    LineDataSet rollingAvgDataSet = new LineDataSet(rollingAvgEntries, originalDataSet.getLabel() + " Avg");
+
+                    // Applica uno stile distintivo
+                    rollingAvgDataSet.setColor(originalDataSet.getColor()); // Usa lo stesso colore della linea originale
+                    rollingAvgDataSet.setLineWidth(2f);
+                    rollingAvgDataSet.enableDashedLine(10f, 5f, 0f); // Linea tratteggiata
+                    rollingAvgDataSet.setDrawCircles(false);
+                    rollingAvgDataSet.setDrawValues(false);
+                    rollingAvgDataSet.setHighlightEnabled(false);
+
+                    // Aggiungi il dataset della media mobile alla lista
+                    a.add(rollingAvgDataSet);
+                }
+            }
+        }
+
         if(((CheckBox)root.findViewById(R.id.separatedrawcheckbox)).isChecked()){
             ((TextView)root.findViewById(R.id.noresultext)).setVisibility(View.GONE);
 

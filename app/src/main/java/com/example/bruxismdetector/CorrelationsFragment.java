@@ -84,7 +84,7 @@ public class CorrelationsFragment extends Fragment {
         });
     }
 
-    double threshold = 0.2;
+    double threshold = 0.5;
     static final byte PositiveCorr = 1, NegativeCorr = 2, NeutralCorr = 0;
 
     ArrayList<String> positiveIncreased = new ArrayList<>(Arrays.asList(
@@ -228,30 +228,52 @@ public class CorrelationsFragment extends Fragment {
         double[][] filterstats = new double[filterNames.size()][summaryTuples.size()];
         double[][] entries = new double[effectivedatalength][summaryTuples.size()];
 
+        double[] clean_average = new double[effectivedatalength];
+
         int[] filterhitcount = new int[filterNames.size()];
 
         for(int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
             for (int tuple = 0; tuple < summaryTuples.size(); tuple++) {
                 entries[chartelement][tuple] = Double.parseDouble(summaryTuples.get(tuple)[chartelement+startcolumn].replace(",","."));
+                clean_average[chartelement] += entries[chartelement][tuple];
             }
+            clean_average[chartelement] /= summaryTuples.size();
         }
+
+        double[][] filter_average = new double[filterNames.size()][effectivedatalength];
 
         for(int filter = 0; filter < filterNames.size(); filter++){
             for (int tuple = 0; tuple < summaryTuples.size(); tuple++) {
                 boolean hit = summaryTuples.get(tuple)[infoindex].contains(filterNames.get(filter));
                 filterstats[filter][tuple] = hit ? 1.0 : 0.0;
-                if(hit)
+                if(hit) {
                     filterhitcount[filter]++;
+                    for(int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
+                        filter_average[filter][chartelement] += entries[chartelement][tuple];
+                    }
+                }
+            }
+            for (int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
+                filter_average[filter][chartelement] /= filterhitcount[filter];
             }
         }
 
         double[][] correlations = new double[filterNames.size()][effectivedatalength];
+        double[][] p_values = new double[filterNames.size()][effectivedatalength];
+        double[][] effect_size = new double[filterNames.size()][effectivedatalength];
+
 
         for(int filter = 0; filter < filterNames.size(); filter++) {
             for (int chartelement = 0; chartelement < effectivedatalength; chartelement++) {
                 correlations[filter][chartelement] = ((int)(Correlations.pearsonCorrelation(entries[chartelement], filterstats[filter])*100.0))/100.0;
+                p_values[filter][chartelement] = Correlations.CorrelationSignificance.correlationPValue(correlations[filter][chartelement], summaryTuples.size());
+                if(clean_average[chartelement] != 0)
+                    effect_size[filter][chartelement] = ((filter_average[filter][chartelement]-clean_average[chartelement])/clean_average[chartelement])*100;
+                else effect_size[filter][chartelement] = 0;
             }
         }
+
+
 
         getActivity().runOnUiThread(new Runnable() {
             @Override
@@ -259,6 +281,13 @@ public class CorrelationsFragment extends Fragment {
 
 
                 ((LinearLayout)root.findViewById(R.id.correlations_holder)).removeAllViews();
+
+                TextView tsessions = new TextView(getContext());
+                tsessions.setText(String.format(Locale.US, "Total sessions: %d", summaryTuples.size()));
+                tsessions.setTextSize(12);
+                tsessions.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+                ((LinearLayout)root.findViewById(R.id.correlations_holder)).addView(tsessions);
+
             }
         });
 
@@ -375,7 +404,7 @@ public class CorrelationsFragment extends Fragment {
                 barContainer.addView(rightSpacer);
 
                 TextView valueLabel = new TextView(requireContext());
-                valueLabel.setText((corr > 0 ? "+" : "") + String.format(Locale.US, "%.2f", corr));
+                valueLabel.setText(String.format(Locale.US, "r = %.2f", corr) + String.format(Locale.US, "\np = %.3f\nE = %.0f%%", p_values[filter][i], effect_size[filter][i]));
                 valueLabel.setTextSize(12);
                 valueLabel.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.6f));
                 valueLabel.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
