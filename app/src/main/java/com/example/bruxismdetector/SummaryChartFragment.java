@@ -275,7 +275,7 @@ public class SummaryChartFragment extends Fragment {
             ArrayList<LineDataSet> originalDataSets = new ArrayList<>(a);
             for (LineDataSet originalDataSet : originalDataSets) {
                 // Calcola la media mobile per il dataset corrente
-                List<Entry> rollingAvgEntries = calculateRollingAverage(originalDataSet.getValues(), 6);
+                List<Entry> rollingAvgEntries = calculateRollingAverage(originalDataSet.getValues(), 20);
 
                 if (!rollingAvgEntries.isEmpty()) {
                     // Crea un nuovo dataset per la media mobile

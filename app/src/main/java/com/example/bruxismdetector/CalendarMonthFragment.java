@@ -92,6 +92,9 @@ public class CalendarMonthFragment extends Fragment {
 
         YearMonth ym = YearMonth.of(year, month);
         int daysInMonth = ym.lengthOfMonth();
+        LocalDate firstDayOfMonth = ym.atDay(1);
+        // DayOfWeek restituisce un valore da 1 (LUN) a 7 (DOM).
+        int dayOfWeekOfFirstDay = firstDayOfMonth.getDayOfWeek().getValue();
 
         SummaryReader reader = SummaryReader.getInstance();
         reader.populateMonthsArray();
@@ -108,6 +111,8 @@ public class CalendarMonthFragment extends Fragment {
         for (SummaryReader.SummaryEntry entry : entries) {
             String[] infos = entry.tuple[infoIndex].split(",");
             for (String info : infos) {
+                if(info.isEmpty())
+                    continue;
                 freq.put(info, freq.getOrDefault(info, 0) + 1);
             }
         }
@@ -123,13 +128,58 @@ public class CalendarMonthFragment extends Fragment {
         }
 
 
+        String[] dayLabels = new String[7];
+        // DayOfWeek.MONDAY è il primo giorno della settimana secondo lo standard ISO.
+        java.time.DayOfWeek firstDay = java.time.DayOfWeek.MONDAY;
+        for (int i = 0; i < 7; i++) {
+            java.time.DayOfWeek dayOfWeek = firstDay.plus(i);
+            // TextStyle.SHORT_STANDALONE fornisce un'abbreviazione (es. "Mon", "Lun").
+            // Locale.getDefault() usa la lingua corrente del dispositivo.
+            dayLabels[i] = dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT_STANDALONE, java.util.Locale.getDefault());
+        }
+
+        for (String dayLabel : dayLabels) {
+            TextView header = new TextView(getContext());
+            header.setText(dayLabel);
+            header.setGravity(Gravity.CENTER);
+            header.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Small);
+            header.setTextColor(Color.GRAY);
+
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.height = GridLayout.LayoutParams.WRAP_CONTENT;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); // Distribuisci equamente
+            header.setLayoutParams(params);
+            grid.addView(header);
+        }
+
+        // 2. Aggiungi spazi vuoti per i giorni prima dell'inizio del mese
+        // (dayOfWeekOfFirstDay - 1) perché se il mese inizia di lunedì (valore 1), non servono spazi.
+        for (int i = 0; i < dayOfWeekOfFirstDay - 1; i++) {
+            View emptyCell = new View(getContext());
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.height = 0; // Invisibile ma occupa spazio nella griglia
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            emptyCell.setLayoutParams(params);
+            grid.addView(emptyCell);
+        }
+
         infocells = new ArrayList<>();
 
-        // Populate days
+        // 3. Popola i giorni del mese (logica quasi invariata)
         for (int day = 1; day <= daysInMonth; day++) {
             LocalDate date = ym.atDay(day);
             View cell = LayoutInflater.from(getContext())
                     .inflate(R.layout.item_day_cell, grid, false);
+
+            // Imposta i parametri di layout per ogni cella
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0; // Larghezza gestita dal peso
+            params.height = GridLayout.LayoutParams.WRAP_CONTENT;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f); // Distribuisci equamente
+            cell.setLayoutParams(params);
+
             TextView txtDay = cell.findViewById(R.id.text_day_number);
             LinearLayout charLayout = cell.findViewById(R.id.layout_characteristics);
             txtDay.setText(String.valueOf(day));
@@ -142,6 +192,8 @@ public class CalendarMonthFragment extends Fragment {
                     s_entry = entry;
                     String[] infos = entry.tuple[infoIndex].split(",");
                     for (String info : infos) {
+                        if(info.isEmpty())
+                            continue;
                         TextView label = new TextView(getContext());
                         label.setText(info.contains(": ") ? info.split(": ")[1] : info);
                         label.setTextSize(12);
@@ -175,6 +227,8 @@ public class CalendarMonthFragment extends Fragment {
 
         // Build legend table
         int columns = Math.min(3, sortedKeys.size());
+        if(columns == 0)
+            return;
         TableLayout table = new TableLayout(getContext());
         int rows = (sortedKeys.size() + columns - 1) / columns;
         for (int r = 0; r < rows; r++) {

@@ -77,6 +77,7 @@ public class SummaryReader {
 
         ArrayList<String> titles = new ArrayList<>();
 
+        int items_per_line = -1;
         int infoindex=-1;
         try (BufferedReader br = new BufferedReader(new FileReader(filepath))) {
             String line;
@@ -87,28 +88,48 @@ public class SummaryReader {
                     summaryTitles = line.split(";");
                     titles = new ArrayList<>(Arrays.asList(summaryTitles));
                     infoindex = titles.indexOf("Info");
+                    items_per_line = titles.size();
                     if(infoindex==-1)
                         throw new Exception("Summary does not have Info!");
                     continue;
                 }
                 String[] splitline = line.split(";");
-                boolean shouldskip = splitline[1].equals("0:0");
-                splitline[1]=String.format(Locale.US, "%.2f",Integer.parseInt(splitline[1].split(":")[0])+(Integer.parseInt(splitline[1].split(":")[0])/60.0));
-                summaryTuples.add(splitline);
-                dateLabels.add(splitline[0]);
+
+                String[] final_splitline = new String[items_per_line];
+
+                System.arraycopy(splitline, 0, final_splitline, 0, splitline.length);
+                for(int i = splitline.length; i < items_per_line; i++){
+                    final_splitline[i] = "";
+                }
+                boolean shouldskip = final_splitline[1].equals("0:0");
+                final_splitline[1]=String.format(Locale.US, "%.2f",Integer.parseInt(final_splitline[1].split(":")[0])+(Integer.parseInt(final_splitline[1].split(":")[0])/60.0));
+                summaryTuples.add(final_splitline);
+                dateLabels.add(final_splitline[0]);
 
 
                 if(shouldskip)
                     true_skips++;
                 else {
-                    noSkipSummaryTuples.add(splitline);
-                    noSkipDateLabels.add(splitline[0]);
+                    noSkipSummaryTuples.add(final_splitline);
+                    noSkipDateLabels.add(final_splitline[0]);
                 }
                 skiplist.add(shouldskip);
 
 
-                if(splitline.length > infoindex)
-                    addFilter(splitline[infoindex].split(","));
+                if(final_splitline.length > infoindex)
+                    if(!final_splitline[infoindex].isEmpty()) {
+                        String[] infos = final_splitline[infoindex].split(",");
+
+                        // 2. Aggiungi i filtri alla lista globale (il metodo addFilter previene i duplicati)
+                        addFilter(infos);
+
+                        // 3. Rimuovi i duplicati per la riassegnazione locale
+                        //    Usiamo un LinkedHashSet per mantenere l'ordine di inserimento e garantire l'unicità
+                        ArrayList<String> uniqueInfos = new ArrayList<>(new java.util.LinkedHashSet<>(Arrays.asList(infos)));
+
+                        // 4. Ricostruisci la stringa separata da virgole e riassegnala
+                        final_splitline[infoindex] = String.join(",", uniqueInfos);
+                    }
             }
         } catch (IOException e) {
             System.err.println("Error reading file: " + filepath);
