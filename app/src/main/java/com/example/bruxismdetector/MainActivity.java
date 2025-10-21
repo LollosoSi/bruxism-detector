@@ -279,14 +279,16 @@ public class MainActivity extends AppCompatActivity {
 
 
         MaterialSwitch swsh = findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
-        swsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        CompoundButton.OnCheckedChangeListener swshlistener = new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
                 findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
             }
-        });
+        };
+        swsh.setOnCheckedChangeListener(swshlistener);
         swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
+        swshlistener.onCheckedChanged(swsh, swsh.isChecked());
 
 
         View autostartListenerRow = findViewById(R.id.switch_autostart_listener);
@@ -340,18 +342,9 @@ public class MainActivity extends AppCompatActivity {
         });
         swthr.setChecked(prefs.getBoolean("use_threshold", false));
 
-
-        View ardubeep_row = findViewById(R.id.switch_sharedpref_arduino_beep);
-        if (ardubeep_row != null) {
-            TextView materialSwitch = ardubeep_row.findViewById(R.id.switch_label);
-            if (materialSwitch != null) {
-                materialSwitch.setText("Arduino beeps");
-            }
-        }
-
         setSwitchThreshold_sharedpref_text();
 
-        MaterialSwitch swardubeep = ardubeep_row.findViewById(R.id.switch_item);
+        MaterialSwitch swardubeep = findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
         swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -362,15 +355,19 @@ public class MainActivity extends AppCompatActivity {
         swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
 
         MaterialSwitch swoalarmondevice = findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
-        swoalarmondevice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        CompoundButton.OnCheckedChangeListener ochlswalarmondevice = new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("alarm_on_device", swoalarmondevice.isChecked()).apply();  // or false when unchecked
                 ((TextView)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_label)).setText("Alarm on: " + (swoalarmondevice.isChecked()?"Android":"Arduino"));
                 findViewById(R.id.switch_sharedpref_alarm_audio).setVisibility(swoalarmondevice.isChecked()?View.VISIBLE:View.GONE);
             }
-        });
+        };
+        swoalarmondevice.setOnCheckedChangeListener(ochlswalarmondevice);
         swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
+        ochlswalarmondevice.onCheckedChanged(swoalarmondevice, swoalarmondevice.isChecked());
+
+
 
         MaterialSwitch swnoisyalarm = findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item);
         swnoisyalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -441,7 +438,7 @@ public class MainActivity extends AppCompatActivity {
         swrecordcamera_flash.setChecked(prefs.getBoolean("record_camera_flash", true));
 
         MaterialSwitch sw_notbeep = findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
-        sw_notbeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        CompoundButton.OnCheckedChangeListener notbeeplistener = new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("do_not_beep", sw_notbeep.isChecked()).apply();  // or false when unchecked
@@ -452,26 +449,34 @@ public class MainActivity extends AppCompatActivity {
                     findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.VISIBLE);
                 }
             }
-        });
+        };
+        sw_notbeep.setOnCheckedChangeListener(notbeeplistener);
         sw_notbeep.setChecked(prefs.getBoolean("do_not_beep", false));
+        notbeeplistener.onCheckedChanged(sw_notbeep, sw_notbeep.isChecked());
 
         MaterialSwitch sw_notalarm = findViewById(R.id.switch_do_not_alarm).findViewById(R.id.switch_item);
-        sw_notalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        CompoundButton.OnCheckedChangeListener swnotalarmlistener = new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("do_not_alarm", sw_notalarm.isChecked()).apply();  // or false when unchecked
 
+
                 if(sw_notalarm.isChecked()){
                     findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.GONE);
+                    findViewById(R.id.switch_sharedpref_alarm_audio).setVisibility(View.GONE);
                 }else{
                     findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.VISIBLE);
+                    ochlswalarmondevice.onCheckedChanged(swoalarmondevice, swoalarmondevice.isChecked());
+
                 }
             }
-        });
+        };
+        sw_notalarm.setOnCheckedChangeListener(swnotalarmlistener);
         sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
+        swnotalarmlistener.onCheckedChanged(sw_notalarm, sw_notalarm.isChecked());
 
         MaterialSwitch swtcp = findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
-        swtcp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        CompoundButton.OnCheckedChangeListener swtcplistener = new CompoundButton.OnCheckedChangeListener() {
             @SuppressLint("SetTextI18n")
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -480,11 +485,10 @@ public class MainActivity extends AppCompatActivity {
                 ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
                 swtcp.setEnabled(!ip.isEmpty());
             }
-        });
+        };
+        swtcp.setOnCheckedChangeListener(swtcplistener);
         swtcp.setChecked(prefs.getBoolean("use_tcp", false));
-        String ip = prefs.getString("tcp_address", "");
-        ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
-        swtcp.setEnabled(!ip.isEmpty());
+        swtcplistener.onCheckedChanged(swtcp, swtcp.isChecked());
 
 
         SeekBar sbar = findViewById(R.id.reception);
@@ -514,13 +518,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
-
         switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
-
-
-
 
     }
 
@@ -824,6 +823,10 @@ public class MainActivity extends AppCompatActivity {
 
         switchLabelMap.put(R.id.switch_do_not_alarm, "Do not alarm");
         switchLabelMap.put(R.id.switch_do_not_beep, "Do not beep");
+
+
+        switchLabelMap.put(R.id.switch_sharedpref_arduino_beep, "Arduino beeps");
+
 
 
 
