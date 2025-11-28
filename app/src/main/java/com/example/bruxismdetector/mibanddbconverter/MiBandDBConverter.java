@@ -46,9 +46,7 @@ import java.util.stream.Collectors;
 
 public class MiBandDBConverter {
 
-    public interface ProgressReport{
-        public void setProgress(int progress);
-    }
+
 
     Context context;
 

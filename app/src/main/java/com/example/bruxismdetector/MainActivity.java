@@ -60,7 +60,10 @@ import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
 import com.example.bruxismdetector.bruxism_grapher2.Notes;
 import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
 import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
+import com.example.bruxismdetector.mibanddbconverter.GadgetbridgeImporter;
 import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
+import com.example.bruxismdetector.mibanddbconverter.ProgressReport;
+import com.example.bruxismdetector.mibanddbconverter.SleepDatabaseHelper;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.data.BarData;
@@ -686,11 +689,13 @@ public class MainActivity extends AppCompatActivity {
         ProgressingDialog ad = showProgressDialog(MainActivity.this, "Handling your database");
         ad.setMessage("Converting your database");
 
+
+
         new Thread(new Runnable() {
             @Override
             public void run() {
 
-                MiBandDBConverter.ProgressReport pr = new MiBandDBConverter.ProgressReport() {
+                ProgressReport pr = new ProgressReport() {
                     @Override
                     public void setProgress(int progress) {
                         runOnUiThread(new Runnable() {
@@ -755,7 +760,7 @@ public class MainActivity extends AppCompatActivity {
                                     Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                             );
 
-                            MiBandDBConverter.ProgressReport pr = new MiBandDBConverter.ProgressReport() {
+                            ProgressReport pr = new ProgressReport() {
                                 @Override
                                 public void setProgress(int progress) {
                                     runOnUiThread(new Runnable() {
@@ -768,10 +773,27 @@ public class MainActivity extends AppCompatActivity {
                             };
 
                             // Use the Uri to read the file
-                            Log.d("FilePicker", "Selected file: " + uri.getPath());
+                            // Use the Uri to read the file
+                            String lastSegment = uri.getLastPathSegment();
+
+                            // Handle cases where the last segment is a full path (e.g., "primary:...")
+                            String fileName = lastSegment.substring(lastSegment.lastIndexOf('/') + 1);
+
+                            Log.d("FilePicker", "Selected file: " + uri.getPath() + " Last path segment: " + lastSegment + " FileName: " + fileName);
+
                             // You can now open the stream: getContentResolver().openInputStream(uri)
-                            MiBandDBConverter mbdbc = new MiBandDBConverter();
-                            mbdbc.convert(MainActivity.this, uri, pr);
+                            if(fileName.equals("Gadgetbridge.db")){
+                                GadgetbridgeImporter gbc = new GadgetbridgeImporter();
+                                gbc.importData(MainActivity.this, uri);
+                                pr.setProgress(50);
+                                SleepDatabaseHelper sdh = new SleepDatabaseHelper(MainActivity.this);
+                                sdh.exportDataToCsv(MainActivity.this);
+                                pr.setProgress(100);
+                                sdh.exportDatabase(MainActivity.this);
+                            } else {
+                                MiBandDBConverter mbdbc = new MiBandDBConverter();
+                                mbdbc.convert(MainActivity.this, uri, pr);
+                            }
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
