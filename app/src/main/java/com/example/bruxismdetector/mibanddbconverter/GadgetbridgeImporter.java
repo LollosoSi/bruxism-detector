@@ -12,7 +12,7 @@ import java.io.OutputStream;
 
 public class GadgetbridgeImporter {
 
-    public void importData(Context context, Uri sourceUri) {
+    public void importData(Context context, Uri sourceUri, ProgressReport progressReport) {
         // 1. Prepare Destination Helper
         SleepDatabaseHelper destDb = new SleepDatabaseHelper(context);
 
@@ -25,14 +25,14 @@ public class GadgetbridgeImporter {
                 cacheFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
 
         try {
-            // --- A. Import Sessions ---
+            // --- A. Import Sessions (Reverse Order) ---
             Cursor cSession = sourceDb.rawQuery(
                     "SELECT TIMESTAMP, WAKEUP_TIME, IS_AWAKE, TOTAL_DURATION, " +
                             "DEEP_SLEEP_DURATION, LIGHT_SLEEP_DURATION, REM_SLEEP_DURATION, AWAKE_DURATION " +
-                            "FROM XIAOMI_SLEEP_TIME_SAMPLE", null);
+                            "FROM XIAOMI_SLEEP_TIME_SAMPLE ORDER BY TIMESTAMP DESC", null);
 
             while (cSession.moveToNext()) {
-                destDb.addSleepSession(
+                boolean success = destDb.addSleepSession(
                         cSession.getLong(0)/1000, // TIMESTAMP
                         cSession.getLong(1)/1000, // WAKEUP_TIME
                         cSession.getInt(2),  // IS_AWAKE
@@ -42,25 +42,33 @@ public class GadgetbridgeImporter {
                         cSession.getInt(6),  // REM
                         cSession.getInt(7)   // AWAKE_DUR
                 );
+                if (!success) break; // Stop if duplicate found
             }
             cSession.close();
 
-            // --- B. Import Stages ---
+            // --- B. Import Stages (Reverse Order) ---
             Cursor cStage = sourceDb.rawQuery(
-                    "SELECT TIMESTAMP, STAGE FROM XIAOMI_SLEEP_STAGE_SAMPLE", null);
+                    "SELECT TIMESTAMP, STAGE FROM XIAOMI_SLEEP_STAGE_SAMPLE ORDER BY TIMESTAMP DESC", null);
+
+            int actioncount_progress = 0;
 
             while (cStage.moveToNext()) {
-                destDb.addStage(
+                int stage = cStage.getInt(1);
+                int stage_adapted = stage == 3 ? 2 : stage == 2 ? 3 : stage;
+
+                boolean success = destDb.addStage(
                         cStage.getLong(0)/1000,
-                        cStage.getInt(1)
+                        stage_adapted
                 );
+                if (!success) break; // Stop if duplicate found
+                if(progressReport != null)
+                    progressReport.setProgress((int) ((100.0*actioncount_progress++)/cStage.getCount()));
             }
             cStage.close();
 
-            // --- C. Import HR, Stress, SpO2 ---
-            // We iterate once over the main activity table to save time
+            // --- C. Import HR, Stress, SpO2 (Reverse Order) ---
             Cursor cActivity = sourceDb.rawQuery(
-                    "SELECT TIMESTAMP, HEART_RATE, STRESS, SPO2 FROM XIAOMI_ACTIVITY_SAMPLE", null);
+                    "SELECT TIMESTAMP, HEART_RATE, STRESS, SPO2 FROM XIAOMI_ACTIVITY_SAMPLE ORDER BY TIMESTAMP DESC", null);
 
             while (cActivity.moveToNext()) {
                 long ts = cActivity.getLong(0);
@@ -68,9 +76,23 @@ public class GadgetbridgeImporter {
                 int stress = cActivity.getInt(2);
                 int spo2 = cActivity.getInt(3);
 
-                if (hr > 0 && hr < 255) destDb.addHeartRate(ts, hr);
-                if (stress > 0) destDb.addStress(ts, stress);
-                if (spo2 > 0) destDb.addSpO2(ts, spo2);
+                boolean stop = false;
+
+                if (hr > 0 && hr < 255) {
+                    if (!destDb.addHeartRate(ts, hr)) stop = true;
+                }
+                // Check stop condition after each potential insert to save time
+                if (stop) break;
+
+                if (stress > 0) {
+                    if (!destDb.addStress(ts, stress)) stop = true;
+                }
+                if (stop) break;
+
+                if (spo2 > 0) {
+                    if (!destDb.addSpO2(ts, spo2)) stop = true;
+                }
+                if (stop) break;
             }
             cActivity.close();
 
@@ -78,7 +100,6 @@ public class GadgetbridgeImporter {
             e.printStackTrace();
         } finally {
             sourceDb.close();
-            // Optional: cacheFile.delete();
             cacheFile.delete();
         }
     }

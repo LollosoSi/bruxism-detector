@@ -705,7 +705,17 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                         }
-                    };
+
+                    @Override
+                    public void setTitle(String title) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                ad.setMessage(title);
+                            }
+                        });
+                    }
+                };
 
 
                 if(MiBandDBConverter.tryRoot(MainActivity.this, pr)){
@@ -770,6 +780,15 @@ public class MainActivity extends AppCompatActivity {
                                         }
                                     });
                                 }
+                                @Override
+                                public void setTitle(String title) {
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            ad.setMessage(title);
+                                        }
+                                    });
+                                }
                             };
 
                             // Use the Uri to read the file
@@ -783,11 +802,12 @@ public class MainActivity extends AppCompatActivity {
 
                             // You can now open the stream: getContentResolver().openInputStream(uri)
                             if(fileName.equals("Gadgetbridge.db")){
+                                pr.setTitle("Converting Gadgetbridge database...");
                                 GadgetbridgeImporter gbc = new GadgetbridgeImporter();
-                                gbc.importData(MainActivity.this, uri);
-                                pr.setProgress(50);
+                                gbc.importData(MainActivity.this, uri, pr);
                                 SleepDatabaseHelper sdh = new SleepDatabaseHelper(MainActivity.this);
-                                sdh.exportDataToCsv(MainActivity.this);
+                                pr.setTitle("Exporting to csv...");
+                                sdh.exportDataToCsv(MainActivity.this, pr);
                                 pr.setProgress(100);
                                 sdh.exportDatabase(MainActivity.this);
                             } else {

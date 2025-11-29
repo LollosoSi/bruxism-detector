@@ -80,8 +80,11 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
 
     // --- Insertion Methods ---
 
-    public void addSleepSession(long timestamp, long wakeupTime, int isAwake, int totalDur,
-                                int deepDur, int lightDur, int remDur, int awakeDur) {
+    /**
+     * Inserts a sleep session. Returns false if the timestamp already exists.
+     */
+    public boolean addSleepSession(long timestamp, long wakeupTime, int isAwake, int totalDur,
+                                   int deepDur, int lightDur, int remDur, int awakeDur) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COL_TIMESTAMP, timestamp);
@@ -92,31 +95,37 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
         values.put(COL_LIGHT_DUR, lightDur);
         values.put(COL_REM_DUR, remDur);
         values.put(COL_AWAKE_DUR, awakeDur);
-        db.insertWithOnConflict(TABLE_SESSIONS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+
+        // Use CONFLICT_IGNORE: returns -1 if row already exists (duplicate)
+        long result = db.insertWithOnConflict(TABLE_SESSIONS, null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        return result != -1;
     }
 
-    public void addStage(long timestamp, int stage) {
-        insertInt(TABLE_STAGES, COL_STAGE, timestamp, stage);
+    public boolean addStage(long timestamp, int stage) {
+        return insertInt(TABLE_STAGES, COL_STAGE, timestamp, stage);
     }
 
-    public void addHeartRate(long timestamp, int hr) {
-        insertInt(TABLE_HR, COL_VALUE, timestamp, hr);
+    public boolean addHeartRate(long timestamp, int hr) {
+        return insertInt(TABLE_HR, COL_VALUE, timestamp, hr);
     }
 
-    public void addStress(long timestamp, int stress) {
-        insertInt(TABLE_STRESS, COL_VALUE, timestamp, stress);
+    public boolean addStress(long timestamp, int stress) {
+        return insertInt(TABLE_STRESS, COL_VALUE, timestamp, stress);
     }
 
-    public void addSpO2(long timestamp, int spo2) {
-        insertInt(TABLE_SPO2, COL_VALUE, timestamp, spo2);
+    public boolean addSpO2(long timestamp, int spo2) {
+        return insertInt(TABLE_SPO2, COL_VALUE, timestamp, spo2);
     }
 
-    private void insertInt(String table, String valCol, long timestamp, int value) {
+    private boolean insertInt(String table, String valCol, long timestamp, int value) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COL_TIMESTAMP, timestamp);
         values.put(valCol, value);
-        db.insertWithOnConflict(table, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+
+        // Use CONFLICT_IGNORE: returns -1 if row already exists (duplicate)
+        long result = db.insertWithOnConflict(table, null, values, SQLiteDatabase.CONFLICT_IGNORE);
+        return result != -1;
     }
 
     // --- Export Method ---
@@ -139,7 +148,8 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
                      FileChannel dst = new FileOutputStream(backupDB).getChannel()) {
                     dst.transferFrom(src, 0, src.size());
                     Log.i("SleepDB", "Database exported to " + backupDB.getAbsolutePath());
-                    currentDB.delete();
+                    // Delete the original database file
+                    // currentDB.delete();
                 }
             }
         } catch (IOException e) {
@@ -149,12 +159,14 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
 
     // --- Export CSV Logic ---
 
-    public void exportDataToCsv(Context context) {
+    public void exportDataToCsv(Context context, ProgressReport progressReport) {
         SQLiteDatabase db = this.getReadableDatabase();
         File baseDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "RECORDINGS/Sleep");
 
         // 1. Get all sessions
         Cursor c = db.query(TABLE_SESSIONS, null, null, null, null, null, COL_TIMESTAMP + " DESC");
+
+        int actioncount_progress = 0;
 
         while (c.moveToNext()) {
             long startSec = c.getLong(c.getColumnIndexOrThrow(COL_TIMESTAMP));
@@ -166,7 +178,12 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
             if (!sessionDir.exists()) sessionDir.mkdirs();
 
             // 2. Export Sleep Data (Use strict session times)
-            exportSleepSessionCsv(db, c, sessionDir, date.toString(), startSec, endSec);
+            // If there is an error or it already exists, we're done with exporting
+            boolean success = exportSleepSessionCsv(db, c, sessionDir, date.toString(), startSec, endSec);
+            if (!success) {
+                Log.i("SleepDatabaseHelper", "Exporting was stopped at timestamp " + startSec);
+                break;
+            }
 
             // 3. Export Time Series (Use buffer to catch data before sleep start)
             // Subtract 15 minutes (900 seconds) to catch pre-sleep data
@@ -176,13 +193,16 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
             exportTimeSeriesCsv(db, TABLE_HR, "hr", sessionDir, date.toString(), extendedStart, endSec);
             exportTimeSeriesCsv(db, TABLE_SPO2, "spo2", sessionDir, date.toString(), extendedStart, endSec);
             exportTimeSeriesCsv(db, TABLE_STRESS, "stress", sessionDir, date.toString(), extendedStart, endSec);
+
+            if(progressReport != null)
+                progressReport.setProgress((int) ((100.0*actioncount_progress++)/c.getCount()));
         }
         c.close();
     }
 
-    private void exportSleepSessionCsv(SQLiteDatabase db, Cursor sessionCursor, File dir, String dateStr, long startSec, long endSec) {
+    private boolean exportSleepSessionCsv(SQLiteDatabase db, Cursor sessionCursor, File dir, String dateStr, long startSec, long endSec) {
         File file = new File(dir, dateStr + "_sleepdata.csv");
-        if (file.exists()) return;
+        if (file.exists()) return false;
 
         // Stages are already in Seconds
         List<StageInterval> stages = getStageIntervals(db, startSec, endSec);
@@ -224,7 +244,10 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
 
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
+
+        return true;
     }
 
     private void exportTimeSeriesCsv(SQLiteDatabase db, String tableName, String suffix, File dir, String dateStr, long startSec, long endSec) {
