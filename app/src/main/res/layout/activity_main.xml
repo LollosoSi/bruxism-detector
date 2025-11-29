@@ -190,7 +190,8 @@
 
             <include
                 android:id="@+id/switch_tcp"
-                layout="@layout/switch_row" />
+                layout="@layout/switch_row"
+                android:visibility="gone" />
 
 
 

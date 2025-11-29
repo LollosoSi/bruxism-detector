@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
@@ -352,15 +353,28 @@ public class VideoRecordingService extends Service {
     }
 
     private void setTorch(boolean enable) {
-        if (captureRequestBuilder == null || cameraDevice == null || captureSession == null) {
-            Log.w(TAG, "Impossibile impostare la torcia, la fotocamera non è pronta.");
-            return;
-        }
+        if (captureRequestBuilder == null || cameraDevice == null || captureSession == null) return;
+
         try {
             captureRequestBuilder.set(CaptureRequest.FLASH_MODE, enable ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+
+            if (enable && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+
+                CameraCharacteristics chars = ((CameraManager) getSystemService(Context.CAMERA_SERVICE)).getCameraCharacteristics(cameraDevice.getId());
+                Integer maxLevel = chars.get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL);
+
+                if (maxLevel != null && maxLevel > 1) {
+                    // Clampa la percentuale tra 0 e 100
+                    int p = Math.max(0, Math.min(PreferenceManager.getDefaultSharedPreferences(this).getInt("torch_percentage", 100), 100));
+                    // Mappa 0-100 sull'intervallo 1-maxLevel
+                    int strength = 1 + (p * (maxLevel - 1) / 100);
+
+                    captureRequestBuilder.set(CaptureRequest.FLASH_STRENGTH_LEVEL, strength);
+                }
+            }
             updateCaptureRequest();
         } catch (Exception e) {
-            Log.e(TAG, "Impossibile impostare la torcia", e);
+            Log.e(TAG, "Errore torcia", e);
         }
     }
 

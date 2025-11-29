@@ -130,6 +130,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     ((MaterialSwitch)findViewById(R.id.switch_tcp).findViewById(R.id.switch_item)).setChecked(true);
+                    findViewById(R.id.switch_tcp).setVisibility(View.VISIBLE);
 
                 }
             });
@@ -287,11 +288,18 @@ public class MainActivity extends AppCompatActivity {
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
                 findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
+                if(b){
+                    setSubtitle(R.id.switch_sharedpref, "Starts when tracking ends");
+                }else{
+                    setSubtitle(R.id.switch_sharedpref, "");
+                }
+
             }
         };
         swsh.setOnCheckedChangeListener(swshlistener);
         swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
         swshlistener.onCheckedChanged(swsh, swsh.isChecked());
+
 
 
         View autostartListenerRow = findViewById(R.id.switch_autostart_listener);
@@ -302,6 +310,8 @@ public class MainActivity extends AppCompatActivity {
                 return true; // Consume the long click
             }
         });
+
+
 
         MaterialSwitch swshl = autostartListenerRow.findViewById(R.id.switch_item);
         swshl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -317,14 +327,26 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this, 0, intent, PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE
                 );
 
+                if(!b){
+                    setSubtitle(R.id.switch_autostart_listener, "");
+                }else{
+                    int Hour = prefs.getInt("ServiceHour", 21);
+                    int Minute = prefs.getInt("ServiceMinute", 0);
+                    setSubtitle(R.id.switch_autostart_listener, String.format(Locale.US, "Set to: %02d:%02d", Hour, Minute));
+                }
+
                 // If it exists, cancel it
                 if (existingIntent != null && !swshl.isChecked()) {
+
+
                     Log.i("Autostart Listener", "Autostart cancelled");
                     ServiceScheduler.cancelUDPCatcherSchedule(MainActivity.this);
+
                 }else if(swshl.isChecked()){
+
+
                     Log.i("Autostart Listener", "Autostart set");
                     ServiceScheduler.scheduleUDPCatcherAtTime(MainActivity.this, prefs.getInt("ServiceHour", 21), prefs.getInt("ServiceMinute",0));
-
                 }
 
 
@@ -380,6 +402,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         swnoisyalarm.setChecked(prefs.getBoolean("noisy_alarm", false));
+        SharedPreferences prefs_priv = getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        currentlySelectedIndex = prefs_priv.getInt("playtuneindex", 0);
+        setSubtitle(R.id.switch_sharedpref_alarm_audio, "Tune: " + Notes.tunes[currentlySelectedIndex].name);
 
 
         findViewById(R.id.switch_sharedpref_alarm_audio).setOnLongClickListener(new View.OnLongClickListener() {
@@ -398,6 +423,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("record_noise", swrecordnoise.isChecked()).apply();  // or false when unchecked
+
+                if(b){
+                    setSubtitle(R.id.switch_recordnoise, "Noise index will be recorded");
+                }else{
+                    setSubtitle(R.id.switch_recordnoise, "");
+                }
+
             }
         });
         swrecordnoise.setChecked(prefs.getBoolean("record_noise", false));
@@ -408,6 +440,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("record_accel", swrecordaccel.isChecked()).apply();  // or false when unchecked
+
+                if(b){
+                    setSubtitle(R.id.switch_recordaccel, "Accel. will be recorded");
+                }else{
+                    setSubtitle(R.id.switch_recordaccel, "");
+                }
+
             }
         });
         swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
@@ -439,6 +478,76 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         swrecordcamera_flash.setChecked(prefs.getBoolean("record_camera_flash", true));
+        setSubtitle(R.id.switch_sharedpref_camera_torch, "Long press to tune brightness");
+
+        findViewById(R.id.switch_sharedpref_camera_torch).setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+
+                int save_perc = prefs.getInt("torch_percentage", 100);
+
+                TorchTester tt = new TorchTester(MainActivity.this);
+
+                // Create slider
+                final android.widget.SeekBar seekBar = new android.widget.SeekBar(MainActivity.this);
+                seekBar.setMax(100);
+                seekBar.setProgress(save_perc);
+                seekBar.setPadding(50, 30, 50, 30);
+
+                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        int level = seekBar.getProgress();
+                        tt.setTorch(true, level); // Chiama il tuo metodo qui
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+
+                    }
+                });
+
+                android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Flash intensity")
+                        .setView(seekBar)
+                        .setPositiveButton("Save", (d, which) -> {
+                            int level = seekBar.getProgress();
+                            prefs.edit().putInt("torch_percentage", level).apply();
+                            tt.close();
+                        })
+                        .setNegativeButton("Cancel", null) // IMPORTANT: null to avoid auto closing
+                        .setCancelable(false)
+                        .create();
+
+                dialog.show();
+
+                dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
+                    android.animation.ObjectAnimator anim = android.animation.ObjectAnimator.ofInt(
+                            seekBar, "progress", seekBar.getProgress(), save_perc);
+
+                    anim.setDuration(500);
+                    anim.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
+
+                    anim.addListener(new android.animation.AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(android.animation.Animator animation) {
+                            tt.close();
+                            dialog.dismiss();
+                        }
+                    });
+                    anim.start();
+                });
+
+                return true;
+            }
+        });
 
         MaterialSwitch sw_notbeep = findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
         CompoundButton.OnCheckedChangeListener notbeeplistener = new CompoundButton.OnCheckedChangeListener() {
@@ -448,8 +557,10 @@ public class MainActivity extends AppCompatActivity {
 
                 if(sw_notbeep.isChecked()){
                     findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.GONE);
+                    setSubtitle(R.id.switch_do_not_beep, "Beeping disabled");
                 }else{
                     findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.VISIBLE);
+                    setSubtitle(R.id.switch_do_not_beep, "");
                 }
             }
         };
@@ -467,9 +578,11 @@ public class MainActivity extends AppCompatActivity {
                 if(sw_notalarm.isChecked()){
                     findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.GONE);
                     findViewById(R.id.switch_sharedpref_alarm_audio).setVisibility(View.GONE);
+                    setSubtitle(R.id.switch_do_not_alarm, "Alarms disabled");
                 }else{
                     findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.VISIBLE);
                     ochlswalarmondevice.onCheckedChanged(swoalarmondevice, swoalarmondevice.isChecked());
+                    setSubtitle(R.id.switch_do_not_alarm, "");
 
                 }
             }
@@ -485,7 +598,8 @@ public class MainActivity extends AppCompatActivity {
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("use_tcp", swtcp.isChecked()).apply();  // or false when unchecked
                 String ip = prefs.getString("tcp_address", "");
-                ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP" + (ip.isEmpty() ? "" : ": ") + ip);
+                ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP");
+                setSubtitle(R.id.switch_tcp, ip);
                 swtcp.setEnabled(!ip.isEmpty());
             }
         };
@@ -576,6 +690,9 @@ public class MainActivity extends AppCompatActivity {
             if (tunePlayer.isPlaying()) {
                 tunePlayer.stop();
             }
+
+            setSubtitle(R.id.switch_sharedpref_alarm_audio, "Tune: " + Notes.tunes[currentlySelectedIndex].name);
+
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> {
@@ -620,6 +737,7 @@ public class MainActivity extends AppCompatActivity {
                             ServiceScheduler.scheduleUDPCatcherAtTime(MainActivity.this, hourOfDay, minute);
                             Log.i("Autostart Listener", "Rescheduled with new time.");
                         }
+                        setSubtitle(R.id.switch_autostart_listener, "Set to: " + hourOfDay + ":" + minute);
                     }
                 },
                 currentHour,
@@ -681,6 +799,7 @@ public class MainActivity extends AppCompatActivity {
         }
         return false;
     }
+
 
 
     private static final int PICK_FILE_REQUEST_CODE = 1;
@@ -860,19 +979,10 @@ public class MainActivity extends AppCompatActivity {
 
         switchLabelMap.put(R.id.switch_sharedpref_alarm_audio, "Noisy alarm");
 
-
-
-
         switchLabelMap.put(R.id.switch_do_not_alarm, "Do not alarm");
         switchLabelMap.put(R.id.switch_do_not_beep, "Do not beep");
 
-
         switchLabelMap.put(R.id.switch_sharedpref_arduino_beep, "Arduino beeps");
-
-
-
-
-
 
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
             View row = findViewById(entry.getKey());
@@ -880,6 +990,21 @@ public class MainActivity extends AppCompatActivity {
                 TextView materialSwitch = row.findViewById(R.id.switch_label);
                 if (materialSwitch != null) {
                     materialSwitch.setText(entry.getValue());
+                }
+            }
+        }
+    }
+
+    public void setSubtitle(Integer viewref, String subtitle_text){
+        View row = findViewById(viewref);
+        if (row != null) {
+            TextView subtitle = row.findViewById(R.id.switch_subtitle);
+            if (subtitle != null) {
+                if(subtitle_text.isEmpty()){
+                    subtitle.setVisibility(View.GONE);
+                }else{
+                    subtitle.setText(subtitle_text);
+                    subtitle.setVisibility(View.VISIBLE);
                 }
             }
         }
@@ -903,7 +1028,8 @@ public class MainActivity extends AppCompatActivity {
             TextView materialSwitch = row.findViewById(R.id.switch_label);
             if (materialSwitch != null) {
                 SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-                materialSwitch.setText("Threshold: " + prefs.getInt("classification_threshold", 0));
+                materialSwitch.setText("Threshold");
+                setSubtitle(R.id.switch_sharedpref_use_threshold, "Value: " + prefs.getInt("classification_threshold", 0));
             }
         }
     }
