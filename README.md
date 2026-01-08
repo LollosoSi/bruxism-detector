@@ -1,5 +1,5 @@
 # Bruxism Detector
-This small device + software suite helps you detect bruxism and interrupt it, while trying to track down its triggers.</br>
+This small device + software suite helps you monitor jaw muscle activity and provide biofeedback to signal the user, while trying to track down its triggers.</br>
 
 ## Overview
 Following this readme, you will build an Arduino based device that is able to detect bruxism.</br><sub><sup>Basic knowledge about electronics is advisable.</sup></sub></br></br>
@@ -12,9 +12,24 @@ Bruxism detection is done through a Machine Learning algorithm and 3 electrodes 
    - A vibration if you are using the Android app
 
 In case I missed any information, check this [Instructable](https://www.instructables.com/Anti-Bruxism-Device-arduino-Based/)
-</br>
-<sub>Night bruxism is messing with my sleep anyways, so why not wake up before damage is done.</sub>
-<hr></hr>
+
+---------------
+
+# **IMPORTANT**
+This is not a medical device. For educational/research purposes only. Not intended to diagnose or treat any condition. I am distributing this guide and software to you freely and with no liability whatsoever.
+<br/>Responsibility about the device and its correct usage is entirely yours.
+
+The detection system output needs to be validated.<br/>
+Please contact me if you have proper equipment to do so.
+
+# **SAFETY NOTICE**
+
+To reduce risk of electrocution, __NEVER__ connect electrodes to your body when the circuit is connected to mains power in any way. Through the charger, a laptop, your desktop, etc.
+
+In simple terms, you should only wear electrodes when your circuit is attached to a battery and not to the wall.</br></br>No, attaching to your power bank while it's charging from the wall also isn't okay.
+
+---------------
+
 <div hspace="20">
 <img align="left" src="https://github.com/user-attachments/assets/f6ab8171-b3ae-428b-a4ee-0c84f47bf78b" height="350">
    </br>
@@ -37,7 +52,6 @@ Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems 
 </br>
 <hr></hr>
 
-
 # Contents
 - [What to expect](#what-to-expect)
 - [What not to expect](#what-not-to-expect)
@@ -54,20 +68,6 @@ Use [issues](https://github.com/LollosoSi/bruxism-detector/issues) for problems 
 - [Changing detection settings](#changing-detection-settings)
 - [Changing alarm tunes](#changing-alarm-melody)
 - [Other files](#other-files)
----------------
-
-# **NOTICE**
-
-The detection system output needs to be validated.</br>
-Please contact me if you have proper equipment to do so.
-
-# **SAFETY NOTICE**
-
-To reduce risk of electrocution, __NEVER__ connect electrodes to your body when the circuit is also attached to the wall in some way. Through the charger, a laptop, your desktop, etc.
-
-In simple terms, you should only wear electrodes when your circuit is attached to a battery and not to the wall.</br></br>No, attaching to your power bank while it's charging from the wall also isn't okay.
-
----------------
 
 ## **What to expect**
 - Monitor your night sessions: the program logs `Clenching`, `Button`, `Beep` and `Alarm` events with timestamps in csv files. Via Processing or the experimental Android App
