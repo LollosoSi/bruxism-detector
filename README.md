@@ -1,6 +1,11 @@
 # Bruxism Detector
 This small device + software suite helps you monitor jaw muscle activity and provide biofeedback to signal the user, while trying to track down its triggers.</br>
 
+# Call to action. Bruxism Detector Application is at risk!
+Starting September 2026, Google will require a centralized registration in order to develop apps. </br> You will no longer be able to install the Bruxism Detector app via this website. </br>
+[Find more information on the issue and what you can do about it at keepandroidopen.org](https://keepandroidopen.org/)
+
+
 ## Overview
 Following this readme, you will build an Arduino based device that is able to detect bruxism.</br><sub><sup>Basic knowledge about electronics is advisable.</sup></sub></br></br>
 Bruxism detection is done through a Machine Learning algorithm and 3 electrodes placed on the forehead.
