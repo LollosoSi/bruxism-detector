@@ -1,15 +1,16 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
 }
 
 android {
     namespace = "com.example.bruxismdetector"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.bruxismdetector"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 7
         versionName = "1.3.9"
 
@@ -32,7 +33,8 @@ android {
     buildFeatures {
         viewBinding = true
     }
-    buildToolsVersion = "36.1.0"
+    buildToolsVersion = "37.0.0"
+
 
 
 }
@@ -40,6 +42,7 @@ android {
 
 
 dependencies {
+    implementation(libs.androidx.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
@@ -52,7 +55,16 @@ dependencies {
     implementation(libs.preference.ktx)
     implementation(libs.core)
 
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha05")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        //freeCompilerArgs.add("-Xuse-fir-lt=false")
+    }
 }

@@ -259,9 +259,10 @@ public class GrapherAsyncTask extends AsyncTask<Void, Void, Void> {
 
         Grapher<Bitmap, Color, Typeface> gg = new Grapher<>(FileEventReader.readCSV(file.getAbsolutePath()), file.getName(), 1280,720);
 
+        String clear_date =  file.getName().contains(" ") ? file.getName().split(" ")[0] : file.getName().replace(".csv","");
+        Log.d("clear:date", clear_date);
 
-
-        gg.setSleepData(FileSleepReader.readCSV(file.getParent()+"/Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
+        gg.setSleepData(FileSleepReader.readCSV(file.getParent()+"/Sleep/" + clear_date +"/"+ clear_date+"_sleepdata.csv"));
 
         if(!gg.only_info) {
             Log.i(TAG, "Path: " + path + " raw: " + rawfile.getAbsolutePath());

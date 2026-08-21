@@ -1,5 +1,5 @@
 [versions]
-agp = "8.7.1"
+agp = "9.2.1"
 core = "4.6.2"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -16,6 +16,8 @@ navigationUi = "2.9.0"
 navigationFragmentVersion = "2.9.5"
 preferenceKtxVersion = "1.2.1"
 tasksGenai = "0.10.27"
+kotlin = "2.3.10"
+coreKtx = "1.19.0"
 
 [libraries]
 core = { module = "io.noties.markwon:core", version.ref = "core" }
@@ -35,7 +37,9 @@ androidx-navigation-fragment = { group = "androidx.navigation", name = "navigati
 preference-ktx = { module = "androidx.preference:preference-ktx", version.ref = "preferenceKtxVersion" }
 tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "tasksGenai" }
 tasks-genai-llminference = { module = "com.google.mediapipe:tasks-genai-llminference", version.ref = "tasksGenai" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 

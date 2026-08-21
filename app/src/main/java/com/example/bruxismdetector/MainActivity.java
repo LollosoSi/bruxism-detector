@@ -61,6 +61,7 @@ import com.example.bruxismdetector.bruxism_grapher2.Notes;
 import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
 import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
 import com.example.bruxismdetector.mibanddbconverter.GadgetbridgeImporter;
+import com.example.bruxismdetector.mibanddbconverter.HealthConnectImporter;
 import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
 import com.example.bruxismdetector.mibanddbconverter.ProgressReport;
 import com.example.bruxismdetector.mibanddbconverter.SleepDatabaseHelper;
@@ -104,6 +105,17 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.health.connect.client.PermissionController;
+import androidx.health.connect.client.permission.HealthPermission;
+import androidx.health.connect.client.records.HeartRateRecord;
+import androidx.health.connect.client.records.OxygenSaturationRecord;
+import androidx.health.connect.client.records.SleepSessionRecord;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 
 public class MainActivity extends AppCompatActivity {
     public final static String LAUNCH_GRAPHER = "Launch_Grapher_Please";
@@ -261,6 +273,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+
+        // Register the permission launcher for Health Connect
+        healthPermissionsLauncher = registerForActivityResult(
+                PermissionController.Companion.createRequestPermissionResultContract(),
+                grantedPermissions -> {
+                    Log.i("FlowLog", "Permission callback triggered!");
+                    Log.i("FlowLog", "Permissions requested: " + healthPermissions.size() + ", Granted: " + grantedPermissions.size());
+
+                    if (grantedPermissions.containsAll(healthPermissions)) {
+                        Log.i("FlowLog", "SUCCESS: All permissions granted. Starting import.");
+                        runHealthConnectImport();
+                    } else {
+                        Log.w("FlowLog", "FAILED: Permissions denied by user. Falling back to File Picker.");
+                        launchFilePickerFallback();
+                    }
+                }
+        );
     }
 
     @SuppressLint("SetTextI18n")
@@ -802,72 +831,96 @@ public class MainActivity extends AppCompatActivity {
 
 
 
+    // Define required Health Connect permissions
+    private final Set<String> healthPermissions = HealthConnectImporter.getRequiredPermissions();
+
+    private ActivityResultLauncher<Set<String>> healthPermissionsLauncher;
+
+
     private static final int PICK_FILE_REQUEST_CODE = 1;
 
     public void openFilePicker(View v) {
+        Log.i("FlowLog", "--- BUTTON PRESSED ---");
         ProgressingDialog ad = showProgressDialog(MainActivity.this, "Handling your database");
         ad.setMessage("Converting your database");
-
-
 
         new Thread(new Runnable() {
             @Override
             public void run() {
-
                 ProgressReport pr = new ProgressReport() {
                     @Override
-                    public void setProgress(int progress) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                ad.updateProgress(progress);
-                            }
-                        });
-                        }
-
+                    public void setProgress(int progress) { runOnUiThread(() -> ad.updateProgress(progress)); }
                     @Override
-                    public void setTitle(String title) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                ad.setMessage(title);
-                            }
-                        });
-                    }
+                    public void setTitle(String title) { runOnUiThread(() -> ad.setMessage(title)); }
                 };
 
-
-                if(MiBandDBConverter.tryRoot(MainActivity.this, pr)){
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            ad.dismiss();
-                        }
-                    });
-
+                Log.i("FlowLog", "Attempting SOURCE 1: Root Mi Band DB");
+                if (MiBandDBConverter.tryRoot(MainActivity.this, pr)) {
+                    Log.i("FlowLog", "SOURCE 1 SUCCESS: Root succeeded. Stopping.");
+                    runOnUiThread(() -> ad.dismiss());
                     return;
                 }
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        ad.dismiss();
+                Log.i("FlowLog", "SOURCE 1 FAILED: Moving to Health Connect check.");
+
+                runOnUiThread(() -> {
+                    ad.dismiss();
+
+                    HealthConnectImporter hcImporter = new HealthConnectImporter();
+                    Log.i("FlowLog", "Calling isAvailable() on HealthConnectImporter...");
+
+                    if (hcImporter.isAvailable(getApplicationContext())) {
+                        Log.i("FlowLog", "Health Connect is AVAILABLE. Launching Permission Screen.");
+                        try {
+                            healthPermissionsLauncher.launch(healthPermissions);
+                        } catch (Exception e) {
+                            Log.e("FlowLog", "Exception while launching permissions!", e);
+                            launchFilePickerFallback();
+                        }
+                    } else {
+                        Log.w("FlowLog", "Health Connect is NOT AVAILABLE. Falling back to File Picker.");
+                        launchFilePickerFallback();
                     }
                 });
-
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                        intent.addCategory(Intent.CATEGORY_OPENABLE);
-                        intent.setType("*/*"); // You can restrict this to specific MIME types like "text/plain", "application/json", etc.
-
-                        startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
-                    }
-                });
-
             }
         }).start();
+    }
 
+// --- Helper Methods ---
+
+    private void launchFilePickerFallback() {
+        // SOURCE 3: The ultimate fallback (Manual File Selection)
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
+    }
+
+    private void runHealthConnectImport() {
+        // Show a new progress dialog specifically for Health Connect
+        ProgressingDialog ad = showProgressDialog(MainActivity.this, "Importing Health Data");
+        ad.setMessage("Reading from Health Connect...");
+
+        ProgressReport pr = new ProgressReport() {
+            @Override
+            public void setProgress(int progress) { runOnUiThread(() -> ad.updateProgress(progress)); }
+            @Override
+            public void setTitle(String title) { runOnUiThread(() -> ad.setMessage(title)); }
+        };
+
+        HealthConnectImporter importer = new HealthConnectImporter();
+
+        importer.importData(this, pr, () -> {
+            // Callback runs on background thread when import finishes
+            runOnUiThread(() -> {
+                ad.setMessage("Exporting to CSV...");
+
+                // Generate CSV files from the newly imported SQLite data
+                SleepDatabaseHelper dbHelper = new SleepDatabaseHelper(getApplicationContext());
+                dbHelper.exportDataToCsv(getApplicationContext(), pr);
+
+                ad.dismiss();
+            });
+        });
     }
 
     @Override

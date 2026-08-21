@@ -167,35 +167,37 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
         Cursor c = db.query(TABLE_SESSIONS, null, null, null, null, null, COL_TIMESTAMP + " DESC");
 
         int actioncount_progress = 0;
+        int totalRows = c.getCount();
 
         while (c.moveToNext()) {
             long startSec = c.getLong(c.getColumnIndexOrThrow(COL_TIMESTAMP));
             long endSec = c.getLong(c.getColumnIndexOrThrow(COL_WAKEUP_TIME));
 
-            // Generate Folder YYYY-MM-dd based on End Time (Seconds)
             LocalDate date = Instant.ofEpochSecond(endSec).atZone(ZoneId.systemDefault()).toLocalDate();
             File sessionDir = new File(baseDir, date.toString());
             if (!sessionDir.exists()) sessionDir.mkdirs();
 
-            // 2. Export Sleep Data (Use strict session times)
-            // If there is an error or it already exists, we're done with exporting
+            // Invece di bloccare tutto se esiste, passiamo a boolean ma continuiamo il while
             boolean success = exportSleepSessionCsv(db, c, sessionDir, date.toString(), startSec, endSec);
-            if (!success) {
-                Log.i("SleepDatabaseHelper", "Exporting was stopped at timestamp " + startSec);
-                break;
+
+            // Se il file esiste già, saltiamo solo la scrittura di questa specifica sessione e andiamo alla precedente.
+            if (success) {
+
+                // --- Extended window (Day before - Day after) ---
+                // Start of yesterday (time 00:00:00)
+                long widerStart = date.minusDays(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond();
+
+                // End of next day (time 23:59:59)
+                long widerEnd = date.plusDays(2).atStartOfDay(ZoneId.systemDefault()).toEpochSecond() - 1;
+
+                exportTimeSeriesCsv(db, TABLE_HR, "hr", sessionDir, date.toString(), widerStart, widerEnd);
+                exportTimeSeriesCsv(db, TABLE_SPO2, "spo2", sessionDir, date.toString(), widerStart, widerEnd);
+                exportTimeSeriesCsv(db, TABLE_STRESS, "stress", sessionDir, date.toString(), widerStart, widerEnd);
             }
 
-            // 3. Export Time Series (Use buffer to catch data before sleep start)
-            // Subtract 15 minutes (900 seconds) to catch pre-sleep data
-            long bufferSeconds = 15 * 60;
-            long extendedStart = startSec - bufferSeconds;
-
-            exportTimeSeriesCsv(db, TABLE_HR, "hr", sessionDir, date.toString(), extendedStart, endSec);
-            exportTimeSeriesCsv(db, TABLE_SPO2, "spo2", sessionDir, date.toString(), extendedStart, endSec);
-            exportTimeSeriesCsv(db, TABLE_STRESS, "stress", sessionDir, date.toString(), extendedStart, endSec);
-
-            if(progressReport != null)
-                progressReport.setProgress((int) ((100.0*actioncount_progress++)/c.getCount()));
+            actioncount_progress++;
+            if(progressReport != null && totalRows > 0)
+                progressReport.setProgress((int) ((100.0 * actioncount_progress) / totalRows));
         }
         c.close();
     }
@@ -258,6 +260,7 @@ public class SleepDatabaseHelper extends SQLiteOpenHelper {
         String query = "SELECT " + COL_TIMESTAMP + ", " + COL_VALUE + " FROM " + tableName +
                 " WHERE " + COL_TIMESTAMP + " >= ? AND " + COL_TIMESTAMP + " <= ? ORDER BY " + COL_TIMESTAMP + " ASC";
         Cursor c = db.rawQuery(query, new String[]{String.valueOf(startSec), String.valueOf(endSec)});
+        Log.i("CsvExport", "Tabella " + tableName + " - Righe trovate: " + c.getCount());
 
         if (c.getCount() == 0) {
             c.close();
