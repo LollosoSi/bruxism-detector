@@ -210,6 +210,7 @@ public class MainActivity extends AppCompatActivity {
         if(launchintent!=null){
             if(launchintent.getAction()!=null){
                 if (launchintent.getAction().equals(LAUNCH_GRAPHER)) {
+
                     tryGraphing(null);
                 }
         }
@@ -1903,6 +1904,13 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void tryGraphing(View v){
+
+        // If health connect is enabled, automagically export data first
+        HealthConnectImporter hcImporter = new HealthConnectImporter();
+        if (hcImporter.isAvailable(getApplicationContext())) {
+            runHealthConnectImport();
+        }
+
 
         makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
             @Override

@@ -54,6 +54,13 @@ public class SummaryChartFragment extends Fragment {
         return inflater.inflate(R.layout.fragment_charts, container, false);
     }
 
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        switchesbox.clear(); // Pulisce i riferimenti alle vecchie viste
+        root = null;         // Evita memory leak sulla root view
+    }
+
     View root;
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
@@ -150,13 +157,22 @@ public class SummaryChartFragment extends Fragment {
     LineDataSet makeDatasetWithDate(int datatupleindex, String setlabel, boolean usefilter, int filterindex, int c1){
         List<Entry> entries = new ArrayList<>();
         for(String[] data : summaryTuples) {
-            if(isTupleCompliantFilter(data, filterindex) || !usefilter)
-                entries.add(new Entry(dateLabels.indexOf(data[0]), Float.parseFloat(data[datatupleindex].replace(",","."))));
+            if(isTupleCompliantFilter(data, filterindex) || !usefilter) {
+                int xIndex = dateLabels.indexOf(data[0]);
+
+                // CONTROLLO DI SICUREZZA: se la data esiste in dateLabels, procedi
+                if (xIndex != -1) {
+                    entries.add(new Entry(xIndex, Float.parseFloat(data[datatupleindex].replace(",","."))));
+                } else {
+                    Log.w("ChartError", "Data non trovata in dateLabels: " + data[0]);
+                }
+            }
         }
-        LineDataSet dataSet = new LineDataSet(entries, setlabel); // add entries to dataset
+
+        LineDataSet dataSet = new LineDataSet(entries, setlabel);
         dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
         dataSet.setColor(c1);
-        dataSet.setValueTextColor(Color.GREEN); // styling, ...
+        dataSet.setValueTextColor(Color.GREEN);
         dataSet.setDrawValues(false);
         dataSet.setHighlightEnabled(false);
         dataSet.setDrawCircleHole(false);
@@ -374,7 +390,12 @@ public class SummaryChartFragment extends Fragment {
         ValueFormatter formatter = new ValueFormatter() {
             @Override
             public String getAxisLabel(float value, AxisBase axis) {
-                return dateLabels.get((int) value);
+                int index = (int) value;
+                // Controlla che l'indice sia valido prima di leggerlo dalla lista
+                if (dateLabels != null && index >= 0 && index < dateLabels.size()) {
+                    return dateLabels.get(index);
+                }
+                return ""; // Se fuori bound, restituisce stringa vuota invece di crashare
             }
         };
 
@@ -440,10 +461,13 @@ public class SummaryChartFragment extends Fragment {
         int c = 0;
         int i = 0;
         for(LinearLayout l : switchesbox){
-            if(((CheckBox)l.getChildAt(0)).isChecked()) {
-                if(c==index)
-                    return i;
-                c++;
+            // Controllo di sicurezza per evitare crash se la vista è scollegata
+            if (l != null && l.getChildCount() > 0 && l.getChildAt(0) instanceof CheckBox) {
+                if(((CheckBox)l.getChildAt(0)).isChecked()) {
+                    if(c==index)
+                        return i;
+                    c++;
+                }
             }
             i++;
         }

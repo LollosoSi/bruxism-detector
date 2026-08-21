@@ -65,11 +65,44 @@
                 android:visibility="gone"
                 />
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+                <CheckBox
+                    android:id="@+id/basedrawcheckbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Draw base"
+                    android:hapticFeedbackEnabled="true"
+                    android:layout_marginBottom="-5dp"
+                    />
+                <CheckBox
+                    android:id="@+id/separatedrawcheckbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:text="Split conditions"
+                    android:hapticFeedbackEnabled="true"
+                    android:layout_marginBottom="-5dp"
+                    />
+                <CheckBox
+                    android:id="@+id/rollingaveragecheckbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Average"
+                    android:hapticFeedbackEnabled="true"
+                    android:layout_marginBottom="-5dp"
+                    android:checked="true"
+                    />
+            </LinearLayout>
+
             <ScrollView
                 android:id="@+id/scroll_filters"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp"
                 >
@@ -104,39 +137,7 @@
                     </LinearLayout>
                 </LinearLayout>
             </ScrollView>
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center">
-                <CheckBox
-                    android:id="@+id/basedrawcheckbox"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="Draw base"
-                    android:hapticFeedbackEnabled="true"
-                    android:layout_marginBottom="-5dp"
-                    />
-                <CheckBox
-                    android:id="@+id/separatedrawcheckbox"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="false"
-                    android:text="Split conditions"
-                    android:hapticFeedbackEnabled="true"
-                    android:layout_marginBottom="-5dp"
-                    />
-                <CheckBox
-                    android:id="@+id/rollingaveragecheckbox"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Average"
-                    android:hapticFeedbackEnabled="true"
-                    android:layout_marginBottom="-5dp"
-                    android:checked="true"
-                    />
-            </LinearLayout>
+
 
 
         </LinearLayout>
