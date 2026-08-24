@@ -205,6 +205,12 @@ The following will reference `Arduino/main/main.ino` as the main program.
 - Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
     </br>
 ### **Train your SVM model:**
+  **Update Note:** Starting v1.4.1, the filtering method was updated and EEPROM support was added.
+  As a result, you must train your SVM again, and
+  - if you are **NOT** using the app: update weights, bias and threshold as usual, but set `bool use_eeprom_for_svm = false;` in settings.
+  - if you are using the app, just train the model and weights will be uploaded and saved to the device automatically when computed.
+
+
   **Note:** This action is disabled after the first 2 minutes of runtime.
 #### Desktop Procedure
   - Long press the button on your arduino and release when you begin hearing confirmation beeps in increasing pitch. The arduino is now streaming the FFT data

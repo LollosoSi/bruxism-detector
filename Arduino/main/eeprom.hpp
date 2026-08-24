@@ -67,6 +67,11 @@ void load_config(bool force_update = false) {
     memcpy(eeprom_config.weights, weights, sizeof(weights));
   }
 
+  if(!use_eeprom_for_wifi){
+    strcpy(eeprom_config.ssid, ssid);
+    strcpy(eeprom_config.password, password);
+  }
+
 }
 
 void save_wifi_ssidpassword(String s_ssid, String s_password){
