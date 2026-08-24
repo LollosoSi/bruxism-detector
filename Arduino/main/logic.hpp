@@ -51,7 +51,9 @@ bool started_sent = false;
 
 bool alarm_running = 0;
 bool confirm_android_alarm_stopped = false;
-void alarm_stoppped_confirmed(){confirm_android_alarm_stopped=false;}
+void alarm_stoppped_confirmed() {
+  confirm_android_alarm_stopped = false;
+}
 
 bool do_not_alarm = false;
 bool do_not_beep = false;
@@ -78,7 +80,7 @@ void trigger_alarm() {
 }
 
 void warning_beep() {
-  if(do_not_beep)
+  if (do_not_beep)
     return;
   Serial.println("Beep!");
 
@@ -118,7 +120,7 @@ inline void loop_alarm() {
         confirm_android_alarm_stopped = true;
       }
     }
-  }else if (confirm_android_alarm_stopped){
+  } else if (confirm_android_alarm_stopped) {
     send_event(CONFIRM_ANDROID_ALARM_STOPPED);
   }
 }
@@ -192,8 +194,8 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
 
             started_sent = true;
           }
-          warning_beep(); // This will beep only if do_not_beep = false
-          
+          warning_beep();  // This will beep only if do_not_beep = false
+
 
 
           beepCounter++;
@@ -230,21 +232,25 @@ void setup_logic() {
 
 inline void loop_logic() {
   float result = 0;
-  if (!is_calc_ema)
-    trigger_system(classify(vReal, result), result, millis());
-  else {
-    classify(vReal, result);
 
-    emacalc(is_calc_b ? EMA_B : EMA_A, result);
+  if (new_fft_data) {
+    new_fft_data = false;
+    if (!is_calc_ema)
+      trigger_system(classify(vReal, result), result, millis());
+    else {
+      classify(vReal, result);
 
-    if (is_calc_b) {
-      if (result < min_b || min_b == 0)
-        min_b = result;
+      emacalc(is_calc_b ? EMA_B : EMA_A, result);
+
+      if (is_calc_b) {
+        if (result < min_b || min_b == 0)
+          min_b = result;
+      }
     }
-  }
 
-  if (stream_FFT)
-    send_to_udp();
+    if (stream_FFT)
+      send_to_udp();
+  }
 
   loop_alarm();
 

@@ -91,15 +91,27 @@ int warning_beep_wait = 50;
 
 const uint16_t samples = 64;              // Must be a power of 2
 const uint16_t samplingFrequency = 1000;  // Adjust as needed
+const unsigned long sample_interval_us = 1000000 / samplingFrequency;
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-// SVM Settings
+// SVM Settings (now in EEPROM)
 
-int classification_threshold = 100;
+bool use_eeprom_for_svm = true; // Set to false to set classification_threshold, bias and weights manually here
 
-static const float weights[] = { 0.00000000, 0.00000000, 0.00000000, 0.00000000, 0.00000000, -0.16666446, 0.14036143, 0.10275731, 0.15018884, 0.17533556, -0.01297485, 0.29788694, -0.10588868, 0.16164895, 0.07309278, -0.06163993, 0.72166246, -0.05186196, 0.05293969, 0.17246698, -0.09546843, 0.25317097, -0.05021467, 0.20567502, 0.12985801, 0.05549219, 0.18976886, -0.10753195, -0.29549880, 0.30059777, 0.24690098, 0.00517570 };
-static const float bias = -0.2237529517562951;
+int classification_threshold = 37;
+
+static const float weights[] = { 
+  0.00000000, 0.00000000, 0.00000000, 0.00000000, 
+  0.47980666, -0.31826749, 0.05809363, -0.03985905, 
+  0.00901466, 0.04364503, 0.11737717, 0.07428109, 
+  -0.03230778, 0.03184345, 0.24386819, 0.26248544, 
+  0.38641945, 0.25450867, 0.22663249, 0.03980024, 
+  0.00449978, 0.17955838, 0.06384432, 0.00154516, 
+  0.13665916, 0.02439742, 0.04932829, -0.18201523, 
+  0.24929525, 0.20383461, 0.00252797, 0.00000000
+};
+static const float bias = 0.05218686;
 
 static const unsigned int elements_size = 150;  // How many classifications should be collected before batch sending to logger. NOTE: More than 1400 bytes will segment the packet and reception will fail.
 

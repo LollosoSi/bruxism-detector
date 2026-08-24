@@ -84,7 +84,7 @@ void send_evaluation_result(float result, bool classification) {
   memcpy(payload + 1, &result, 4);  // float
   payload[5] = classification;
 
-  memcpy(payload + 6, &classification_threshold, 4);  // float
+  memcpy(payload + 6, &eeprom_config.classification_threshold, 4);  // float
   payload[10] = classification;
 
   send_bytes(payload, sizeof(payload));
@@ -123,7 +123,66 @@ void received_packet(char* packetBuffer, int len) {
   Serial.println((int)packetBuffer[0]);
 
   if (len > 0) {
-    packetBuffer[len] = 0;  // Null-terminate the received string
+    packetBuffer[len] = 0;
+
+    if (packetBuffer[0] == SAVE_WEIGHTS) {
+      // Calcola la lunghezza esatta attesa in modo dinamico
+      size_t expected_len = 1 + sizeof(eeprom_config.bias) + sizeof(eeprom_config.classification_threshold) + sizeof(eeprom_config.weights);
+      
+      if (len == expected_len) {
+        
+        // 1. Extract bias
+        memcpy(&eeprom_config.bias, &packetBuffer[1], sizeof(eeprom_config.bias));
+        
+        // 2. Extract threshold (1 + 4 bytes)
+        memcpy(&eeprom_config.classification_threshold, &packetBuffer[1 + sizeof(eeprom_config.bias)], sizeof(eeprom_config.classification_threshold));
+        
+        // 3. Extract weights (1 + 4 bias + 4 threshold)
+        memcpy(eeprom_config.weights, &packetBuffer[1 + sizeof(eeprom_config.bias) + sizeof(eeprom_config.classification_threshold)], sizeof(eeprom_config.weights));
+
+        // Print
+        Serial.println("\n--- Received Weights via UDP ---");
+        Serial.print("Bias: ");
+        Serial.println(eeprom_config.bias, 8);
+        Serial.print("Threshold: ");
+        Serial.println(eeprom_config.classification_threshold);
+        Serial.println("Weights: ");
+        for(int i = 0; i < weight_length; i++) {
+          Serial.print(eeprom_config.weights[i], 8);
+          Serial.print(" ");
+
+          if ((i + 1) % 4 == 0) Serial.println(); 
+        }
+        Serial.println("-----------------------------------\n");
+
+        // 4. Save to EEPROM
+        save_config();
+      } else {
+        Serial.print("Received SAVE_WEIGHTS, but wrong length. Expected: ");
+        Serial.print(expected_len);
+        Serial.print(" Received: ");
+        Serial.println(len);
+      }
+    } else if (packetBuffer[0] == SAVE_WIFI) {
+      
+      // Estrapoliamo la stringa partendo dal secondo byte (indice 1)
+      String config = String(&packetBuffer[1]);
+      
+      int sep = config.indexOf('\"');
+
+      if (sep > 0) {
+        String newSSID = config.substring(0, sep);
+        String newPASS = config.substring(sep + 1);
+
+        // Chiamiamo la funzione che salva permanentemente in EEPROM
+        save_wifi_ssidpassword(newSSID, newPASS);
+        
+        Serial.print("New WiFi credentials saved! SSID: ");
+        Serial.println(newSSID);
+      } else {
+        Serial.println("Error: invalid WiFi format.");
+      }
+    }
   }
   if (len == 1) {
     switch (packetBuffer[0]) {
@@ -191,7 +250,10 @@ void received_packet(char* packetBuffer, int len) {
   }
   if (len == 3) {
     if (packetBuffer[0] == SET_EVALUATION_THRESHOLD) {
-      classification_threshold = (uint8_t)packetBuffer[1] | ((uint8_t)packetBuffer[2] << 8);
+      eeprom_config.classification_threshold = (uint8_t)packetBuffer[1] | ((uint8_t)packetBuffer[2] << 8);
+
+      // Save to EEPROM
+      save_config();
     }
   }
 }
@@ -208,7 +270,7 @@ void setup_wifi() {
 
   bool connection_comes_from_BLE = false;
 
-  WiFi.begin(ssid, password);
+  WiFi.begin(eeprom_config.ssid, eeprom_config.password);
   uint8_t count = 1;
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -234,6 +296,10 @@ void setup_wifi() {
         WiFi.begin(newSSID.c_str(), newPASS.c_str());
         count = 1;
         Serial.println("Received new WiFi credentials via BLE");
+
+        // Not sure if I want to save credentials for a one-time TCP session. I'd rather reset it as tcp-udp packet.
+        //save_wifi_ssidpassword(newSSID, newPASS);
+
       }
     }
 

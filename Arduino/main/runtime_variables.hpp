@@ -39,7 +39,8 @@ const uint8_t CHECK_VERSION = 15;
 const uint8_t CONFIRM_ANDROID_ALARM_STOPPED = 16;
 const uint8_t DO_NOT_ALARM = 17;
 const uint8_t DO_NOT_BEEP = 18;
-
+const uint8_t SAVE_WEIGHTS = 19;
+const uint8_t SAVE_WIFI = 20;
 bool is_using_android = false;
 bool do_not_beep_if_android = false;
 bool need_alarm_confirmation = false;
@@ -55,6 +56,7 @@ float vReal[samples];
 float hammingWindow[samples];  // Hamming window coefficients
 int network_send_bytes = (samples / 2) * sizeof(float);
 
+bool new_fft_data = false; // Notify logic that there is data to classify
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
