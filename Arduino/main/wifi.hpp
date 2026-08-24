@@ -179,6 +179,8 @@ void received_packet(char* packetBuffer, int len) {
         
         Serial.print("New WiFi credentials saved! SSID: ");
         Serial.println(newSSID);
+
+        NVIC_SystemReset();
       } else {
         Serial.println("Error: invalid WiFi format.");
       }
@@ -304,6 +306,7 @@ void setup_wifi() {
     }
 
     if (count++ == 0) {
+      // Reset
       NVIC_SystemReset();
     }
   }
@@ -312,25 +315,32 @@ void setup_wifi() {
 
 
 
-  if (connection_comes_from_BLE) {
+if (connection_comes_from_BLE) {
     useTCP = true;  // If BLE was used to configure, prefer TCP
 
-    // Wait for a valid IP address
+    // Attendi l'assegnazione dell'indirizzo IP
     IPAddress ip;
     do {
       delay(10);
       ip = WiFi.localIP();
     } while (ip[0] == 0);
 
-    // Format IP address string
-    char ipStr[16];  // 15 characters max for IPv4 + 1 for null terminator
+    // Formatta la stringa IP
+    char ipStr[16];
     snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 
-    // Send IP back via BLE
+    // Scrivi l'IP nella caratteristica BLE
     wifiChar.writeValue(ipStr);
-    delay(500);
-  }
+    Serial.print("BLE: IP caricato sulla caratteristica: ");
+    Serial.println(ipStr);
 
+    // Attendi che l'app Android legga l'IP e chiuda la connessione BLE (max 4 secondi)
+    unsigned long bleStartWait = millis();
+    while (BLE.connected() && (millis() - bleStartWait < 4000)) {
+      BLE.poll();
+      delay(50);
+    }
+  }
 
   if (bleActive) {
     BLE.stopAdvertise();
@@ -341,8 +351,7 @@ void setup_wifi() {
 
   if (useTCP) {
     tcpServer.begin();
-
-
+    Serial.println("Server TCP avviato sulla porta 9334");
   } else {
     udp.beginMulticast(multicastAddress, multicastPort);
     read_udp.beginMulticast(multicastAddress, multicastReadPort);
