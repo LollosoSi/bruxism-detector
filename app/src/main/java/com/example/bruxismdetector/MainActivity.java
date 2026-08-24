@@ -291,6 +291,10 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         );
+
+        String ip = prefs.getString("tcp_address", "");
+        findViewById (R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
+
     }
 
     @SuppressLint("SetTextI18n")

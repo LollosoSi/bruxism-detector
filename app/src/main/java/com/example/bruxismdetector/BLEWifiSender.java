@@ -200,76 +200,61 @@ Log.d(TAG, "Started BLE scan for " + TARGET_NAME);
             Log.d(TAG, "Write complete with status: " + status);
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 sent = true;
-                Log.i(TAG, "Credentials sent successfully.");
+                Log.i(TAG, "Credenziali inviate! In attesa che Arduino si connetta al WiFi...");
 
-                // Now, attempt to read the IP address characteristic
-                BluetoothGattService service = gatt.getService(SERVICE_UUID); // Assuming IP char is in the same service
-                if (service != null) {
-                    BluetoothGattCharacteristic ipCharacteristic = service.getCharacteristic(CHARACTERISTIC_UUID);
-                    if (ipCharacteristic != null) {
-                        if ((ipCharacteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) != 0) {
-                            Log.d(TAG, "Attempting to read IP characteristic: " + ipCharacteristic.getUuid());
-                            if (!gatt.readCharacteristic(ipCharacteristic)) {
-                                Log.e(TAG, "Failed to initiate read for IP characteristic.");
-                                stop(); // Stop if read initiation fails
-                            }
-                            // If readCharacteristic returns true, onCharacteristicRead will be called later.
-                        } else {
-                            Log.e(TAG, "IP characteristic " + CHARACTERISTIC_UUID + " does not have READ property.");
-                            stop();
-                        }
-                    } else {
-                        Log.w(TAG, "IP characteristic " + CHARACTERISTIC_UUID + " not found.");
-                        stop(); // Stop if the IP characteristic isn't found
+                // Attende 1 secondo prima del primo tentativo di lettura dell'IP
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    if (currentGatt != null) {
+                        gatt.readCharacteristic(characteristic);
                     }
-                } else {
-                    Log.w(TAG, "Service " + SERVICE_UUID + " not found for reading IP characteristic.");
-                    stop(); // Stop if service isn't found
-                }
+                }, 1000);
             } else {
-                Log.e(TAG, "Credential write failed with status: " + status);
-                stop(); // Stop if write failed
+                Log.e(TAG, "Scrittura credenziali fallita con codice: " + status);
+                stop();
+            }
+        }
+
+        private void handleReceivedData(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
+            if (value == null || value.length == 0) return;
+
+            String receivedData = new String(value, StandardCharsets.UTF_8).trim();
+            Log.d(TAG, "Dato letto da BLE: \"" + receivedData + "\"");
+
+            // Verifica se il dato letto è un indirizzo IP valido (es. 192.168.1.50)
+            if (receivedData.matches("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
+                Log.i(TAG, "IP valido ricevuto con successo: " + receivedData);
+
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(activity);
+                prefs.edit().putString("tcp_address", receivedData).apply();
+
+                activity.runOnUiThread(() -> blecallback.onIPReceived(receivedData));
+
+                // Chiude il BLE solo dopo aver ottenuto il vero IP
+                stop();
+            } else {
+                // Arduino sta ancora negoziando la connessione con il router, riprova tra 600ms
+                Log.d(TAG, "Arduino non ha ancora l'IP. Nuovo tentativo tra 600ms...");
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    if (currentGatt != null) {
+                        gatt.readCharacteristic(characteristic);
+                    }
+                }, 600);
             }
         }
 
         @Override
         public void onCharacteristicRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic, @NonNull byte[] value, int status) {
-            // This is the old callback signature.
-            // For API 33+, you'd also implement the one without byte[] value and call a common handler.
-            // For simplicity here, we'll use this one. Ensure your target/compile SDK handles it.
-
-            // super.onCharacteristicRead(gatt, characteristic, value, status); // Not strictly needed unless you have a superclass doing something
-
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (CHARACTERISTIC_UUID.equals(characteristic.getUuid())) { // Check if it's the IP characteristic
-                    if (value.length > 0) {
-                        String receivedData = new String(value, StandardCharsets.UTF_8).trim();
-                        Log.i(TAG, "Successfully read IP Address: \"" + receivedData + "\"");
-                        // TODO: Process the receivedData (e.g., parse IP, update UI, etc.)
-                        // Now you have the IP. You can decide what to do next.
-                        // Perhaps now you want to stop, or keep the connection for other things.
-                        // For this example, let's assume you stop after successfully reading the IP.
-                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(activity);
-                        prefs.edit().putString("tcp_address", receivedData).apply();
-
-                        blecallback.onIPReceived(receivedData);
-
-                        Log.d(TAG, "IP Address received. Stopping BLE operations.");
-                        stop(); // Call stop AFTER successfully processing the IP
-
-                    } else {
-                        Log.w(TAG, "IP Characteristic " + characteristic.getUuid() + " read with null or empty value.");
-                        stop(); // Stop if read was for IP char but value is empty
-                    }
-                } else {
-                    Log.d(TAG, "Read from other characteristic: " + characteristic.getUuid());
-                    // If you read other characteristics, decide if you stop or not.
-                    // For now, let's assume any other read also leads to a stop for simplicity.
-                    stop();
-                }
+                handleReceivedData(gatt, characteristic, value);
             } else {
-                Log.w(TAG, "Characteristic read failed for " + characteristic.getUuid() + " with status: " + status);
-                stop(); // Stop if any read fails
+                Log.w(TAG, "Lettura fallita con codice: " + status);
+            }
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                handleReceivedData(gatt, characteristic, characteristic.getValue());
             }
         }
     };
