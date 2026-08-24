@@ -1651,7 +1651,11 @@ public class MainActivity extends AppCompatActivity {
                                             public void run() {
                                                 try {
                                                     // This is now running on a background thread
-                                                    final String result = SVMTrainer.train_for_result(clenching_filenamepath, non_clenching_filenamepath, pcb);
+                                                    final SVMTrainer.TrainingResult result_trainer = SVMTrainer.train_for_result(clenching_filenamepath, non_clenching_filenamepath, pcb);
+                                                    final String result = result_trainer.textOutput;
+
+                                                    // Send weights to arduino
+                                                    sendUDP(result_trainer.udpPacket);
 
                                                     // --- Switch back to the UI thread to update the UI ---
                                                     runOnUiThread(new Runnable() {
@@ -2048,6 +2052,12 @@ public class MainActivity extends AppCompatActivity {
         collapsedSet.setVisibility(R.id.button2, View.GONE);
         collapsedSet.setVisibility(R.id.button_start_trainer, View.GONE);
 
+        collapsedSet.setVisibility(R.id.button_calendar, View.GONE);
+        collapsedSet.setVisibility(R.id.button_sendwifi, View.GONE);
+
+        collapsedSet.setVisibility(R.id.button_test, View.GONE);
+        collapsedSet.setVisibility(R.id.button_startcatcher, View.GONE);
+
         View toggleHandle = findViewById(R.id.session_settings_textview_handle);
 
         toggleHandle.setOnLongClickListener(new View.OnLongClickListener() {
@@ -2164,5 +2174,65 @@ public class MainActivity extends AppCompatActivity {
                 new Handler(Looper.getMainLooper()).post(() -> callback.accept(-1));
             }
         }).start();
+    }
+
+    // Metodo helper per inviare pacchetti in TCP senza bloccare la UI
+    private void sendTCP(byte[] data, String ip, int port) {
+        new Thread(() -> {
+            try {
+                // Crea il socket, invia i dati e chiudi la connessione
+                java.net.Socket socket = new java.net.Socket(ip, port);
+                java.io.OutputStream out = socket.getOutputStream();
+                out.write(data);
+                out.flush();
+                socket.close();
+                Log.d("TCP", "SAVE_WIFI sent to " + ip);
+            } catch (Exception e) {
+                Log.e("TCP", "Couldn't send via TCP", e);
+                runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this, "Can't connect to Arduino via TCP", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
+    public void updateWifiViaNetwork(View v) {
+        // Ricicliamo la tua interfaccia esistente per il popup
+        WifiDialogHelper.WifiPasswordCallback wpc = new WifiDialogHelper.WifiPasswordCallback() {
+            @Override
+            public void onPasswordEntered(String wssid, String wpassword) {
+
+                // 1. Formatta la stringa (SSID"PASSWORD) come si aspetta Arduino
+                String payloadString = wssid + "\"" + wpassword;
+                byte[] payloadBytes = payloadString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+                // 2. Crea il pacchetto con header 21 (SAVE_WIFI)
+                byte[] packet = new byte[1 + payloadBytes.length];
+                packet[0] = 20; // SAVE_WIFI
+                System.arraycopy(payloadBytes, 0, packet, 1, payloadBytes.length);
+
+                // 3. Controlliamo se stiamo usando TCP o UDP
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                boolean useTcp = prefs.getBoolean("use_tcp", false);
+
+                if (useTcp) {
+                    // Recuperiamo l'IP salvato dal BLE in precedenza
+                    String ip = prefs.getString("tcp_address", "");
+                    if (!ip.isEmpty()) {
+                        // Invia tramite TCP alla porta 9334
+                        sendTCP(packet, ip, 9334);
+                        Toast.makeText(MainActivity.this, "Sent via TCP", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MainActivity.this, "Error: IP TCP not found", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    // Invia tramite l'UDP multicast già esistente
+                    sendUDP(packet);
+                    Toast.makeText(MainActivity.this, "Sent via UDP", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+
+        // Mostra il popup di sistema
+        WifiDialogHelper.showWifiPasswordDialog(this, wpc);
     }
 }
