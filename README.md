@@ -201,8 +201,18 @@ Note: If you skipped a night, the app will still allow tagging it for reference:
 ## **How to use**
 The following will reference `Arduino/main/main.ino` as the main program.
 - Mount the shield, electrodes, buttons, buzzer and everything
-- Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
+- (**Update note:** starting v1.4.1, skip this if using the android app) Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
 - Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
+
+- Updated WiFi setup procedure with the app:
+1. Open the app
+2. Turn on the device
+3. You'll get a WiFi credentials dialog: enter SSID and password of the network (note, this is potentially insecure via BLE)
+4. The device will connect to the network ONCE. Don't close the app.
+5. A TCP switch will appear on the menu
+6. Now tap "Set WiFi", enter the credentials of the network to be saved and confirm.
+7. Turn off the TCP switch
+
     </br>
 ### **Train your SVM model:**
   **Update Note:** Starting v1.4.1, the filtering method was updated and EEPROM support was added.
