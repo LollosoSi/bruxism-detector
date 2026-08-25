@@ -218,7 +218,7 @@ Output will be something like this:
 3. You'll get a WiFi credentials dialog: enter SSID and password of the network (note, this is potentially insecure via BLE)
 4. The device will connect to the network ONCE. Don't close the app.
 5. A TCP switch will appear on the menu
-6. Now tap "Set WiFi", enter the credentials of the network to be saved and confirm.
+6. Now tap "Set WiFi", enter the credentials of the network to be saved and confirm. (This also is potentially insecure if your network is compromised)
 7. Turn off the TCP switch
 
 **Legacy procedure / desktop users**
