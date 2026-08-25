@@ -199,12 +199,20 @@ Note: If you skipped a night, the app will still allow tagging it for reference:
 
 
 ## **How to use**
-The following will reference `Arduino/main/main.ino` as the main program.
-- Mount the shield, electrodes, buttons, buzzer and everything
-- (**Update note:** starting v1.4.1, skip this if using the android app) Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
-- Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
+**New procedure starting v1.4.1**
+If you are using the app, editing the source code is not required anymore, so just upload the binary [found in the releases section (main.bin)](https://github.com/LollosoSi/bruxism-detector/releases)
+1. Download [arduino-cli from this page](https://arduino.github.io/arduino-cli/1.5/installation/#latest-release)
+2. Extract the program and the main.bin to the same folder
+3. Command line to that folder
+4. Connect your Arduino via USB
+5. Find out which port the Arduino is connected to, run `arduino-cli board list`
+Output will be something like this:
+`COM6  serial     Serial Port (USB) Arduino UNO R4 WiFi arduino:renesas_uno:unor4wifi arduino:renesas_uno`
+6. Replace `COM6` you just found into the next command and upload the program: 
+`arduino-cli.exe upload -p COM6 -b arduino:renesas_uno:unor4wifi --input-file main.bin`
 
 - Updated WiFi setup procedure with the app:
+0. Turn bluetooth on
 1. Open the app
 2. Turn on the device
 3. You'll get a WiFi credentials dialog: enter SSID and password of the network (note, this is potentially insecure via BLE)
@@ -212,6 +220,15 @@ The following will reference `Arduino/main/main.ino` as the main program.
 5. A TCP switch will appear on the menu
 6. Now tap "Set WiFi", enter the credentials of the network to be saved and confirm.
 7. Turn off the TCP switch
+
+**Legacy procedure / desktop users**
+
+The following will reference `Arduino/main/main.ino` as the main program.
+- Mount the shield, electrodes, buttons, buzzer and everything
+- Edit `WifiSettings.h` with your WiFi SSID and password (look for `ssid`, `password` variables)
+- Load `main.ino` into your Arduino Uno R4 WiFi. If you wish to use a different MCU, adapt `fft_signal_serial_or_udp_output` but I'm not supporting it in the future (at all actually, but I left the option to use ArduinoFFT instead of the arm specific library)
+
+
 
     </br>
 ### **Train your SVM model:**
