@@ -157,6 +157,10 @@ void received_packet(char* packetBuffer, int len) {
 
         // 4. Save to EEPROM
         save_config();
+
+        // 5. Restart (optional, but let's do it)
+        NVIC_SystemReset();
+        
       } else {
         Serial.print("Received SAVE_WEIGHTS, but wrong length. Expected: ");
         Serial.print(expected_len);
@@ -252,10 +256,13 @@ void received_packet(char* packetBuffer, int len) {
   }
   if (len == 3) {
     if (packetBuffer[0] == SET_EVALUATION_THRESHOLD) {
-      eeprom_config.classification_threshold = (uint8_t)packetBuffer[1] | ((uint8_t)packetBuffer[2] << 8);
+      int reception = (uint8_t)packetBuffer[1] | ((uint8_t)packetBuffer[2] << 8);
+      if(reception != eeprom_config.classification_threshold){
+        eeprom_config.classification_threshold = reception;
 
-      // Save to EEPROM
-      save_config();
+        // Save to EEPROM
+        save_config();
+      }
     }
   }
 }
