@@ -1,103 +1,132 @@
-<section>
-  <h2>Quick Start</h2>
-  <ol>
-    <li>
-      <strong>Assemble the Device</strong><br>
-      Use the <a href="https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure" target="_blank">3D printed parts</a>, a buzzer, a button, and some wires. Secure the parts using iron thread—holes are provided near the buzzer and button for this purpose.
-    </li>
-	</br>
-    <li>
-      <strong>Build the Headband & Place Electrodes</strong><br>
-      You'll need 3 electrodes:
-      <ul>
-        <li><strong>1 ground electrode</strong> — place it in the center of your forehead, away from the temples.</li>
-        <li><strong>2 signal electrodes</strong> — place them symmetrically near your temples.</li>
-      </ul>
-	  </br>
-      To find the exact muscle location, lightly clench your jaw and feel where the temporalis muscle contracts under your fingers.
-	  </br></br>Make sure to:
+<button class="back-btn" onclick="loadSection('home')">← Back to Home</button>
+
+<div class="card">
+  <h2>🚀 Quick Start Guide</h2>
+  <p>Follow these steps to build your Bruxism Detector and set up the app. No coding required!</p>
+
+  <h3>1. Gathering the Pieces</h3>
+  <ul>
+    <li>Any Windows, Linux or Mac computer to upload and occasionally update the program of the device.</li>
+    <li>(much recommended) A recent Android smartphone</li>
+    <li>1x <strong><a href="https://store.arduino.cc/products/uno-r4-wifi">Arduino Uno R4 WiFi</a></strong></li>
+    <li>1x <strong><a href="https://www.olimex.com/Products/Duino/Shields/SHIELD-EKG-EMG/open-source-hardware)">Olimex EMG shield</a></strong></li>
+    <li>1x <a href="https://www.olimex.com/Products/Duino/Shields/SHIELD-EKG-EMG-PRO">EMG cable</a></li>
+    <li>At least 3 electrodes (reference <a href="https://www.olimex.com/Products/Modules/Biofeedback/ECG-GEL-ELECTRODE/)">here</a>, can buy anywhere. Might have to replace regularly)</li>
+    <li>1x Passive Buzzer (12mm).</li>
+    <li>1x Push Button (12x12mm).</li>
+    <li>Male-female jumper wires.</li>
+    <li>Conductive gel (or ultrasound gel)</li>
+    <li>Elastic band to hold the electrodes. Like underwear ones.</li>
+    <li>Some iron wire to tie components to the 3D printed parts</li>
+  </ul>
+
+  <h3>2. 3D Printed Parts</h3>
+  All models can be found <a href="https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure">here</a> (files or remixes sections)
+  </br>You must source these parts yourself: at home, through a friend or service.
+  </br><strong>Mandatory:</strong>
+  <ul>
+    <li><a href="https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure/files">Everything in V2 folder (base, top, light cover back and side)</a></li>
+    <li>1x <a href="https://www.thingiverse.com/thing:4264338">Clip for elastic band.</a> </br><strong>Important notes:</br> 1. Print this in a soft material (TPU) for comfort.</br> 2. Scale it to fit your elastic band before printing!</strong></li>
+  </ul>
+<strong>Optional parts</strong>
+  </br><strong>Prints for the battery module:</strong>
+  <ul>
+    <li><a href="https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure/files">"Battery holder" (in battery module folder).</a><br><strong>NOTE: This module will fit a 76mm wide, 26mm thick and 72mm long power bank module</strong></li>
+    <li>Optionally print the holder cap ("Battery cover" file)</li>
+    <li>2x "hook male"</li>
+  </ul>
+<strong>Prints for the wall mount:</strong>
+  <ul>
+    <li><a href="https://www.printables.com/model/1251532-bruxism-detector-modular-enclosure/files">Everything in Wall mount folder (Mount and Lock)</a></a></li>
+    <li>2x "hook male"</li>
+  </ul>
+<strong>Phone mount</strong> (only makes sense to pair this with the wall mount):
+<ul>
+  <li><a href="https://www.thingiverse.com/thing:4810330/files">Pieces 1, 2, 3, 4, 5 from the original model on thingiverse</a> </li>
+  <li><a href="https://www.printables.com/model/1305340-phone-mount-for-bruxism-detector/files">Camera mount base and wall lock extension</a></li>
+</ul>
+
+
+  <h3>3. Assembly</h3>
+  <ul>
+    <li>Fit the Arduino and EMG shield into the 3D printed enclosure.</li>
+    <li>Connect the buzzer's positive lead to Pin 5 (negative to GND), and the button to Pin 3 (other end to GND).</li>
+    <li>The model you printed has some holes for iron wire, tie button and buzzer in place with two pieces.</li>
+  </ul>
+  Picture of the finished base
+
+  <center><img style="margin:10px; border-radius: 24px; max-width: 70%;" src="images/wiring.jpg"/></center>
+
+
+
+  <h3>4. Electrode placement and headband</h3>
+  <ul>
+    <li>Place the <strong>ground electrode</strong> (black) on the center of your forehead, away from the temples.</li>
+    <li>Place the <strong>two signal electrodes</strong> (red and white) symmetrically near your temples, exactly where you feel the temporalis muscle contracting when you lightly clench your jaw.</li>
+    <li>Correct usage of the electrodes:
       <ul>
         <li>Move hair out of the way.</li>
-        <li>Use conductive gel or replacement pads—dry pads won't work reliably.</li>
+        <li>Use conductive gel or replacement pads — dry pads won't work reliably.</li>
+        <li>Avoid gluing your hair.</li>
       </ul>
-	  </br>
-	  Fix everything in place with an elastic band (like the ones for underwear). Make some holes and have the electrodes clip through it.
-	  </br>You might want to print a clip in TPU like <a href="https://www.thingiverse.com/thing:4264338" target="_blank">this one</a> (resize the model appropriately).
     </li>
-	<center><img style="margin:10px;border-radius: 24px;" width="40%" src="images/headband.jpg"/></center>
-	</br>
-    <li>
-      <strong>Install the Arduino IDE</strong><br>
-      Install the <code>CMSIS-DSP</code> and <code>ArduinoBLE</code> libraries from the Library Manager.
-    </li>
-	</br>
-    <li>
-      <strong>Get the Arduino Code</strong><br>
-      Download the latest <a href="https://github.com/LollosoSi/bruxism-detector/tree/main/Arduino/main" target="_blank">Arduino sketch</a> from the GitHub repository.
-    </li>
-	</br>
-    <li>
-      <strong>Configure Wi-Fi</strong><br>
-      Edit the file <code><a href="https://github.com/LollosoSi/bruxism-detector/blob/8d4a49e24c5d6fa42ad300063e335d86065e740a/Arduino/main/user/WifiSettings.h">user/WifiSettings.h</a></code> with your network credentials, then upload the sketch to the Arduino UNO R4 WiFi using the Arduino IDE.
-    </li>
-	</br>
- <!-- Android App Installation -->
-<div class="flex-row">
-    <img src="https://github.com/user-attachments/assets/e2ce3ac4-f248-4bf6-a06f-d74949b3ca36" class="step-image">
-	<li>
-		<div>
-		<strong>Install the Android App</strong><br>
-		Download the latest release APK from <a href="https://github.com/LollosoSi/bruxism-detector/releases" target="_blank">GitHub Releases</a> and install it on your device.<br>
-		Launch and grant all requested permissions.
-		</div>
-	</li>
-</div>
-<br><br>
- <!-- Android App Installation -->
-<div class="flex-row">
-    <img src="https://github.com/user-attachments/assets/4eb218aa-4276-425f-a224-c61f6c4f5fdd" class="step-image">
-	<div>
-	<li>
-		
-		<strong>Start the System</strong><br>
-		Wear the headband, power the device, and <strong>long-press the button for 4 seconds</strong>—you’ll hear a beep sequence to confirm it's streaming the tuning data.<br>
-		<em>Note: this only works during the first 2 minutes of runtime.<br>If it doesn't work, restart the Arduino device.</em>
-
-	</li>
-	<br>
-	<li>
-
-		<strong>Tune it</strong>
-		<br>
-		The app will automatically detect the signal and enter a tuning screen.
-		<br>Adjust the classification threshold so that it's triggered only during real clenching events.<br>When satisfied, tap <strong>“Awesome”</strong>.<br><br>
-		<strong>Long-press the button for 4 seconds</strong> to disable tuning.<br>If you don't hear any confirmation, restart the Arduino device.
-		
-	</li>
-	</div>
-</div>
-
-<div>
-
-    </div>
-
-</div>
-
     
+    <li>When you've found the correct spots, make corresponding holes into the elastic band, then clip electrodes through it.</li>
+  </ul>
+  Picture of the finished headband
+  <center><img style="margin:10px; border-radius: 24px; max-width: 70%; " src="images/headband.jpg"/></center>
 
+  </br>
+  <h2>Final steps</h2>
+  The next steps are simplified so anyone can complete the setup.
+</br>The catch is you'll need a recent Android phone with the companion app installed.
+</br>If you don't own one, you're going to use the desktop utility and need to edit the original program. Follow the steps for advanced users using the Arduino IDE. (link: WIP, refer to the old README)
 
-<!-- Tags -->
-<li>
-  <strong>Customize Tags</strong><br>
-  Go to the <strong>“Tags”</strong> section of the app to select or add pertinent tracking elements.
-</li>
+  <h3>4. Uploading the Software (Windows example)</h3>
+  <p>Download the pre-compiled binary (<code>main.bin</code>) from the <a href="https://github.com/LollosoSi/bruxism-detector/releases">GitHub releases page</a>.</p>
+  <ul>
+    <li>Download <strong><a href="https://arduino.github.io/arduino-cli/1.5/installation/#latest-release">arduino-cli</a></strong> and extract it in the same folder as <code>main.bin</code>.</li>
+    <li>Connect your Arduino via USB and open the command line in that folder.</br>Find your COM port by running:</br><code>arduino-cli.exe board list</code>.</li>
+    <li>Upload the program by replacing <code>COM6</code> with your actual port in this command:</br><code>arduino-cli.exe upload -p COM6 -b arduino:renesas_uno:unor4wifi --input-file main.bin</code>.</li>
+  </ul>
 
-	</br>
-    <li>
-      <strong>Done!</strong><br>
-      You’re all set!
-	  <br>
-	  By this point you should have seen the tutorial in the app | Hit <code>Start</code> to begin tracking.
+  <h3>5. WiFi Setup</h3>
+  If you never launched the app yet, open it and allow all permissions it asks, all the time.
+
+  <ul>
+    <li>Turn on Bluetooth on your phone, open the app, and turn on the device. Enter your WiFi credentials when the dialog appears.</li>
+    <li>If the connection is successful, a "TCP" switch will show up. Tap "Set WiFi" and once again set the credentials of the network you're going to connect to.</li>
+    <li>Turn the TCP switch off, you only need this when the device needs to be connected to a new network or you're away from home.</li>
+  </ul>
+
+  <h3>6. SVM Training and Tuning</h3>
+  Wear the headband.
+  <ul>
+    
+    <li>Step 1 - <strong>SVM Training:</strong>
+      <ul>
+        <li>Turn on the device and let it connect to WiFi. <strong>Long-press the button</strong> (within the first 2 minutes of runtime) until you hear a beep sequence.</li>
+        <li>The app will detect the device streaming data and enter the tuning screen automagically.</li>
+        <li>Hold the "Non-clenching" button to record data in the non clenching state: do not clench, stay still, move, cough, swallow, etc.</li>
+        <li>Hold the "Clenching" button to record data in the clenching state: begin the recording when you are already clenching. Don't go too hard, but do not let go. Add some variability. You may hold and release as many times as you like and the recordings will be merged.</li>
+        <li>Tap "Calculate weights"</li>
+        <li>You will see the results and hear beeping from the Arduino device, confirming the new settings have been saved automagically.</li>
+        <li>The device will restart.</li>
+        </ul>
     </li>
-  </ol>
-</section>
+    <li>Step 2 - <strong>SVM Tuning:</strong>
+      <ul>
+        <li>Turn on the device and let it connect to WiFi. <strong>Long-press the button</strong> (within the first 2 minutes of runtime) until you hear a beep sequence.</li>
+        <li>The app will detect the device streaming data and enter the tuning screen automagically.</li>
+        <li>Adjust the classification threshold just so it triggers during real clenches only.</li>
+        <li>Tap <strong>Awesome</strong>.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>7. Training the reflex</h3>
+  <div class="hub-card" onclick="loadSection('training')">
+    <h3>☀️ Daytime Training</h3>
+    <p>How to use classical conditioning to relax your jaw.</p>
+  </div>
+</div>

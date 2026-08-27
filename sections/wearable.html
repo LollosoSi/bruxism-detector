@@ -1,0 +1,48 @@
+<button class="back-btn" onclick="loadSection('home')">← Back to Home</button>
+
+<div class="card">
+  <h2>⌚ Wearable Devices & Sleep Trackers</h2>
+  <p>You can match your bruxism data with sleep data from your sleep tracker to get a better overview of your night sessions.</p>
+
+  <h3>Graph Integration</h3>
+  <ul>
+    <li>If available, your sleep data (sleep phases, heart rate and SpO2 + stress for Mi Band users) will be included in your final graph.</li>
+    <li>To do this manually with the desktop program, you will need to export the tracker data to a compatible format first. Currently only done through the Android app.</li>
+  </ul>
+
+  <h3>Health Connect (All recent Android devices)</h3>
+  <p>This is the currently most compatible and recommended method.</p>
+  <p>If you are using any wearable which syncs with this system service, configure syncing.</p>
+
+  <ul>
+    <li>In the detector app, tap "Smartband" and allow permissions to Health Connect</li>
+    <li>You don't need to repeat this step. The next time it will sync automatically before generating new Graphs.</li>
+  </ul>
+  
+
+  <h3>Mi Band Support</h3>
+  <p>The Android App has a specific integration for Mi Band users.</p>
+  <p>Root method (Mi Fitness):</p>
+  <ul>
+    <li>Tap <strong>Smartband</strong> in the app. Do not consent Health Connect. Consent Root Access.</li>
+    <li><strong>Requirements:</strong> To use this feature, you must have either a rooted Android device or manually provide the database (<code>fitness_data</code>) file.</li>
+  </ul>
+  <p>Nonroot method (Gadgetbridge):</p>
+  <ul>
+    <li>From the Gadgetbridge app, export the database to <code>Documents/RECORDINGS/Gadgetbridge/Gadgetbridge.db</code></li>
+    <ul><li>You can set this to "automatic" and to a time when you're awake.</li></ul>
+    <li>Now go to the detector app. Tap <strong>Smartband</strong>. Do not consent Health Connect. You'll be asked to select the db file as a fallback method.</li>
+    <li>After importing is completed, tap "Graphs"</li>
+    <li>The app does not import the database automatically before generating the graphs, and does not update older ones. Only the most recent session gets regenerated.</li>
+    <li>With this procedure, you also export the "Stress" parameter from the smartband. <strong>If you don't need this, then configure Gadgetbridge to export automatically to Health Connect.</strong></li>
+  </ul>
+  <p>Recommended: Configuring Gadgetbridge to Health Connect:</p>
+  <ul>
+    <li>Go to <code>App Settings > External Integrations > Health Connect</code></li>
+    <li>Enable <code>Health Connect Export</code></li>
+    <li>Also enable it to sync automatically</li>
+    <li>Now the app will also automatically include everything uploaded in Health Connect before generating your graph!</li>
+      The only downside of this method is that you won't see "Stress" values, but you will get automatic syncing.
+
+</ul>
+</div>

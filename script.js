@@ -1,123 +1,53 @@
+const appRoot = document.getElementById('app-root');
 
+// Funzione per caricare le sezioni dinamicamente
+async function loadSection(sectionName) {
+  try {
+    // Aggiunge un effetto di fade out
+    appRoot.style.opacity = '0';
+    
+    // Attende un attimo per l'animazione, poi scarica il file
+    setTimeout(async () => {
+      const response = await fetch(`sections/${sectionName}.html`, { cache: 'no-store' });
+      
+      if (!response.ok) {
+        appRoot.innerHTML = `<div class="card"><h2>Error 404</h2><p>Page "${sectionName}" not found.</p><button class="back-btn" onclick="loadSection('home')">← Back to Home</button></div>`;
+      } else {
+        const html = await response.text();
+        appRoot.innerHTML = html;
+      }
+      
+      // Scrolla in cima e fa il fade in
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      appRoot.style.opacity = '1';
+    }, 200); // 200ms corrisponde al tempo della transizione CSS
 
-
-const contentDiv = document.getElementById('content');
-const mainInner = document.querySelector('.main-inner');
-
-const navLinks = Array.from(document.querySelectorAll('nav a'));
-const sectionsOrder = navLinks.map(link => link.getAttribute('data-section'));
-
-let currentContainer = null;
-let currentIndex = 0;  // Index of currently loaded section
-
-async function loadSection(name, direction) {
-  const newContainer = document.createElement('div');
-  newContainer.classList.add('content-container', 'active');
-  newContainer.style.opacity = '0';
-  newContainer.style.pointerEvents = 'none';
-
-  // Load content
-  const res = await fetch(`sections/${name}.html`);
-  if (res.ok) {
-    newContainer.innerHTML = await res.text();
-  } else {
-    newContainer.innerHTML = `<section><h2>Error</h2><p>Could not load section "${name}".</p></section>`;
+  } catch (error) {
+    console.error("Error loading section:", error);
   }
-
-  mainInner.appendChild(newContainer);
-
-  if (!currentContainer) {
-    // First load, no animation
-    newContainer.style.opacity = '1';
-    newContainer.style.pointerEvents = 'auto';
-    currentContainer = newContainer;
-    currentIndex = sectionsOrder.indexOf(name);
-    return;
-  }
-
-  // Determine animation classes based on direction
-  // 'left' means new content comes from left (old slides out right)
-  // 'right' means new content comes from right (old slides out left)
-  const outClass = direction === 'left' ? 'slide-out-right' : 'slide-out-left';
-  const inClass = direction === 'left' ? 'slide-in-left' : 'slide-in-right';
-
-  currentContainer.classList.add(outClass);
-  newContainer.classList.add(inClass);
-
-  newContainer.style.opacity = '1';
-  newContainer.style.pointerEvents = 'auto';
-
-  function onAnimationEnd() {
-    currentContainer.classList.remove('active', outClass);
-    mainInner.removeChild(currentContainer);
-
-    newContainer.classList.remove(inClass);
-    newContainer.style.opacity = '1';
-    newContainer.style.pointerEvents = 'auto';
-
-    currentContainer = newContainer;
-    currentIndex = sectionsOrder.indexOf(name);
-    newContainer.removeEventListener('animationend', onAnimationEnd);
-  }
-
-  newContainer.addEventListener('animationend', onAnimationEnd);
 }
 
-// Add event listeners with direction logic
-navLinks.forEach(link => {
-  link.addEventListener('click', e => {
-    e.preventDefault();
-    const section = link.getAttribute('data-section');
-    if (!section || section === sectionsOrder[currentIndex]) return; // no change
-
-    const clickedIndex = sectionsOrder.indexOf(section);
-    const direction = clickedIndex > currentIndex ? 'right' : 'left';
-
-    loadSection(section, direction);
-  });
+// Carica la Home di default quando si apre il sito
+document.addEventListener('DOMContentLoaded', () => {
+  // Imposta la transizione per il fade
+  appRoot.style.transition = 'opacity 0.2s ease-in-out';
+  loadSection('home');
 });
 
-// Load initial section
-loadSection(sectionsOrder[0], 'right');
-
-
-const cct = document.querySelector('.content-container');
+// Header scroll
+let lastScrollY = window.scrollY;
 const header = document.querySelector('header');
-const nav = document.querySelector('nav');
-const footer = document.querySelector('footer');
 
-let lastScrollY = 0;
-let ticking = false;
-
-function onMainScroll() {
-  const currentScrollY = cct.scrollTop;
-
-  if (!ticking) {
-    window.requestAnimationFrame(() => {
-      if (currentScrollY > lastScrollY && currentScrollY > 20) {
-        header.classList.add('hidden');
-        nav.classList.add('hidden');
-        footer.classList.add('hidden');
-        console.log('Hiding footer');
-      } else if (currentScrollY < lastScrollY - 10 || currentScrollY <= 20) {
-        header.classList.remove('hidden');
-        nav.classList.remove('hidden');
-		document.querySelector('footer').classList.add('hidden');
-
-        console.log('Showing footer');
-      }
-
-      lastScrollY = currentScrollY;
-      ticking = false;
-    });
-
-    ticking = true;
+window.addEventListener('scroll', () => {
+  const currentScrollY = window.scrollY;
+  
+  // Se scorri verso il basso e superi i 50px, nascondi l'header
+  if (currentScrollY > lastScrollY && currentScrollY > 50) {
+    header.classList.add('header-hidden');
+  } else {
+    // Se scorri verso l'alto, mostralo di nuovo
+    header.classList.remove('header-hidden');
   }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const el = document.getElementById('contentA');
-  el.addEventListener('scroll', () => {
-    console.log('scroll event fired', el.scrollTop);
-  });
+  
+  lastScrollY = currentScrollY;
 });

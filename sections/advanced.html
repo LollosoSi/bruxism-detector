@@ -1,0 +1,43 @@
+<button class="back-btn" onclick="loadSection('home')">← Back to Home</button>
+
+<div class="card">
+  <h2>⚙️ Advanced & Development</h2>
+  <strong>Important Note:</strong> this section is AI generated and is WIP. Refer to the old README.
+
+  <br><br><p>Manual procedures for desktop users, custom firmware compilation, and manual SVM training.</p>
+
+  <h3>1. Desktop Software Prerequisites</h3>
+  <ul>
+    <li><strong>Arduino IDE:</strong> Requires the "CMSIS-DSP" and "ArduinoBLE" libraries.</li>
+    <li><strong>Processing:</strong> Requires the "Sound" library.</li>
+    <li><strong>Python:</strong> Requires numpy, pandas, sklearn, and openpyxl libraries (install via pip).</li>
+  </ul>
+
+  <h3>2. Desktop SVM Training (Python)</h3>
+  <p>If you are not using the Android app, you must train the model using Python:</p>
+  <ul>
+    <li>Load <code>main.ino</code> into your Arduino and edit <code>WifiSettings.h</code> with your credentials.</li>
+    <li>Long-press the button on your Arduino until you hear confirmation beeps to stream FFT data.</li>
+    <li>Run <code>fft_recorder_for_training</code>. Use keys in the console: <strong>n</strong> (record non-clenching), <strong>c</strong> (record clenching), and <strong>s</strong> to save.</li>
+    <li>Move <code>clenching.csv</code> and <code>non-clenching.csv</code> to the folder containing <code>data_classification_training.py</code> and run the python script.</li>
+    <li>Paste the generated weights and bias into <code>Settings.h</code>. <strong>Note:</strong> Set <code>bool use_eeprom_for_svm = false;</code> in settings if you are not using the app.</li>
+  </ul>
+
+  <h3>3. Manual Calibration</h3>
+  <ul>
+    <li><strong>Assisted Calibration:</strong> Long-press the button for 10 seconds. Follow the console instructions to record states, then replace <code>classification_threshold</code> in <code>Settings.h</code> with the suggested threshold.</li>
+    <li><strong>Manual Calibration:</strong> Open the console at <code>500000 baud rate</code> to see FFT evaluation scores. Find a custom threshold that sits between your lowest clenching score and highest non-clenching score.</li>
+  </ul>
+
+  <h3>4. Desktop Logger & Graph Utility</h3>
+  <ul>
+    <li>Run the <code>main_logger</code> Processing sketch on your computer to log events via UDP. Data is saved in the <code>data/RECORDINGS/</code> folder.</li>
+    <li>To generate graphs, run the Java utility from the command line: <code>java -jar generator.jar light</code>.</li>
+  </ul>
+
+  <h3>5. Customizing Settings & Melodies</h3>
+  <ul>
+    <li>Edit variables under <code>Settings.h</code> to change detection timings (e.g., <code>attesaPrimoBeep</code>, <code>numeroMaxBeep</code>, <code>periodoGrazia</code>). Not really recommended as your graphs computations will be skewed</li>
+    <li>To change the alarm melody, edit the <code>tune</code> structs and the <code>tune* tunes[]</code> array using the definitions available in <code>Notes.h</code>.</li>
+  </ul>
+</div>
