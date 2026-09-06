@@ -56,7 +56,7 @@ Depending on your technical skills, choose the path that suits you best:
 - Android App setup, automatic tuning, and wearables integration
 - Daytime reflex training
 
-### 🛠️ [Advanced / Developer Documentation](old_readme.md)
+### 🛠️ [Advanced / Developer Documentation](old_README.md)
 **For developers, desktop users, and tinkerers.** Read the legacy technical documentation for:
 - Manual SVM model training via Python
 - Desktop logging and graph generation via Processing (Java)
