@@ -39,7 +39,7 @@ bool eventoInCorso = false;
 unsigned long inizioEvento = 0;
 unsigned long ultimoPositivo = 0;
 int beepCounter = 0;
-unsigned long ultimoBottone = 0;
+// moved to runtime_variables unsigned long ultimoBottone = 0;
 
 unsigned long inizioFiltraggio = 0;
 unsigned long ultimoCampione = 0;
@@ -158,7 +158,14 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
     }
   }
 
-  if (tempoAttuale - ultimoBottone < periodoGrazia || !filtraggioCompletato || alarm_running) {
+  bool isGraceActive = tempoAttuale - ultimoBottone < periodoGrazia;
+  grace_left_seconds = isGraceActive ? (periodoGrazia - (tempoAttuale - ultimoBottone)) / 1000 : 0;
+
+  if (isGraceActive || !filtraggioCompletato || alarm_running) {
+    
+    
+
+
     return;
   }
 

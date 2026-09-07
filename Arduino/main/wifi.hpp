@@ -64,7 +64,32 @@ void send_elements_batch(data_element* d) {
   send_bytes((uint8_t*)d, sizeof(data_element) * elements_size);
 }
 
+// Sends wifi strength
+void send_wifi_rssi() {
+  int8_t rssi_val = (int8_t)WiFi.RSSI();
+  uint8_t payload[2];
+
+  payload[0] = RSSI_WIFI;
+  payload[1] = (uint8_t)rssi_val; // Safe 1 byte cast
+
+  send_bytes(payload, sizeof(payload));
+}
+
+void send_grace_state(){
+  uint8_t payload[2];
+
+  payload[0] = GRACE_ACTIVE;
+  payload[1] = grace_left_seconds;
+
+  send_bytes(payload, sizeof(payload));
+}
+
+void reset_grace_period(){
+  ultimoBottone = millis();
+}
+
 void send_parameters_udp() {
+
   uint8_t payload[4];
 
   payload[0] = lowByte(samplingFrequency);
@@ -73,6 +98,8 @@ void send_parameters_udp() {
   payload[3] = highByte(samples);
 
   send_bytes(payload, sizeof(payload));
+
+  
 }
 
 // 11 bytes: 1 + 4 + 1 + 4 + 1
@@ -252,6 +279,10 @@ void received_packet(char* packetBuffer, int len) {
       case CONFIRM_ANDROID_ALARM_STOPPED:
         alarm_stoppped_confirmed();
         break;
+
+      case GRACE_ACTIVE:
+        reset_grace_period();
+        break;
     }
   }
   if (len == 3) {
@@ -288,27 +319,36 @@ void setup_wifi() {
 
     if (wifiChar.written()) {
       String config = String((const char*)wifiChar.value());
+      bool shouldSave = false;
+
+      // Starts with !S! : save and reboot
+      if (config.startsWith("!S!")) {
+        shouldSave = true;
+        config = config.substring(3); // Remove prefix
+      }
 
       int sep = config.indexOf('\"');
 
       Serial.print("Received from BLE: ");
       Serial.println(config);
 
-
       if (sep > 0) {
         String newSSID = config.substring(0, sep);
         String newPASS = config.substring(sep + 1);
 
-        connection_comes_from_BLE = true;
+        if (shouldSave) {
+          save_wifi_ssidpassword(newSSID, newPASS);
+          Serial.println("WiFi saved via BLE. Rebooting...");
 
+          NVIC_SystemReset(); // Reset as per UDP
+        }
+
+        // If !S! is not present : TCP mode
+        connection_comes_from_BLE = true;
         WiFi.disconnect();
         WiFi.begin(newSSID.c_str(), newPASS.c_str());
         count = 1;
-        Serial.println("Received new WiFi credentials via BLE");
-
-        // Not sure if I want to save credentials for a one-time TCP session. I'd rather reset it as tcp-udp packet.
-        //save_wifi_ssidpassword(newSSID, newPASS);
-
+        Serial.println("TCP mode");
       }
     }
 
@@ -325,23 +365,23 @@ void setup_wifi() {
 if (connection_comes_from_BLE) {
     useTCP = true;  // If BLE was used to configure, prefer TCP
 
-    // Attendi l'assegnazione dell'indirizzo IP
+    // Wait to have an address assigned
     IPAddress ip;
     do {
       delay(10);
       ip = WiFi.localIP();
     } while (ip[0] == 0);
 
-    // Formatta la stringa IP
+    // Format IP string
     char ipStr[16];
     snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
 
-    // Scrivi l'IP nella caratteristica BLE
+    // Write IP as BLE characteristic
     wifiChar.writeValue(ipStr);
-    Serial.print("BLE: IP caricato sulla caratteristica: ");
+    Serial.print("BLE: IP sent: ");
     Serial.println(ipStr);
 
-    // Attendi che l'app Android legga l'IP e chiuda la connessione BLE (max 4 secondi)
+    // Wait for android to read and close BLE (max 4 seconds)
     unsigned long bleStartWait = millis();
     while (BLE.connected() && (millis() - bleStartWait < 4000)) {
       BLE.poll();
@@ -358,13 +398,18 @@ if (connection_comes_from_BLE) {
 
   if (useTCP) {
     tcpServer.begin();
-    Serial.println("Server TCP avviato sulla porta 9334");
+    Serial.println("TCP server started on port 9334");
   } else {
     udp.beginMulticast(multicastAddress, multicastPort);
     read_udp.beginMulticast(multicastAddress, multicastReadPort);
   }
+
+    send_wifi_rssi();
 }
 
+
+unsigned long last_send_rssi = 10000; // First send after at least 10 seconds
+const unsigned long rssi_send_interval = 3000; // Periodically send RSSI
 
 inline void loop_wifi() {
 
@@ -395,5 +440,12 @@ inline void loop_wifi() {
       len = read_udp.read(packetBuffer, sizeof(packetBuffer) - 1);
       received_packet(packetBuffer, len);
     }
+  }
+
+  unsigned long now = millis();
+  if (now - last_send_rssi > (grace_left_seconds == 0 ? rssi_send_interval : 1000)){
+    last_send_rssi = now;
+    send_wifi_rssi();
+    send_grace_state();
   }
 }

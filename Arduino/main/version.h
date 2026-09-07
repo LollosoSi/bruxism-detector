@@ -1,1 +1,1 @@
-const static uint16_t VersionIncremental = 7;
+const static uint16_t VersionIncremental = 8;
