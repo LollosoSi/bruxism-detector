@@ -38,6 +38,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -624,6 +625,10 @@ public class MainActivity extends AppCompatActivity {
         sw_notalarm.setOnCheckedChangeListener(swnotalarmlistener);
         sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
         swnotalarmlistener.onCheckedChanged(sw_notalarm, sw_notalarm.isChecked());
+
+        // Always disable TCP on launch. We only want this to be intentionally enabled via BLE
+        prefs.edit().putBoolean("use_tcp", false).apply();
+        prefs.edit().putString("tcp_address", "").apply();
 
         MaterialSwitch swtcp = findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
         CompoundButton.OnCheckedChangeListener swtcplistener = new CompoundButton.OnCheckedChangeListener() {
@@ -1360,6 +1365,34 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    private void updateWifiSignal(int rssi) {
+        ImageView wifiIcon = findViewById(R.id.wifi_signal_icon);
+        if (wifiIcon == null) return;
+
+        int iconRes;
+        if (rssi >= -50) {
+            iconRes = R.drawable.wifi_full;   // Segnale al massimo
+        } else if (rssi >= -60) {
+            iconRes = R.drawable.wifi_4;      // Segnale molto buono
+        } else if (rssi >= -70) {
+            iconRes = R.drawable.wifi_3;      // Segnale buono
+        } else if (rssi >= -80) {
+            iconRes = R.drawable.wifi_2;      // Segnale discreto
+        } else if (rssi >= -90) {
+            iconRes = R.drawable.wifi_1;      // Segnale debole
+        } else if (rssi > -120) {
+            iconRes = R.drawable.wifi_0;      // Connesso ma al limite del disallineamento
+        } else {
+            iconRes = R.drawable.wifi_boh;    // Valore fuori range o non valido
+        }
+
+        wifiIcon.setImageResource(iconRes);
+        if (wifiIcon.getVisibility() != View.VISIBLE) {
+            wifiIcon.setVisibility(View.VISIBLE);
+        }
+
+        wifiIcon.setContentDescription("WiFi Signal: " + rssi + " dBm");
+    }
     int min_result = 0, max_result = 0;
 
     private float[] fftData = null;
@@ -1442,7 +1475,19 @@ public class MainActivity extends AppCompatActivity {
                         });
 
                     }
-                }else if(length == 11) {
+                }else if (length == 2) {
+                    // RSSI WiFi from Arduino: [21, (byte)rssi]
+                    if (data[0] == 21) {
+                        final int rssi = (byte) data[1]; // Explicit byte cast to preserve sign (es. -72)
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                updateWifiSignal(rssi);
+                            }
+                        });
+                    }
+                } else if(length == 11) {
 
                     if (data[0] == 11 && data[5]==data[10]) {
 
@@ -2216,10 +2261,10 @@ public class MainActivity extends AppCompatActivity {
         // Ricicliamo la tua interfaccia esistente per il popup
         WifiDialogHelper.WifiPasswordCallback wpc = new WifiDialogHelper.WifiPasswordCallback() {
             @Override
-            public void onPasswordEntered(String wssid, String wpassword) {
+            public void onPasswordEntered(String ssid, String password, boolean savePermanently) {
 
                 // 1. Formatta la stringa (SSID"PASSWORD) come si aspetta Arduino
-                String payloadString = wssid + "\"" + wpassword;
+                String payloadString = ssid + "\"" + password;
                 byte[] payloadBytes = payloadString.getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
                 // 2. Crea il pacchetto con header 21 (SAVE_WIFI)

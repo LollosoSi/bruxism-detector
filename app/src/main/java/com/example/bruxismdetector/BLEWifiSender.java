@@ -85,6 +85,7 @@ Log.d(TAG, "Started BLE scan for " + TARGET_NAME);
 
 
     String ssid, password;
+    boolean savePermanently = false;
     private boolean scanning = false;
 
     private final ScanCallback scanCallback = new ScanCallback() {
@@ -108,14 +109,15 @@ Log.d(TAG, "Started BLE scan for " + TARGET_NAME);
                 // Prompt for WiFi credentials dialog, then connect
                 WifiDialogHelper.WifiPasswordCallback wpc = new WifiDialogHelper.WifiPasswordCallback() {
                     @Override
-                    public void onPasswordEntered(String wssid, String wpassword) {
+                    public void onPasswordEntered(String wssid, String wpassword, boolean wsavePermanently) {
                         ssid = wssid;
                         password = wpassword;
+                        savePermanently = wsavePermanently;
                         connectToDevice(device);
                     }
                 };
 
-                WifiDialogHelper.showWifiPasswordDialog(activity, wpc);
+                WifiDialogHelper.showWifiPasswordDialog(activity, true, wpc);
             }
         }
 
@@ -181,10 +183,11 @@ Log.d(TAG, "Started BLE scan for " + TARGET_NAME);
             if (service != null) {
                 BluetoothGattCharacteristic characteristic = service.getCharacteristic(CHARACTERISTIC_UUID);
                 if (characteristic != null) {
-                    String combined = ssid + "\"" + password + "\0";
+                    String prefix = savePermanently ? "!S!" : "";
+                    String combined = prefix + ssid + "\"" + password + "\0";
                     characteristic.setValue(combined.getBytes());
                     boolean success = gatt.writeCharacteristic(characteristic);
-                    Log.d(TAG, "Writing credentials: " + success);
+                    Log.d(TAG, "Writing credentials: " + success + " (Save permanently: " + savePermanently + ")");
                 } else {
                     Log.w(TAG, "Characteristic not found");
                     stop();
@@ -200,14 +203,21 @@ Log.d(TAG, "Started BLE scan for " + TARGET_NAME);
             Log.d(TAG, "Write complete with status: " + status);
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 sent = true;
-                Log.i(TAG, "Credenziali inviate! In attesa che Arduino si connetta al WiFi...");
-
-                // Attende 1 secondo prima del primo tentativo di lettura dell'IP
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    if (currentGatt != null) {
-                        gatt.readCharacteristic(characteristic);
-                    }
-                }, 1000);
+                if (savePermanently) {
+                    Log.i(TAG, "Credenziali inviate per salvataggio permanente. Arduino si riavvierà.");
+                    activity.runOnUiThread(() -> {
+                        android.widget.Toast.makeText(activity, "Credentials sent! Arduino is rebooting.", android.widget.Toast.LENGTH_LONG).show();
+                    });
+                    stop(); // In permanent mode, we don't wait for IP as Arduino reboots
+                } else {
+                    Log.i(TAG, "Credenziali inviate! In attesa che Arduino si connetta al WiFi...");
+                    // Attende 1 secondo prima del primo tentativo di lettura dell'IP
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        if (currentGatt != null) {
+                            gatt.readCharacteristic(characteristic);
+                        }
+                    }, 1000);
+                }
             } else {
                 Log.e(TAG, "Scrittura credenziali fallita con codice: " + status);
                 stop();

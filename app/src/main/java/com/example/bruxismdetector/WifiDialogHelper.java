@@ -15,6 +15,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.text.InputType;
 import android.util.Log;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -28,7 +29,7 @@ import java.lang.reflect.Method;
 public class WifiDialogHelper {
 
     public interface WifiPasswordCallback {
-        void onPasswordEntered(String ssid, String password);
+        void onPasswordEntered(String ssid, String password, boolean savePermanently);
     }
 
     private static final String TAG = "WifiUtils";
@@ -138,6 +139,11 @@ public class WifiDialogHelper {
 
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     public static void showWifiPasswordDialog(Activity act, WifiPasswordCallback callback) {
+        showWifiPasswordDialog(act, false, callback);
+    }
+
+    @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    public static void showWifiPasswordDialog(Activity act, boolean showSaveOption, WifiPasswordCallback callback) {
         String[] ssinfo = getCurrentSSID(act);
         String ssid = ssinfo[0];
         String bssid = ssinfo[1];
@@ -154,13 +160,22 @@ public class WifiDialogHelper {
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         input.setPadding(32, 16, 32, 32);
 
+        CheckBox saveCheckbox = null;
+        if (showSaveOption) {
+            saveCheckbox = new CheckBox(act);
+            saveCheckbox.setText("Save on device");
+            saveCheckbox.setPadding(32, 16, 32, 16);
+        }
+
         LinearLayout layout = new LinearLayout(act.getApplicationContext());
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.addView(ssidText);
         layout.addView(input);
+        if (saveCheckbox != null) {
+            layout.addView(saveCheckbox);
+        }
 
-        final String finalSsid = ssidText.getText().toString();
-
+        CheckBox finalSaveCheckbox = saveCheckbox;
         act.runOnUiThread(() -> {
 
             new AlertDialog.Builder(act)
@@ -169,8 +184,10 @@ public class WifiDialogHelper {
                     .setCancelable(false)
                     .setPositiveButton("Send", (dialog, which) -> {
                         String password = input.getText().toString();
+                        String finalSsid = ssidText.getText().toString();
                         if (!password.isEmpty()) {
-                            callback.onPasswordEntered(finalSsid, password);
+                            boolean savePermanently = finalSaveCheckbox != null && finalSaveCheckbox.isChecked();
+                            callback.onPasswordEntered(finalSsid, password, savePermanently);
                         }
                     })
                     .setNegativeButton("Cancel", (dialog, which) -> dialog.cancel())

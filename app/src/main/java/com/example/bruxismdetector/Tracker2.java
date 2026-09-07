@@ -1,5 +1,7 @@
 package com.example.bruxismdetector;
 
+import static android.widget.Toast.LENGTH_LONG;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
@@ -14,6 +16,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
 import android.icu.util.Calendar;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -28,6 +33,8 @@ import android.os.Vibrator;
 
 import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
+
+import android.provider.Settings;
 import android.se.omapi.Session;
 import android.util.Log;
 import android.widget.Toast;
@@ -71,6 +78,8 @@ public class Tracker2 extends Service {
     private static final String ACTION_STOP_SERVICE = "STOP_MULTICAST_SERVICE";
     private static final String ACTION_BUTTON_SERVICE = "BUTTON_MULTICAST_SERVICE";
     private static final String BEEP_BUTTON_SERVICE = "BEEP_MULTICAST_SERVICE";
+
+    private static final String GRACE_BUTTON_SERVICE = "GRACE_MULTICAST_SERVICE";
     private static final String ALARMOFF_BUTTON_SERVICE = "ALARMOFF_MULTICAST_SERVICE";
 
     private MulticastSocket receiveSocket;
@@ -107,9 +116,13 @@ public class Tracker2 extends Service {
 
 
 
+    private long serviceStartTimeMs = 0L;
+
     @Override
     public void onCreate() {
         super.onCreate();
+
+        serviceStartTimeMs = System.currentTimeMillis();
 
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(this));
         UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
@@ -137,6 +150,7 @@ public class Tracker2 extends Service {
         filter.addAction(ACTION_STOP_SERVICE);
         filter.addAction(ACTION_BUTTON_SERVICE);
         filter.addAction(BEEP_BUTTON_SERVICE);
+        filter.addAction(GRACE_BUTTON_SERVICE);
         filter.addAction(ALARMOFF_BUTTON_SERVICE);
         filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
@@ -181,9 +195,32 @@ public class Tracker2 extends Service {
         }
 
 
+
         Notification n = buildNotification();
         n.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
-        startForeground(NOTIFICATION_ID, n);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            int serviceType = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                serviceType |= android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
+            }
+            startForeground(NOTIFICATION_ID, n, serviceType);
+        } else {
+            startForeground(NOTIFICATION_ID, n);
+        }
+
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= 36) {
+            boolean canPromote = nm.canPostPromotedNotifications();
+            if(!canPromote){
+                // Live updates are not enabled for this app. Ask the user to enable them!
+                Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                Toast.makeText(this, "Enable live updates from notification settings", LENGTH_LONG).show();
+            }
+        }
 
 
         if(PermissionsActivity.isMicrophonePermissionGranted(this) && prefs.getBoolean("record_noise", false)) {
@@ -308,7 +345,17 @@ public class Tracker2 extends Service {
 
     }
 
+    private int currentWifiRssi = -999, currentGraceSeconds = 0;
+
     private Notification buildNotification() {
+
+        boolean live_updates_enabled = false;
+
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= 36) {
+            live_updates_enabled = nm.canPostPromotedNotifications();
+        }
+
         Intent stopIntent = new Intent(ACTION_STOP_SERVICE);
         PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
                 this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
@@ -324,30 +371,110 @@ public class Tracker2 extends Service {
                 this, 2, beepIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
+        Intent graceIntent = new Intent(GRACE_BUTTON_SERVICE);
+        PendingIntent gracePendingIntent = PendingIntent.getBroadcast(
+                this, 3, graceIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
 
 
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Bruxism Tracker Service Running")
-                .setContentText("Logging & running alarms")
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+
+        int wifiDrawable = (currentWifiRssi != -999)
+                ? getWifiSignalIcon(currentWifiRssi)
+                : R.drawable.wifi_boh;
+
+        Bitmap wifiBitmap = getBitmapFromVector(wifiDrawable);
+
+        String contentText = currentGraceSeconds > 0 ? "Grace period: " + currentGraceSeconds + " seconds left" : "Tap \"Stop\" to end tracking";
+
+
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)             // Evita suoni/vibrazioni a ogni aggiornamento della notifica
+                .setWhen(serviceStartTimeMs)       // Punto di partenza del timer
+                .setUsesChronometer(true)          // Avvia il conteggio dinamico stile registrazione
+                .setShowWhen(true)
+                .setCategory(NotificationCompat.CATEGORY_STATUS) // Su OxygenOS aggancia il monitor di stato live
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+                .setRequestPromotedOngoing(true)
                 .addAction(new NotificationCompat.Action(
-                        android.R.drawable.ic_media_pause,
-                        "Stop tracking",
+                        R.drawable.pause,
+                        "Stop",
                         stopPendingIntent
                 ))
                 .addAction(new NotificationCompat.Action(
-                        android.R.drawable.btn_star,
-                        "Button press",
+                        R.drawable.button_press,
+                        "Press",
                         buttonPendingIntent
-                ))
-                .addAction(new NotificationCompat.Action(
-                        android.R.drawable.btn_star,
-                        "BEEP",
-                        beepPendingIntent
-                ))
-                .setOngoing(true)
+                ));
 
-                .build();
+
+        // Different buttons if grace period is active
+        if(currentGraceSeconds > 0){
+            builder.addAction(new NotificationCompat.Action(
+                    android.R.drawable.ic_lock_silent_mode_off,
+                    "Beep",
+                    beepPendingIntent
+            ));
+
+        }else{
+            builder.addAction(new NotificationCompat.Action(
+                    android.R.drawable.ic_lock_silent_mode,
+                    "Grace",
+                    gracePendingIntent));
+        }
+
+        // Changes behavior for the pill
+        if(live_updates_enabled){
+            builder .setContentTitle(currentGraceSeconds > 0 ? "Grace Period" : "Tracking")
+                    .setContentText(contentText)
+
+                    .setOngoing(true)
+                    .setSmallIcon(wifiDrawable);
+
+            if(currentGraceSeconds > 0)
+                    builder.setLargeIcon(getBitmapFromVector(R.drawable.hourglass_hd))
+                            .setSubText(contentText);
+        }else{
+            builder .setContentTitle("Tracking")
+                    .setContentText(contentText)
+                    .setOngoing(true)
+                    .setSmallIcon(wifiDrawable)
+                    .setLargeIcon(wifiBitmap);
+        }
+
+
+
+        // Explicit extra for oxygenos capsule (does not do anything?)
+        builder.getExtras().putBoolean("android.requestPromotedOngoing", true);
+
+        return builder.build();
+
+
+    }
+
+    public void updateNotificationWifi(int rssi) {
+        this.currentWifiRssi = rssi;
+        if (notificationManager != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    return;
+                }
+            }
+            notificationManager.notify(NOTIFICATION_ID, buildNotification());
+        }
+    }
+
+    public void updateNotificationGrace(int seconds_left){
+        this.currentGraceSeconds = seconds_left;
+        if (notificationManager != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    return;
+                }
+            }
+            notificationManager.notify(NOTIFICATION_ID, buildNotification());
+        }
     }
 
     private Vibrator vibrator = null;
@@ -453,6 +580,10 @@ public void exit(){
                 Log.d(TAG, "Beep button received");
                 sendBytes(new byte[]{SessionTracker.BEEP});
             }
+            if (GRACE_BUTTON_SERVICE.equals(intent.getAction())) {
+                Log.d(TAG, "Grace button received");
+                sendBytes(new byte[]{SessionTracker.GRACE_ACTIVE});
+            }
             if(Intent.ACTION_SCREEN_ON.equals(intent.getAction()) || Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){
                 Log.d(TAG, "Screen on/off received");
                 if(vibrating) {
@@ -533,7 +664,9 @@ public void exit(){
                 Log.d(TAG, "Received bytes: " + packet.getLength());
 
                 // Handle the data here, e.g., broadcast, process, etc.
-                sessionTracker.processData(data, length);
+                preprocessDataBeforeSendingToTracker(data, length);
+
+
             } catch (IOException e) {
                 if (running) {
                     Log.e(TAG, "Error receiving UDP packet", e);
@@ -544,6 +677,21 @@ public void exit(){
         if(multicastLock.isHeld())
             multicastLock.release();
 
+    }
+
+    public void preprocessDataBeforeSendingToTracker(byte[] data, int length){
+        // If this is RSSI [21, signed_byte]
+        if (length == 2 && data[0] == SessionTracker.RSSI_WIFI) {
+            final int rssi = (byte) data[1];
+            updateNotificationWifi(rssi);
+        } else if (length == 2 && data[0] == SessionTracker.GRACE_ACTIVE) {
+            final int secondsLeft = data[1] & 0xFF;
+            updateNotificationGrace(secondsLeft);
+
+        } else {
+            // Send to sessionTracker
+            sessionTracker.processData(data, length);
+        }
     }
 
     public void sendUDP(byte[] data) {
@@ -597,7 +745,7 @@ public void exit(){
                 int length = tcpIn.read(buffer); // blocking read
                 if (length > 0) {
                     Log.d(TAG, "Received TCP bytes: " + length);
-                    sessionTracker.processData(buffer, length);
+                    preprocessDataBeforeSendingToTracker(buffer, length);
                 }
             } catch (IOException e) {
                 if (tcpRunning) {
@@ -705,4 +853,37 @@ public void sendBytes(byte[] data){
         Toast.makeText(this, "Trigger STOP sent.", Toast.LENGTH_SHORT).show();
     }
 
+    private int getWifiSignalIcon(int rssi) {
+        if (rssi >= -50) {
+            return R.drawable.wifi_full;
+        } else if (rssi >= -60) {
+            return R.drawable.wifi_4;
+        } else if (rssi >= -70) {
+            return R.drawable.wifi_3;
+        } else if (rssi >= -80) {
+            return R.drawable.wifi_2;
+        } else if (rssi >= -90) {
+            return R.drawable.wifi_1;
+        } else if (rssi > -120) {
+            return R.drawable.wifi_0;
+        } else {
+            return R.drawable.wifi_boh;
+        }
+    }
+
+
+    private Bitmap getBitmapFromVector(int drawableId) {
+        Drawable drawable = ContextCompat.getDrawable(this, drawableId);
+        if (drawable == null) return null;
+
+        Bitmap bitmap = Bitmap.createBitmap(
+                drawable.getIntrinsicWidth() > 0 ? drawable.getIntrinsicWidth() : 96,
+                drawable.getIntrinsicHeight() > 0 ? drawable.getIntrinsicHeight() : 96,
+                Bitmap.Config.ARGB_8888
+        );
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
+    }
 }

@@ -46,6 +46,10 @@ public class SessionTracker {
     public static final byte DO_NOT_ALARM = 17;
     public static final byte DO_NOT_BEEP = 18;
 
+    public static final byte SAVE_WEIGHTS = 19;
+    public static final byte SAVE_WIFI = 20;
+    public static final byte RSSI_WIFI = 21;
+    public static final byte GRACE_ACTIVE = 22;
 
     private static final String TAG = "BruxismTracker:SessionTracker";
     public String csv_folder_path = "RECORDINGS/";
