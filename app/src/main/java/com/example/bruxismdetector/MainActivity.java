@@ -284,7 +284,7 @@ public class MainActivity extends AppCompatActivity {
 
                     if (grantedPermissions.containsAll(healthPermissions)) {
                         Log.i("FlowLog", "SUCCESS: All permissions granted. Starting import.");
-                        runHealthConnectImport();
+                        runHealthConnectImport(null);
                     } else {
                         Log.w("FlowLog", "FAILED: Permissions denied by user. Falling back to File Picker.");
                         launchFilePickerFallback();
@@ -847,28 +847,30 @@ public class MainActivity extends AppCompatActivity {
     public void openFilePicker(View v) {
         Log.i("FlowLog", "--- BUTTON PRESSED ---");
         ProgressingDialog ad = showProgressDialog(MainActivity.this, "Handling your database");
-        ad.setMessage("Converting your database");
+        if (ad != null) {
+            ad.setMessage("Converting your database");
+        }
 
         new Thread(new Runnable() {
             @Override
             public void run() {
                 ProgressReport pr = new ProgressReport() {
                     @Override
-                    public void setProgress(int progress) { runOnUiThread(() -> ad.updateProgress(progress)); }
+                    public void setProgress(int progress) { runOnUiThread(() -> { if (ad != null) ad.updateProgress(progress); }); }
                     @Override
-                    public void setTitle(String title) { runOnUiThread(() -> ad.setMessage(title)); }
+                    public void setTitle(String title) { runOnUiThread(() -> { if (ad != null) ad.setMessage(title); }); }
                 };
 
                 Log.i("FlowLog", "Attempting SOURCE 1: Root Mi Band DB");
                 if (MiBandDBConverter.tryRoot(MainActivity.this, pr)) {
                     Log.i("FlowLog", "SOURCE 1 SUCCESS: Root succeeded. Stopping.");
-                    runOnUiThread(() -> ad.dismiss());
+                    runOnUiThread(() -> { if (ad != null) ad.dismissAllowingStateLoss(); });
                     return;
                 }
                 Log.i("FlowLog", "SOURCE 1 FAILED: Moving to Health Connect check.");
 
                 runOnUiThread(() -> {
-                    ad.dismiss();
+                    if (ad != null) ad.dismissAllowingStateLoss();
 
                     HealthConnectImporter hcImporter = new HealthConnectImporter();
                     Log.i("FlowLog", "Calling isAvailable() on HealthConnectImporter...");
@@ -900,16 +902,20 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, PICK_FILE_REQUEST_CODE);
     }
 
-    private void runHealthConnectImport() {
+    private void runHealthConnectImport(Runnable onComplete) {
         // Show a new progress dialog specifically for Health Connect
         ProgressingDialog ad = showProgressDialog(MainActivity.this, "Importing Health Data");
+        if (ad == null) {
+            if (onComplete != null) onComplete.run();
+            return;
+        }
         ad.setMessage("Reading from Health Connect...");
 
         ProgressReport pr = new ProgressReport() {
             @Override
-            public void setProgress(int progress) { runOnUiThread(() -> ad.updateProgress(progress)); }
+            public void setProgress(int progress) { runOnUiThread(() -> { if (ad != null) ad.updateProgress(progress); }); }
             @Override
-            public void setTitle(String title) { runOnUiThread(() -> ad.setMessage(title)); }
+            public void setTitle(String title) { runOnUiThread(() -> { if (ad != null) ad.setMessage(title); }); }
         };
 
         HealthConnectImporter importer = new HealthConnectImporter();
@@ -917,13 +923,14 @@ public class MainActivity extends AppCompatActivity {
         importer.importData(this, pr, () -> {
             // Callback runs on background thread when import finishes
             runOnUiThread(() -> {
-                ad.setMessage("Exporting to CSV...");
+                if (ad != null) ad.setMessage("Exporting to CSV...");
 
                 // Generate CSV files from the newly imported SQLite data
                 SleepDatabaseHelper dbHelper = new SleepDatabaseHelper(getApplicationContext());
                 dbHelper.exportDataToCsv(getApplicationContext(), pr);
 
-                ad.dismiss();
+                if (ad != null) ad.dismissAllowingStateLoss();
+                if (onComplete != null) onComplete.run();
             });
         });
     }
@@ -953,7 +960,7 @@ public class MainActivity extends AppCompatActivity {
                                     runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
-                                            ad.updateProgress(progress);
+                                            if (ad != null) ad.updateProgress(progress);
                                         }
                                     });
                                 }
@@ -962,7 +969,7 @@ public class MainActivity extends AppCompatActivity {
                                     runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
-                                            ad.setMessage(title);
+                                            if (ad != null) ad.setMessage(title);
                                         }
                                     });
                                 }
@@ -994,7 +1001,7 @@ public class MainActivity extends AppCompatActivity {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    ad.dismiss();
+                                    if (ad != null) ad.dismissAllowingStateLoss();
                                 }
                             });
                         }
@@ -1007,6 +1014,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public ProgressingDialog showProgressDialog(Activity context, String message) {
+        if (isFinishing() || isDestroyed() || getSupportFragmentManager().isStateSaved()) {
+            return null;
+        }
         ProgressingDialog asyncDialog = new ProgressingDialog();
         //set message of the dialog
 
@@ -1913,19 +1923,22 @@ public class MainActivity extends AppCompatActivity {
 
     public void tryGraphing(View v){
 
+        Runnable graphingTask = () -> {
+            makeGraphs(MainActivity.this, new GrapherAsyncTask.GraphTaskCallback() {
+                @Override
+                public void onGraphTaskCompleted() {
+                    startActivity(new Intent(MainActivity.this, GraphViewer.class));
+                }
+            });
+        };
+
         // If health connect is enabled, automagically export data first
         HealthConnectImporter hcImporter = new HealthConnectImporter();
         if (hcImporter.isAvailable(getApplicationContext())) {
-            runHealthConnectImport();
+            runHealthConnectImport(graphingTask);
+        } else {
+            graphingTask.run();
         }
-
-
-        makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
-            @Override
-            public void onGraphTaskCompleted() {
-                startActivity(new Intent(MainActivity.this, GraphViewer.class));
-            }
-        });
     }
 
     public static void makeGraphs(MainActivity ctx, GrapherAsyncTask.GraphTaskCallback callback){

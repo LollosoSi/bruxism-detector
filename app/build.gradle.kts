@@ -11,7 +11,7 @@ android {
         applicationId = "com.example.bruxismdetector"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
+        versionCode = 12
         versionName = "1.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
