@@ -25,7 +25,7 @@ public class SpotlightView extends View {
         super(context);
 
         backgroundPaint = new Paint();
-        backgroundPaint.setColor(Color.parseColor("#B3000000")); // semi-transparent black
+        backgroundPaint.setColor(Color.parseColor("#cf000000")); // semi-transparent black
 
         clearPaint = new Paint();
         clearPaint.setAntiAlias(true);

@@ -528,7 +528,7 @@ public class Tracker2 extends Service {
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         if(prefs.getBoolean("noisy_alarm", false)){
-            tunePlayer.start();
+            tunePlayer.start(this);
         }
     }
 

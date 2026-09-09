@@ -1,9 +1,12 @@
 package com.example.bruxismdetector.bruxism_grapher2;
 
+import android.content.Context;
 import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import java.util.Random;
@@ -37,7 +40,7 @@ public class TunePlayer {
     /**
      * Inizializza le risorse audio. Va chiamato prima di start().
      */
-    private void initializeAudio() {
+    private void initializeAudio(Context context) {
         if (audioTrack != null) {
             audioTrack.release();
         }
@@ -61,20 +64,34 @@ public class TunePlayer {
                 .setBufferSizeInBytes(bufferSize)
                 .setTransferMode(AudioTrack.MODE_STREAM) // Usiamo la modalità STREAM
                 .build();
+
+        // NEW: Avoid playing through speaker if headphones are connected (API 23+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            AudioDeviceInfo[] outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+            for (AudioDeviceInfo device : outputDevices) {
+                if (device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        device.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    audioTrack.setPreferredDevice(device);
+                    break;
+                }
+            }
+        }
     }
 
     /**
      * Avvia la riproduzione della melodia corrente.
      */
-    public void start() {
+    public void start(Context context) {
         if (isPlaying) {
             return;
         }
         isPlaying = true;
-        initializeAudio(); // Inizializza l'AudioTrack
+        initializeAudio(context); // Inizializza l'AudioTrack
         audioTrack.play(); // Avvia l'AudioTrack una sola volta
         currentToneIndex = -1;
-        scheduleNextTone();
+        scheduleNextTone(context);
     }
 
     /**
@@ -99,7 +116,7 @@ public class TunePlayer {
     /**
      * Pianifica la nota successiva usando l'handler.
      */
-    private void scheduleNextTone() {
+    private void scheduleNextTone(Context context) {
         if (!isPlaying) {
             return;
         }
@@ -130,7 +147,7 @@ public class TunePlayer {
         playToneInternal(frequency, duration);
 
         // 6. Pianifica la prossima chiamata a questo metodo dopo il tempo di 'wait'
-        handler.postDelayed(this::scheduleNextTone, wait);
+        handler.postDelayed(() -> scheduleNextTone(context), wait);
     }
 
 

@@ -343,19 +343,33 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/button_calendar" />
 
+                <!-- RIGA 2: Start trainer e Trainer Stats -->
                 <Button
                     android:id="@+id/button_start_trainer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
                     android:layout_marginTop="8dp"
                     android:onClick="startTrainer"
                     android:text="Start trainer"
                     android:visibility="gone"
                     app:icon="@drawable/trainer"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/button_test"
+                    app:layout_constraintEnd_toStartOf="@id/button_trainer_stats"
+                    app:layout_constraintHorizontal_chainStyle="packed"
+                    app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/button_calendar" />
+
+                <Button
+                    android:id="@+id/button_trainer_stats"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:onClick="launchTrainerStats"
+                    android:text="Trainer Stats"
+                    android:visibility="visible"
+                    app:icon="@drawable/chart"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/button_start_trainer"
+                    app:layout_constraintTop_toTopOf="@id/button_start_trainer" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

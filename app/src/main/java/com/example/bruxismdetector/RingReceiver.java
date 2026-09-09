@@ -9,6 +9,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
@@ -31,7 +33,11 @@ import java.util.concurrent.TimeUnit;
 
 public class RingReceiver extends BroadcastReceiver {
     private static final int REQUEST_CODE = 1001;
-    private static final String CHANNEL_ID = "tone_channel";
+    //private static final String CHANNEL_ID = "tone_channel";
+    private static final String CHANNEL_SILENT_ID = "tone_channel_silent";
+    private static final String CHANNEL_SOUND_ID = "tone_channel_sound";
+
+
     private static final String cancel_action_notif = "cancel_action_notif";
     public static final String beep_once = "beep_once";
 
@@ -70,79 +76,135 @@ public class RingReceiver extends BroadcastReceiver {
         }
     }
 
+    private static final String ACTION_YES = "com.example.bruxismdetector.ACTION_YES";
+    private static final String ACTION_NO = "com.example.bruxismdetector.ACTION_NO";
+    private static final String ACTION_IGNORE = "com.example.bruxismdetector.ACTION_IGNORE";
+    private static final String EXTRA_BEEP_ID = "extra_beep_id";
+
     @Override
     public void onReceive(Context context, Intent intent) {
         Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandlerSharer(context));
         UncaughtExceptionHandlerSharer.setErrorDisplayMode(UncaughtExceptionHandlerSharer.ErrorDisplayMode.NOTIFICATION);
 
-        if(intent.getAction()!=null) {
-            if (intent.getAction().equals(cancel_action_notif)) {
+        String action = intent.getAction();
+        if (action != null) {
+            if (action.equals(cancel_action_notif)) {
                 cancel(context);
-
-                // Cancel the notification
-                NotificationManagerCompat manager = NotificationManagerCompat.from(context);
-                manager.cancel(REQUEST_CODE);  // Same ID used in notify()
-
+                NotificationManagerCompat.from(context).cancel(REQUEST_CODE);
                 return;
             }
+            // Handle user response actions
+            if (action.equals(ACTION_YES) || action.equals(ACTION_NO) || action.equals(ACTION_IGNORE)) {
+                long id = intent.getLongExtra(EXTRA_BEEP_ID, -1);
+                if (id != -1) {
+                    int responseValue = 0;
+                    if (action.equals(ACTION_YES)) responseValue = 1;
+                    else if (action.equals(ACTION_NO)) responseValue = 2;
+                    else if (action.equals(ACTION_IGNORE)) responseValue = 3;
 
+                    BeepDatabaseHelper dbHelper = new BeepDatabaseHelper(context);
+                    dbHelper.updateResponse(id, responseValue);
+                }
+                NotificationManagerCompat.from(context).cancel(REQUEST_CODE);
+                return;
+            }
+            if (action.equals(beep_once)) {
+                play2600Hz(context);
+                return;
+            }
         }
 
-        play2600Hz(context);
+        // Main training logic: 50% chance of beeping
+        boolean shouldBeep = Math.random() < 0.5;
+        BeepDatabaseHelper dbHelper = new BeepDatabaseHelper(context);
+        long id = dbHelper.insertEvent(shouldBeep);
 
-        if(intent.getAction()!=null)
-            if(intent.getAction().equals(beep_once)){
-                return;
-            }
+        if (shouldBeep) {
+            play2600Hz(context);
+        }
 
-        // Show notification
-        showNotification(context);
+        // Show updated notification
+        showNotification(context, id, shouldBeep);
 
-        // Schedule next
+        // Schedule next beep
         schedule(context);
     }
 
-    private void showNotification(Context context) {
-        createNotificationChannel(context);
+    private void showNotification(Context context, long beepId, boolean beeped) {
+        createNotificationChannels(context);
+
+        // Prepare actions
+        PendingIntent yesPI = createActionPI(context, ACTION_YES, beepId, 0);
+        PendingIntent noPI = createActionPI(context, ACTION_NO, beepId, 1);
+        PendingIntent ignorePI = createActionPI(context, ACTION_IGNORE, beepId, 2);
 
         Intent stopIntent = new Intent(context, RingReceiver.class);
         stopIntent.setAction(cancel_action_notif);
-        PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
+        PendingIntent stopPI = PendingIntent.getBroadcast(
                 context, 1002, stopIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
+        String toneText = beeped ? "Tone was played" : "Tone was not played";
+
+        String targetChannel = beeped ? CHANNEL_SILENT_ID : CHANNEL_SOUND_ID;
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, targetChannel)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle("Did you hear the tone?")
-                .setContentText("Dismiss this notification or cancel the trainer. Beeps will stop automatically at 19")
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setAutoCancel(true)
-                .addAction(android.R.drawable.ic_delete, "Stop trainer", stopPendingIntent);
+                .setContentTitle("Were you bruxing?")
+                .setContentText(toneText + ". Beeps end at 19:00")
+                .setPriority(beeped ? NotificationCompat.PRIORITY_LOW : NotificationCompat.PRIORITY_MAX)
+                .setAutoCancel(false)
+                .setOngoing(true)
+                .addAction(android.R.drawable.ic_input_add, "Yes", yesPI)
+                .addAction(android.R.drawable.ic_delete, "No", noPI)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Ignore", ignorePI)
+                .addAction(android.R.drawable.ic_lock_power_off, "Stop", stopPI);
+
+        // If there was no beep, enable default sound and vibration for android < 8.0
+        if (!beeped) {
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL);
+        }
 
         NotificationManagerCompat manager = NotificationManagerCompat.from(context);
-        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
+        if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            manager.notify(REQUEST_CODE, builder.build());
         }
-        manager.notify(REQUEST_CODE, builder.build());
     }
 
-    private void createNotificationChannel(Context context) {
-        CharSequence name = "Beep Notification";
-        String description = "Notifications for Beep events";
-        int importance = NotificationManager.IMPORTANCE_LOW;
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-        channel.setDescription(description);
+    private PendingIntent createActionPI(Context context, String action, long beepId, int offset) {
+        Intent intent = new Intent(context, RingReceiver.class);
+        intent.setAction(action);
+        intent.putExtra(EXTRA_BEEP_ID, beepId);
+        // Unique request code for each action/beep combination
+        int requestCode = (int) (beepId % 10000) * 10 + offset;
+        return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
 
-        NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
-        if (notificationManager != null)
-            notificationManager.createNotificationChannel(channel);
+    private void createNotificationChannels(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
+            if (notificationManager == null) return;
+
+            // 1. Silent channel (when we beep)
+            NotificationChannel silentChannel = new NotificationChannel(
+                    CHANNEL_SILENT_ID,
+                    "Beep Training (Silent)",
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            silentChannel.setDescription("Feedback notifications (with beep)");
+            silentChannel.setSound(null, null);
+            silentChannel.enableVibration(false);
+            notificationManager.createNotificationChannel(silentChannel);
+
+            // 2. Noisy channel (when we don't beep but want a standard notification)
+            NotificationChannel soundChannel = new NotificationChannel(
+                    CHANNEL_SOUND_ID,
+                    "Beep Training (Alert)",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            soundChannel.setDescription("Feedback notifications (no beep)");
+            notificationManager.createNotificationChannel(soundChannel);
+        }
     }
 
 
@@ -166,31 +228,49 @@ public class RingReceiver extends BroadcastReceiver {
             generatedSound[idx++] = (byte) ((val & 0xff00) >>> 8);
         }
 
-        // Respect notification volume
+        // Respect alarm volume (detached from notifications/media)
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
         if (volume == 0) return;
 
         SoundState.getInstance().setRinging(true);
 
-        // Play sound
-        AudioTrack audioTrack = new AudioTrack(
-                AudioManager.STREAM_ALARM,
-                sampleRate,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                generatedSound.length,
-                AudioTrack.MODE_STATIC
-        );
+        // Play sound using modern AudioTrack Builder with AudioAttributes
+        AudioTrack audioTrack = new AudioTrack.Builder()
+                .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build())
+                .setAudioFormat(new AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build())
+                .setBufferSizeInBytes(generatedSound.length)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build();
+
+        // Avoid playing through speaker if headphones are connected (API 23+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            AudioDeviceInfo[] outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+            for (AudioDeviceInfo device : outputDevices) {
+                if (device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        device.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    audioTrack.setPreferredDevice(device);
+                    break;
+                }
+            }
+        }
 
         audioTrack.write(generatedSound, 0, generatedSound.length);
         audioTrack.play();
 
         // Auto release after playing
         new Handler(Looper.getMainLooper()).postDelayed(()->{
-            SoundState.getInstance().setRinging(false);
-            audioTrack.release();
-            },
+                    SoundState.getInstance().setRinging(false);
+                    audioTrack.release();
+                },
                 (long) (durationSeconds * 1000));
     }
 
@@ -214,22 +294,40 @@ public class RingReceiver extends BroadcastReceiver {
             generatedSound[idx++] = (byte) ((val & 0xff00) >>> 8);
         }
 
-        // Respect notification volume
+        // Respect alarm volume
         AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         int volume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM);
         if (volume == 0) return;
 
         SoundState.getInstance().setRinging(true);
 
-        // Play sound
-        AudioTrack audioTrack = new AudioTrack(
-                AudioManager.STREAM_ALARM,
-                sampleRate,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                generatedSound.length,
-                AudioTrack.MODE_STATIC
-        );
+        // Play sound using modern AudioTrack Builder
+        AudioTrack audioTrack = new AudioTrack.Builder()
+                .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build())
+                .setAudioFormat(new AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build())
+                .setBufferSizeInBytes(generatedSound.length)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build();
+
+        // Routing to headphones if connected
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            AudioDeviceInfo[] outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+            for (AudioDeviceInfo device : outputDevices) {
+                if (device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        device.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    audioTrack.setPreferredDevice(device);
+                    break;
+                }
+            }
+        }
 
         audioTrack.write(generatedSound, 0, generatedSound.length);
         audioTrack.play();
@@ -244,6 +342,7 @@ public class RingReceiver extends BroadcastReceiver {
 
 
 
+    // In RingReceiver.java, update the schedule method
     @SuppressLint("ScheduleExactAlarm")
     public static void schedule(Context context) {
         cancel(context);
@@ -254,20 +353,31 @@ public class RingReceiver extends BroadcastReceiver {
         int hour = now.get(Calendar.HOUR_OF_DAY);
         if (hour >= 19) return; // Don't schedule after 19:00
 
-        // Random delay between 30min and 2h
-        long minDelay = TimeUnit.MINUTES.toMillis(1);
-        long maxDelay = TimeUnit.HOURS.toMillis(2);
+        // Random delay (using the existing 10min to 1h range or similar)
+        long minDelay = TimeUnit.MINUTES.toMillis(30);
+        long maxDelay = TimeUnit.HOURS.toMillis(1);
         long delay = minDelay + (long)(Math.random() * (maxDelay - minDelay));
 
         long triggerAt = System.currentTimeMillis() + delay;
         Calendar triggerCal = Calendar.getInstance();
         triggerCal.setTimeInMillis(triggerAt);
+
+        // Ensure it starts at least at 8:00 AM
+        if (triggerCal.get(Calendar.HOUR_OF_DAY) < 8) {
+            triggerCal.set(Calendar.HOUR_OF_DAY, 8);
+            triggerCal.set(Calendar.MINUTE, (int)(Math.random() * 30)); // starting randomly between 8:00 and 8:30
+            triggerCal.set(Calendar.SECOND, 0);
+            triggerCal.set(Calendar.MILLISECOND, 0);
+            triggerAt = triggerCal.getTimeInMillis();
+        }
+
         if (triggerCal.get(Calendar.HOUR_OF_DAY) >= 19) return;
 
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         PendingIntent pendingIntent = getPendingIntent(context, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent);
     }
+
 
     public static void cancel(Context context) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);

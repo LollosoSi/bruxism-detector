@@ -1,5 +1,7 @@
 package com.example.bruxismdetector;
 
+import static com.example.bruxismdetector.TutorialOverlayManager.*;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -120,6 +122,8 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
     public final static String LAUNCH_GRAPHER = "Launch_Grapher_Please";
+    // Increment this to trigger tutorial for all users
+    private static final int CURRENT_TUTORIAL_VERSION = 1;
     private MulticastSocket receiveSocket;
     private DatagramSocket sendSocket;
     private InetAddress multicastAddress;
@@ -221,7 +225,8 @@ public class MainActivity extends AppCompatActivity {
         initialSetup();
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if(prefs.getBoolean("tutorial",true)) {
+        if(prefs.getBoolean("tutorial",true) || prefs.getInt("tutorial_version",0) < CURRENT_TUTORIAL_VERSION) {
+            prefs.edit().putInt("tutorial_version", CURRENT_TUTORIAL_VERSION).apply();
             playTutorial();
         }
 
@@ -295,6 +300,7 @@ public class MainActivity extends AppCompatActivity {
 
         String ip = prefs.getString("tcp_address", "");
         findViewById (R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
+
 
     }
 
@@ -715,7 +721,7 @@ public class MainActivity extends AppCompatActivity {
 
             // Avvia l'anteprima della nuova melodia
             tunePlayer.setCurrentTuneIndex(currentlySelectedIndex);
-            tunePlayer.start();
+            tunePlayer.start(this);
         });
 
         // 4. Aggiungi i pulsanti OK e Annulla
@@ -783,43 +789,129 @@ public class MainActivity extends AppCompatActivity {
                 currentMinute,
                 true // true for 24-hour view, false for 12-hour AM/PM view
         );
-        timePickerDialog.setTitle("Set Autostart Time"); // Optional: Set a title
+        timePickerDialog.setTitle("When should we begin listening?"); // Optional: Set a title
         timePickerDialog.show();
 
 
     }
-    public void playTutorial(){
+
+    public void playTutorial() {
+
+
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.edit().putBoolean("tutorial",true).apply();
+
         new Handler(Looper.getMainLooper()).post(() -> {
-            List<Pair<View, String>> steps = Arrays.asList(
-                    new Pair<>(findViewById(R.id.menu_content), "Set the switches that best describe your day"),
-                    new Pair<>(findViewById(R.id.sessioncard), "These settings affect your user experience, it's recommended to leave as is."),
-                    new Pair<>(findViewById(R.id.session_settings_textview_handle), "Tap here to expand/collapse the session settings.\n\nLong press to replay this tutorial."),
-
-                    new Pair<>(findViewById(R.id.switch_sharedpref_use_threshold), "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device."),
-                    new Pair<>(findViewById(R.id.switch_sharedpref), "Start trainer when tracker ends.\n\nThe trainer will beep around once every hour until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your alarm volume, so you cannot mute them using Media, Call or Notification volumes."),
-                    new Pair<>(findViewById(R.id.switch_autostart_listener), "Enable this to start tracking automatically,\nthe app will listen for your arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time."),
-
-                    new Pair<>(findViewById(R.id.switch_do_not_beep), "Don't fire and record beeps during the session."),
-                    new Pair<>(findViewById(R.id.switch_do_not_alarm), "Don't fire and record alarms during the session."),
-
-                    new Pair<>(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.\n\nYou might prefer Android to tune the volume or connect a headset to avoid disturbing others."),
-                    new Pair<>(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will ring your alarms.\nAndroid will vibrate, Arduino will beep a melody.\n\nIf Android fails to wake you up, Arduino will ring regardless of this setting."),
+            List<TutorialStep> steps = Arrays.asList(
+                    new TutorialStep(null, "Let's have a quick tour of the app!",() -> {
+                       vibrateHaptic();
+                    }, 300),
+                    new TutorialStep(findViewById(R.id.menu_content), "Set the switches that best describe your day",() -> {
+                        expandCollapseUI(false);
+                    }, 300),
+                    new TutorialStep(findViewById(R.id.sessioncard), "These settings affect your user experience.",() -> {
+                        expandCollapseUI(true);
+                    }, 300),
 
 
+                    new TutorialStep(findViewById(R.id.session_settings_textview_handle),
+                            "Tap here to expand/collapse the session settings.\n\nLong press to replay this tutorial.",
+                            this::vibrateHaptic, 0
+                    ),
+
+                    new TutorialStep(findViewById(R.id.wifi_signal_icon),
+                            "If your Arduino is connected to your network, here you'll see its reported signal strength",
+                            () -> {findViewById(R.id.wifi_signal_icon).setVisibility(View.VISIBLE); vibrateHaptic();}, 0
+                    ),
+
+                    new TutorialStep(findViewById(R.id.switch_sharedpref_use_threshold),
+                            "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device.",
+                            () -> {findViewById(R.id.wifi_signal_icon).setVisibility(View.INVISIBLE); vibrateHaptic();}, 0),
+
+                    new TutorialStep(findViewById(R.id.switch_sharedpref),
+                            "Start trainer when tracker ends or every day by 8:00.\n\nThe trainer will beep randomly and ask you for feedback until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your Alarm volume channel, so you cannot mute them using Media, Call or Notification volumes.\n\nTones and alarm tunes will only play through your headphones when connected.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_start_trainer),
+                            "You can manually start the trainer service when autostart is not enabled.",
+                            () -> {
+                                if(((MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item).performClick();
+                                findViewById(R.id.button_start_trainer).setVisibility(View.VISIBLE);
+                                vibrateHaptic();
+                                }, 600),
+
+                    new TutorialStep(findViewById(R.id.switch_sharedpref),
+                            "We've enabled this for you now",
+                            () -> {
+                                if(!((MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item).performClick();
+                                vibrateHaptic();
+                            }, 500),
 
 
-                    new Pair<>(findViewById(R.id.button), "Tap this button to start tracking"),
-                    new Pair<>(findViewById(R.id.button2), "Send all data to the grapher application on your computer."),
-                    new Pair<>(findViewById(R.id.button_makegraphs), "Generate and see your graphs."),
-                    new Pair<>(findViewById(R.id.button_makecharts), "See your stats and data correlations\n(if any)"),
-                    new Pair<>(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from a Mi Fitness database."),
-                    new Pair<>(findViewById(R.id.button_tageditor), "Edit your session tags"),
+                    new TutorialStep(findViewById(R.id.switch_autostart_listener),
+                            "\nEnable this to start tracking automatically,\nthe app will listen for your Arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time.\n\nYou'll be asked to set a preferred start time next.",
+                            () -> {
+                                if(!((MaterialSwitch)findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item).performClick();vibrateHaptic();}, 600),
 
-                    new Pair<>(findViewById(R.id.button_tageditor), "Have fun!\nRefer to GitHub should you have any issues.")
+                    new TutorialStep(findViewById(R.id.switch_do_not_beep), "Don't fire and record beeps during the session.",
+                            () -> {showAutostartTimePicker(); vibrateHaptic();}, 0),
+                    new TutorialStep(findViewById(R.id.switch_do_not_alarm), "Don't fire and record alarms during the session.",
+                            this::vibrateHaptic, 0),
 
+                    new TutorialStep(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will run the alarm.\nYour phone will vibrate and play a tune if \"Noisy alarms\" is enabled.\n\nImportant note: if you don't stop the alarm on your phone (by pressing the power button or the button on the Arduino device), the Arduino device will also play the alarm.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.switch_sharedpref_alarm_audio), "Your phone will vibrate by default, and play a tune if this is enabled.\n\nBoth Arduino and Android will play the same tunes.\n\nLong press to select a different tune.",
+                            () -> {if(!((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item).performClick();
+                                if(!((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item).performClick();
+                                vibrateHaptic();}, 300),
+
+                    new TutorialStep(findViewById(R.id.switch_sharedpref_camera), "Record camera around beeps and alarms.",
+                            this::vibrateHaptic, 0),
+                    new TutorialStep(findViewById(R.id.switch_recordaccel), "Record a movement index using your phone's accelerometer sensor.",
+                            this::vibrateHaptic, 0),
+                    new TutorialStep(findViewById(R.id.switch_recordnoise), "Record a noise index using your phone's microphone.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_makecharts), "See your stats and data correlations (if any).\n\nThis is an experimental feature.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button), "Tap this button to start tracking",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_makegraphs), "Generate and see your graphs.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button2), "Send all data to the grapher application on your computer.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from Health Connect, GadgetBridge or a Mi Fitness database.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_calendar), "Calendar view of your tagged days and sessions.\nYou can tag every day even without a tracking session (diary function) through the notification you will get in the morning if no sessions were recorded during the night.\n\nYou can also easily find your \"best and worst\" sessions of the month, by selecting one of the available parameters.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_sendwifi), "Connect your device to a different network.\n(Needs to be connected to your current network or be in TCP mode)",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_trainer_stats), "See your training performance and daytime bruxing stats",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_tageditor), "Edit your tags so you only pick what is most pertinent for you.\n\nLet's take a look at this section now.",
+                            this::vibrateHaptic, 0),
+
+
+                    new TutorialStep(null, "Have fun!\nRefer to GitHub should you have any issues.",
+                            () -> {
+                                vibrateHaptic();
+                                prefs.edit().putBoolean("tutorial", false).apply();
+                                LaunchSwitchEditor(null);
+                            }, 200)
             );
-
 
             new TutorialOverlayManager(MainActivity.this, steps).start(() -> prefs.edit().putBoolean("tutorial", false).apply());
         });
@@ -1248,8 +1340,6 @@ public class MainActivity extends AppCompatActivity {
     public void startTrainer(View v) {
         Intent intent = new Intent(this, RingReceiver.class);
         sendBroadcast(intent);
-        //RingReceiver.schedule(this);
-        //Toast.makeText(this, "The phone will beep randomly every 30 minutes to 2 hours", Toast.LENGTH_LONG).show();
         showAdviceDialogIfNeeded(this);
     }
 
@@ -1267,7 +1357,7 @@ public class MainActivity extends AppCompatActivity {
 
         new AlertDialog.Builder(context)
                 .setTitle("About this trainer")
-                .setMessage("Your phone will beep randomly every 30 minutes to 2 hours.\n - When you hear the beep, relax your jaw.\n - To temporarily mute beeping, turn down notifications volume.\n - Beeps end at 19\n\nThis is required for better chances of conditioning night bruxism without waking up.\n - When you eventually relax without thinking about the beep, that's around the time you should see an improvement.")
+                .setMessage("Your phone will beep randomly every 10 minutes to 1 hour, or you will just get a feedback notification.\n - Try to give feedback as much as possible. When you hear the beep, relax your jaw.\n - To temporarily mute beeping, turn down alarm volume.\n - Beeps end at 19\n\nThis is required for better chances of conditioning night bruxism without waking up.\n - When you eventually relax without thinking about the beep, that's around the time you should see an improvement.")
                 .setPositiveButton("Awesome", null)
                 .setNegativeButton("Don't show again", (dialog, which) -> {
                     prefs.edit().putBoolean("show_advice", false).apply();
@@ -2119,13 +2209,14 @@ public class MainActivity extends AppCompatActivity {
 
         collapsedSet.setVisibility(R.id.button_test, View.GONE);
         collapsedSet.setVisibility(R.id.button_startcatcher, View.GONE);
+        collapsedSet.setVisibility(R.id.button_trainer_stats, View.GONE);
 
         View toggleHandle = findViewById(R.id.session_settings_textview_handle);
 
         toggleHandle.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-
+                prefs.edit().putBoolean("editor_tutorial", true).apply();
                 playTutorial();
 
                 return true;
@@ -2133,17 +2224,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         toggleHandle.setOnClickListener(v -> {
-            isSessionExpanded = !isSessionExpanded;
-
-            //TransitionManager.beginDelayedTransition(rootLayout);
-
-            if (isSessionExpanded) {
-                expandedSet.applyTo(rootLayout);
-            } else {
-                collapsedSet.applyTo(rootLayout);
-            }
-            prefs.edit().putBoolean("session_collapsed", !isSessionExpanded).apply();
-            vibrateHaptic();
+            expandCollapseUI();
 
         });
 
@@ -2152,6 +2233,26 @@ public class MainActivity extends AppCompatActivity {
         } else {
             expandedSet.applyTo(rootLayout);
         }
+    }
+
+    void expandCollapseUI(boolean expanded){
+        if(expanded != isSessionExpanded)
+            expandCollapseUI();
+    }
+    void expandCollapseUI(){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        isSessionExpanded = !isSessionExpanded;
+
+        //TransitionManager.beginDelayedTransition(rootLayout);
+
+        if (isSessionExpanded) {
+            expandedSet.applyTo(rootLayout);
+        } else {
+            collapsedSet.applyTo(rootLayout);
+        }
+        prefs.edit().putBoolean("session_collapsed", !isSessionExpanded).apply();
+        vibrateHaptic();
     }
 
 
@@ -2296,5 +2397,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Mostra il popup di sistema
         WifiDialogHelper.showWifiPasswordDialog(this, wpc);
+    }
+
+    public void launchTrainerStats(View v){
+        startActivity(new Intent(MainActivity.this, BeepStatsActivity.class));
     }
 }

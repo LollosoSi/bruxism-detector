@@ -49,6 +49,12 @@ public class NoSessionNotificationReceiver extends BroadcastReceiver {
         if(((System.currentTimeMillis() - prefs.getLong("last_tracker_start_ms", 0)) / 1000) > (18*60*60)){
             // Tracker was not started tonight!
             sendNoSessionNotification(context,false);
+
+            // Launch trainer if autostart is enabled
+            if(prefs.getBoolean("start_trainer_after_tracker_ends", false)){
+                RingReceiver.schedule(context);
+            }
+
         }
 
         NoSessionNotificationReceiver.reschedulenotification(context);
