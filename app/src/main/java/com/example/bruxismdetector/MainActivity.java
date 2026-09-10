@@ -836,46 +836,77 @@ public class MainActivity extends AppCompatActivity {
                     new TutorialStep(findViewById(R.id.button_start_trainer),
                             "You can manually start the trainer service when autostart is not enabled.",
                             () -> {
-                                if(((MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item).performClick();
+                                ClickToState(R.id.switch_sharedpref, false);
                                 findViewById(R.id.button_start_trainer).setVisibility(View.VISIBLE);
                                 vibrateHaptic();
-                                }, 600),
+                                }, 300),
 
                     new TutorialStep(findViewById(R.id.switch_sharedpref),
                             "We've enabled this for you now",
                             () -> {
-                                if(!((MaterialSwitch)findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item).performClick();
+                                ClickToState(R.id.switch_sharedpref, true);
                                 vibrateHaptic();
-                            }, 500),
+                            }, 300),
 
 
                     new TutorialStep(findViewById(R.id.switch_autostart_listener),
                             "\nEnable this to start tracking automatically,\nthe app will listen for your Arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time.\n\nYou'll be asked to set a preferred start time next.",
                             () -> {
-                                if(!((MaterialSwitch)findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_autostart_listener).findViewById(R.id.switch_item).performClick();vibrateHaptic();}, 600),
+                                ClickToState(R.id.switch_autostart_listener, true);
+                                vibrateHaptic();
+                            }, 300),
 
                     new TutorialStep(findViewById(R.id.switch_do_not_beep), "Don't fire and record beeps during the session.",
-                            () -> {showAutostartTimePicker(); vibrateHaptic();}, 0),
+                            () -> {
+                                ClickToState(R.id.switch_do_not_beep, false);
+                                showAutostartTimePicker();
+                                vibrateHaptic();
+                                }, 300),
+
                     new TutorialStep(findViewById(R.id.switch_do_not_alarm), "Don't fire and record alarms during the session.",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.switch_do_not_alarm, false);
+                                vibrateHaptic();
+                            }, 300),
 
                     new TutorialStep(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.switch_sharedpref_arduino_beep, true);
+                                vibrateHaptic();
+                            }, 300),
 
                     new TutorialStep(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will run the alarm.\nYour phone will vibrate and play a tune if \"Noisy alarms\" is enabled.\n\nImportant note: if you don't stop the alarm on your phone (by pressing the power button or the button on the Arduino device), the Arduino device will also play the alarm.",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.switch_sharedpref_alarm_on_device, true);
+                                vibrateHaptic();
+                            }, 300),
 
                     new TutorialStep(findViewById(R.id.switch_sharedpref_alarm_audio), "Your phone will vibrate by default, and play a tune if this is enabled.\n\nBoth Arduino and Android will play the same tunes.\n\nLong press to select a different tune.",
-                            () -> {if(!((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item).performClick();
-                                if(!((MaterialSwitch)findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item)).isChecked())findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item).performClick();
-                                vibrateHaptic();}, 300),
+                            () -> {
+                                ClickToState(R.id.switch_sharedpref_alarm_on_device, true);
+                                ClickToState(R.id.switch_sharedpref_alarm_audio, true);
+                                vibrateHaptic();
+                                }, 300),
 
                     new TutorialStep(findViewById(R.id.switch_sharedpref_camera), "Record camera around beeps and alarms.",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.switch_sharedpref_camera, false);
+                                ClickToState(R.id.switch_sharedpref_camera_only_alarms, true);
+                                ClickToState(R.id.switch_sharedpref_camera_torch, true);
+                                vibrateHaptic();
+                            }, 300),
+
                     new TutorialStep(findViewById(R.id.switch_recordaccel), "Record a movement index using your phone's accelerometer sensor.",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.switch_recordaccel, false);
+                                vibrateHaptic();
+                            }, 300),
+
                     new TutorialStep(findViewById(R.id.switch_recordnoise), "Record a noise index using your phone's microphone.",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.switch_recordnoise, false);
+                                vibrateHaptic();
+                            }, 300),
 
                     new TutorialStep(findViewById(R.id.button_makecharts), "See your stats and data correlations (if any).\n\nThis is an experimental feature.",
                             this::vibrateHaptic, 0),
@@ -929,6 +960,10 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         return false;
+    }
+
+    private void ClickToState(int switchitem, boolean state){
+        if(((MaterialSwitch)findViewById(switchitem).findViewById(R.id.switch_item)).isChecked() != state)findViewById(switchitem).findViewById(R.id.switch_item).performClick();
     }
 
 
