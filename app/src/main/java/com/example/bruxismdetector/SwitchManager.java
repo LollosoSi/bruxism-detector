@@ -23,6 +23,7 @@ import android.widget.TextView;
 import androidx.annotation.AttrRes;
 import androidx.annotation.ColorInt;
 
+import com.google.android.material.chip.Chip;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.util.ArrayList;
@@ -36,6 +37,8 @@ public class SwitchManager {
     private final View root;
     private final Context context;
 
+    // Chips for non edit mode
+    private final ArrayList<Chip> chips = new ArrayList<>();
     ArrayList<LinearLayout> switches = new ArrayList<>();
 
     ArrayList<String> enabled_switches = new ArrayList<>();
@@ -91,18 +94,164 @@ public class SwitchManager {
     public String extractInfo() {
         ArrayList<String> elements = new ArrayList<>();
 
-        for (LinearLayout l : switches) {
-            if (getSwitchState(l))
-                elements.add(getSwitchLabel(l));
+        if (!chips.isEmpty()) {
+            // Modalità Chip (MainActivity)
+            for (com.google.android.material.chip.Chip chip : chips) {
+                if (chip.isChecked()) {
+                    elements.add(chip.getText().toString());
+                }
+            }
+        } else {
+            // Modalità Legacy (Switch verticali)
+            for (LinearLayout l : switches) {
+                if (getSwitchState(l))
+                    elements.add(getSwitchLabel(l));
+            }
         }
+
         for (String s : selected_switches) {
-            // If the enabled switches don't contain this entry, but we said to always select it, this means we should add it.
-            // Otherwise, it's been un/checked by the user
             if (!enabled_switches.contains(s))
                 elements.add(s);
         }
 
         return arrayToString(elements.toArray(new String[0]));
+    }
+
+    void addSwitches(boolean edit_mode) {
+        boolean debug = false;
+
+        LinearLayout right = root.findViewById(R.id.right_col);
+        LinearLayout left = root.findViewById(R.id.left_col);
+        com.google.android.material.chip.ChipGroup chipGroup = root.findViewById(R.id.chip_group_tags);
+        View columnsContainer = root.findViewById(R.id.switches_columns_container);
+
+        if (right != null) right.removeAllViews();
+        if (left != null) left.removeAllViews();
+        if (chipGroup != null) chipGroup.removeAllViews();
+
+        switches.clear();
+        chips.clear();
+
+        // 1. CASO MAIN ACTIVITY: Visualizzazione Chip compatta
+        if (!edit_mode && chipGroup != null) {
+            if (columnsContainer != null) columnsContainer.setVisibility(View.GONE);
+            chipGroup.setVisibility(View.VISIBLE);
+
+            for (String e : enabled_switches) {
+                com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(context);
+                chip.setCheckable(true);
+                chip.setClickable(true);
+                chip.setText(e);
+                chip.setTextSize(11f);
+
+                // Evidenzia prefisso (es: "Medication: ", "Treatment: ")
+                if (e.contains(": ")) {
+                    SpannableString spannableString = new SpannableString(e);
+                    int colorindex = e.indexOf(": ") + 2;
+                    spannableString.setSpan(
+                            new ForegroundColorSpan(getThemeColor(context, android.R.attr.colorPrimary)),
+                            0,
+                            colorindex,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    );
+                    chip.setText(spannableString);
+                }
+
+                // Preselezione da SharedPreferences
+                chip.setChecked(selected_switches.contains(e));
+
+                chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    vibrateHaptic(context);
+                });
+
+                chips.add(chip);
+                chipGroup.addView(chip);
+            }
+            return;
+        }
+
+        // 2. CASO SWITCH EDITOR (edit_mode == true): Layout a colonne invariato
+        if (columnsContainer != null) columnsContainer.setVisibility(View.VISIBLE);
+        if (chipGroup != null) chipGroup.setVisibility(View.GONE);
+
+        int i = 0;
+        for (String e : (edit_mode ? all_switches : enabled_switches)) {
+            LinearLayout currentcol = (i % 2 == 0) ? left : right;
+            LinearLayout l;
+            switches.add(l = createAndAttachSwitchCustom(e, currentcol));
+
+            TextView label = ((TextView) l.findViewById(R.id.switch_label));
+            com.google.android.material.materialswitch.MaterialSwitch switchitem = (MaterialSwitch) l.findViewById(R.id.switch_item);
+
+            String fullText = label.getText().toString();
+            if (fullText.contains(": ")) {
+                SpannableString spannableString = new SpannableString(fullText);
+                int colorindex = fullText.indexOf(": ") + 2;
+                spannableString.setSpan(
+                        new ForegroundColorSpan(getThemeColor(context, android.R.attr.colorPrimary)),
+                        0,
+                        colorindex,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                );
+                label.setText(spannableString);
+            }
+
+            if (edit_mode) {
+                ImageButton delete = new ImageButton(context);
+                delete.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
+                delete.setPadding(0, 0, 0, 0);
+
+                android.util.TypedValue outValue = new android.util.TypedValue();
+                context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true);
+                delete.setBackgroundResource(outValue.resourceId);
+
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                delete.setLayoutParams(params);
+
+                delete.setOnClickListener(view -> {
+                    switches.remove(l);
+                    l.setVisibility(View.GONE);
+                    enabled_switches.remove(label.getText().toString());
+                    selected_switches.remove(label.getText().toString());
+                    all_switches.remove(label.getText().toString());
+                    vibrateHaptic(context);
+                });
+
+                switchitem.setChecked(enabled_switches.contains(label.getText().toString()));
+                label.setEnabled(switchitem.isChecked());
+                switchitem.setOnCheckedChangeListener((compoundButton, b) -> {
+                    if (b) {
+                        enabled_switches.add(label.getText().toString());
+                    } else {
+                        enabled_switches.remove(label.getText().toString());
+                    }
+                    label.setEnabled(b);
+                    vibrateHaptic(context);
+                });
+
+                CheckBox default_selected = new CheckBox(context);
+                default_selected.setChecked(selected_switches.contains(label.getText().toString()));
+                default_selected.setOnCheckedChangeListener((compoundButton, b) -> {
+                    if (b)
+                        selected_switches.add(label.getText().toString());
+                    else
+                        selected_switches.remove(label.getText().toString());
+                    vibrateHaptic(context);
+                });
+
+                l.addView(delete, 0);
+                l.addView(default_selected, 1);
+            } else {
+                switchitem.setChecked(selected_switches.contains(label.getText().toString()));
+            }
+            if (currentcol != null) {
+                currentcol.addView(l);
+            }
+            i++;
+        }
     }
 
     boolean getSwitchState(LinearLayout custom_item) {
@@ -142,128 +291,6 @@ public class SwitchManager {
                 +"\nEnabled: "+arrayToString(enabled_switches.toArray(new String[0]))
                 +"\nExtracted: "+extractInfo());
 
-
-    }
-    void addSwitches(boolean edit_mode) {
-
-        boolean debug = false;
-
-        LinearLayout right = root.findViewById(R.id.right_col), left = root.findViewById(R.id.left_col);
-        right.removeAllViews();
-        left.removeAllViews();
-
-        switches.clear();
-
-        int i = 0;
-
-        if(debug){
-            Button b = new Button(context);
-            b.setText("Print");
-            b.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    printDebug();
-                }});
-            i++;
-            left.addView(b);
-
-        }
-
-        for (String e : (edit_mode ? all_switches : enabled_switches)) {
-            LinearLayout currentcol = (i % 2 == 0) ? left : right;
-            LinearLayout l;
-            switches.add(l = createAndAttachSwitchCustom(e, currentcol));
-
-            TextView label = ((TextView) l.findViewById(R.id.switch_label));
-            com.google.android.material.materialswitch.MaterialSwitch switchitem = (MaterialSwitch) l.findViewById(R.id.switch_item);
-
-            String fullText = label.getText().toString();
-            if (fullText.contains(": ")) {
-                SpannableString spannableString = new SpannableString(fullText);
-
-                // Color "some text" in red
-                int colorindex = fullText.indexOf(": ") + 2;
-                spannableString.setSpan(
-                        new ForegroundColorSpan(getThemeColor(context, android.R.attr.colorPrimary)),
-                        0,
-                        colorindex,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                );
-
-
-                label.setText(spannableString);
-            }
-
-            if (edit_mode) {
-
-                ImageButton delete = new ImageButton(context);
-                // Set the icon. For a button that's primarily an icon, you might not set text.
-                delete.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
-                // You might want to remove any default padding or set a specific size
-                // to make it look more like an icon button if it has no text.
-                delete.setPadding(0, 0, 0, 0); // Example, might need adjustment
-
-
-                android.util.TypedValue outValue = new android.util.TypedValue();
-                context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true);
-                delete.setBackgroundResource(outValue.resourceId);
-
-
-                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                );
-                delete.setLayoutParams(params);
-
-                delete.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        switches.remove(l);
-                        l.setVisibility(View.GONE);
-                        enabled_switches.remove(label.getText().toString());
-                        selected_switches.remove(label.getText().toString());
-                        all_switches.remove(label.getText().toString());
-                        vibrateHaptic(context);
-                    }
-                });
-                switchitem.setChecked(enabled_switches.contains(label.getText().toString()));
-                label.setEnabled(switchitem.isChecked());
-                switchitem.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                        if (b) {
-                            enabled_switches.add(label.getText().toString());
-                        } else {
-                            enabled_switches.remove(label.getText().toString());
-                        }
-                        label.setEnabled(b);
-                        vibrateHaptic(context);
-                    }
-                });
-
-
-                CheckBox default_selected = new CheckBox(context);
-                default_selected.setChecked(selected_switches.contains(label.getText().toString()));
-
-                default_selected.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                        if (b)
-                            selected_switches.add(label.getText().toString());
-                        else
-                            selected_switches.remove(label.getText().toString());
-                        vibrateHaptic(context);
-                    }
-                });
-
-                l.addView(delete, 0);
-                l.addView(default_selected, 1);
-            } else {
-                switchitem.setChecked(selected_switches.contains(label.getText().toString()));
-            }
-            currentcol.addView(l);
-            i++;
-        }
 
     }
 

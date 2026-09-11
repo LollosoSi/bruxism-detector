@@ -1,13 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-    <!-- Switches in two columns -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:animateLayoutChanges="true"
+    android:id="@+id/switches_tags_holder">
+
+    <!-- ChipGroup per MainActivity (Compatto, orizzontale) -->
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chip_group_tags"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="4dp"
+        app:chipSpacingHorizontal="6dp"
+        app:chipSpacingVertical="4dp"
+        app:singleSelection="false"
+        android:visibility="gone" />
+
+    <!-- Switches in two columns (Mantenuto intatto per SwitchEditor) -->
     <LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/switches_columns_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:weightSum="2"
-        android:animateLayoutChanges="true"
-        android:id="@+id/switches_tags_holder">
+        android:animateLayoutChanges="true">
 
         <!-- Left Column -->
         <LinearLayout
@@ -17,8 +36,6 @@
             android:layout_weight="1"
             android:animateLayoutChanges="true"
             android:orientation="vertical">
-
-
         </LinearLayout>
 
         <!-- Right Column -->
@@ -29,7 +46,6 @@
             android:layout_weight="1"
             android:animateLayoutChanges="true"
             android:orientation="vertical">
-
-
         </LinearLayout>
     </LinearLayout>
+</LinearLayout>
