@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:thumbIconTint="@color/material_dynamic_neutral90"
-        />
+        android:saveEnabled="false" />
 
     <!-- Contenitore verticale per Titolo e Sottotitolo -->
     <LinearLayout

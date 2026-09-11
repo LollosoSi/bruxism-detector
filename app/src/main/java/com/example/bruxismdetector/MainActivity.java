@@ -2,6 +2,7 @@ package com.example.bruxismdetector;
 
 import static com.example.bruxismdetector.TutorialOverlayManager.*;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -74,6 +75,8 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
 import com.google.android.material.elevation.SurfaceColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
@@ -129,6 +132,15 @@ public class MainActivity extends AppCompatActivity {
     private InetAddress multicastAddress;
     boolean running = false;
     private int sendPort;
+
+
+    Runnable updateAlarmUI;
+    SeekBar sbAlarm;
+
+    Runnable updateBeepUI;
+    SeekBar sbBeep;
+
+
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final String TAG = "Main activity";
@@ -323,14 +335,19 @@ public class MainActivity extends AppCompatActivity {
 
 
 
+
+
         MaterialSwitch swsh = findViewById(R.id.switch_sharedpref).findViewById(R.id.switch_item);
+
+        swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
+
         CompoundButton.OnCheckedChangeListener swshlistener = new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("start_trainer_after_tracker_ends", swsh.isChecked()).apply();  // or false when unchecked
                 findViewById(R.id.button_start_trainer).setVisibility(swsh.isChecked() ? View.GONE : View.VISIBLE);
                 if(b){
-                    setSubtitle(R.id.switch_sharedpref, "Starts when tracking ends");
+                    setSubtitle(R.id.switch_sharedpref, "Starts automagically");
                 }else{
                     setSubtitle(R.id.switch_sharedpref, "");
                 }
@@ -338,7 +355,6 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         swsh.setOnCheckedChangeListener(swshlistener);
-        swsh.setChecked(prefs.getBoolean("start_trainer_after_tracker_ends", false));
         swshlistener.onCheckedChanged(swsh, swsh.isChecked());
 
 
@@ -355,6 +371,13 @@ public class MainActivity extends AppCompatActivity {
 
 
         MaterialSwitch swshl = autostartListenerRow.findViewById(R.id.switch_item);
+        swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
+        if(swshl.isChecked()){
+            int Hour = prefs.getInt("ServiceHour", 21);
+            int Minute = prefs.getInt("ServiceMinute", 0);
+            setSubtitle(R.id.switch_autostart_listener, String.format(Locale.US, "Set to: %02d:%02d", Hour, Minute));
+        }
+
         swshl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @SuppressLint("ScheduleExactAlarm")
             @Override
@@ -393,12 +416,13 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-        swshl.setChecked(prefs.getBoolean("schedule_listener_after_tracker_ends", true));
 
 
 
 
         MaterialSwitch swthr = findViewById(R.id.switch_sharedpref_use_threshold).findViewById(R.id.switch_item);
+        swthr.setChecked(prefs.getBoolean("use_threshold", false));
+
         swthr.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -406,237 +430,258 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-        swthr.setChecked(prefs.getBoolean("use_threshold", false));
 
         setSwitchThreshold_sharedpref_text();
 
-        MaterialSwitch swardubeep = findViewById(R.id.switch_sharedpref_arduino_beep).findViewById(R.id.switch_item);
-        swardubeep.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("arduino_beep", swardubeep.isChecked()).apply();  // or false when unchecked
+        // ==================== ALARM MULTI-STATE ====================
+        sbAlarm = findViewById(R.id.switch_alarm_multistate);
+        TextView tvAlarmTitle = findViewById(R.id.alarm_multistate_title);
+        TextView tvAlarmSubtitle = findViewById(R.id.alarm_multistate_subtitle);
+        View rowAlarm = findViewById(R.id.row_multistate_alarm);
 
+// Calcolo step iniziale da SharedPreferences
+        int initialAlarmStep = 0;
+        if (!prefs.getBoolean("do_not_alarm", false)) {
+            if (!prefs.getBoolean("alarm_on_device", true)) {
+                initialAlarmStep = 1; // Arduino
+            } else {
+                initialAlarmStep = prefs.getBoolean("noisy_alarm", false) ? 3 : 2; // Tune vs Vibrate
             }
-        });
-        swardubeep.setChecked(prefs.getBoolean("arduino_beep", true));
+        }
+        sbAlarm.setProgress(initialAlarmStep);
 
-        MaterialSwitch swoalarmondevice = findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_item);
-        CompoundButton.OnCheckedChangeListener ochlswalarmondevice = new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("alarm_on_device", swoalarmondevice.isChecked()).apply();  // or false when unchecked
-                ((TextView)findViewById(R.id.switch_sharedpref_alarm_on_device).findViewById(R.id.switch_label)).setText("Alarm on: " + (swoalarmondevice.isChecked()?"Android":"Arduino"));
-                findViewById(R.id.switch_sharedpref_alarm_audio).setVisibility(swoalarmondevice.isChecked()?View.VISIBLE:View.GONE);
+        updateAlarmUI = () -> {
+            int pos = sbAlarm.getProgress();
+            SharedPreferences prefsPriv = getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+            int tuneIdx = prefsPriv.getInt("playtuneindex", 0);
+            String tuneName = (Notes.tunes.length > tuneIdx) ? Notes.tunes[tuneIdx].name : "Default";
+
+            switch (pos) {
+                case 0:
+                    tvAlarmTitle.setText("Alarm: Disabled");
+                    tvAlarmSubtitle.setText("Won't be recorded");
+                    prefs.edit().putBoolean("do_not_alarm", true).apply();
+                    break;
+                case 1:
+                    tvAlarmTitle.setText("Alarm: Arduino");
+                    tvAlarmSubtitle.setText("Buzzer on device");
+                    prefs.edit().putBoolean("do_not_alarm", false)
+                            .putBoolean("alarm_on_device", false)
+                            .putBoolean("noisy_alarm", false).apply();
+                    break;
+                case 2:
+                    tvAlarmTitle.setText("Alarm: Android");
+                    tvAlarmSubtitle.setText("Silent vibration");
+                    prefs.edit().putBoolean("do_not_alarm", false)
+                            .putBoolean("alarm_on_device", true)
+                            .putBoolean("noisy_alarm", false).apply();
+                    break;
+                case 3:
+                    tvAlarmTitle.setText("Alarm: Android");
+                    tvAlarmSubtitle.setText("Tune: " + tuneName);
+                    prefs.edit().putBoolean("do_not_alarm", false)
+                            .putBoolean("alarm_on_device", true)
+                            .putBoolean("noisy_alarm", true).apply();
+                    break;
             }
         };
-        swoalarmondevice.setOnCheckedChangeListener(ochlswalarmondevice);
-        swoalarmondevice.setChecked(prefs.getBoolean("alarm_on_device", true));
-        ochlswalarmondevice.onCheckedChanged(swoalarmondevice, swoalarmondevice.isChecked());
+        updateAlarmUI.run();
 
-
-
-        MaterialSwitch swnoisyalarm = findViewById(R.id.switch_sharedpref_alarm_audio).findViewById(R.id.switch_item);
-        swnoisyalarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("noisy_alarm", swnoisyalarm.isChecked()).apply();
+        sbAlarm.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int p, boolean fromUser) {
+                if (fromUser) { vibrateHaptic(); updateAlarmUI.run(); }
             }
+            @Override public void onStartTrackingTouch(SeekBar s) {}
+            @Override public void onStopTrackingTouch(SeekBar s) {}
         });
-        swnoisyalarm.setChecked(prefs.getBoolean("noisy_alarm", false));
-        SharedPreferences prefs_priv = getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
-        currentlySelectedIndex = prefs_priv.getInt("playtuneindex", 0);
-        setSubtitle(R.id.switch_sharedpref_alarm_audio, "Tune: " + Notes.tunes[currentlySelectedIndex].name);
 
+        rowAlarm.setOnClickListener(v -> {
+            sbAlarm.setProgress((sbAlarm.getProgress() + 1) % 4);
+            vibrateHaptic();
+            updateAlarmUI.run();
+        });
 
-        findViewById(R.id.switch_sharedpref_alarm_audio).setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-
+        View.OnLongClickListener alarmTuneDialogOpener = v -> {
+            if (sbAlarm.getProgress() == 3) {
                 showTuneSelectionDialog();
-
                 return true;
             }
-        });
+            return false;
+        };
+        rowAlarm.setOnLongClickListener(alarmTuneDialogOpener);
+        sbAlarm.setOnLongClickListener(alarmTuneDialogOpener);
 
 
-        MaterialSwitch swrecordnoise = findViewById(R.id.switch_recordnoise).findViewById(R.id.switch_item);
-        swrecordnoise.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("record_noise", swrecordnoise.isChecked()).apply();  // or false when unchecked
+// ==================== BEEP MULTI-STATE (3 Stati) ====================
+        sbBeep = findViewById(R.id.switch_beep_multistate);
+        TextView tvBeepTitle = findViewById(R.id.beep_multistate_title);
+        TextView tvBeepSubtitle = findViewById(R.id.beep_multistate_subtitle);
+        View rowBeep = findViewById(R.id.row_multistate_beep);
 
-                if(b){
-                    setSubtitle(R.id.switch_recordnoise, "Noise index will be recorded");
-                }else{
-                    setSubtitle(R.id.switch_recordnoise, "");
-                }
+        int initialBeepStep = 0;
+        if (!prefs.getBoolean("do_not_beep", false)) {
+            // Se non è disattivato: 1 = Arduino, 2 = Phone
+            initialBeepStep = prefs.getBoolean("arduino_beep", true) ? 1 : 2;
+        }
+        sbBeep.setProgress(initialBeepStep);
 
-            }
-        });
-        swrecordnoise.setChecked(prefs.getBoolean("record_noise", false));
-
-
-        MaterialSwitch swrecordaccel = findViewById(R.id.switch_recordaccel).findViewById(R.id.switch_item);
-        swrecordaccel.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("record_accel", swrecordaccel.isChecked()).apply();  // or false when unchecked
-
-                if(b){
-                    setSubtitle(R.id.switch_recordaccel, "Accel. will be recorded");
-                }else{
-                    setSubtitle(R.id.switch_recordaccel, "");
-                }
-
-            }
-        });
-        swrecordaccel.setChecked(prefs.getBoolean("record_accel", false));
-
-        MaterialSwitch swrecordcamera = findViewById(R.id.switch_sharedpref_camera).findViewById(R.id.switch_item);
-        swrecordcamera.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("record_camera", swrecordcamera.isChecked()).apply();  // or false when unchecked
-            }
-        });
-        swrecordcamera.setChecked(prefs.getBoolean("record_camera", false));
-
-        MaterialSwitch swrecordcamera_onlyalarms = findViewById(R.id.switch_sharedpref_camera_only_alarms).findViewById(R.id.switch_item);
-        swrecordcamera_onlyalarms.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("record_camera_onlyalarms", swrecordcamera_onlyalarms.isChecked()).apply();  // or false when unchecked
-            }
-        });
-        swrecordcamera_onlyalarms.setChecked(prefs.getBoolean("record_camera_onlyalarms", true));
-
-
-        MaterialSwitch swrecordcamera_flash = findViewById(R.id.switch_sharedpref_camera_torch).findViewById(R.id.switch_item);
-        swrecordcamera_flash.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("record_camera_flash", swrecordcamera_flash.isChecked()).apply();  // or false when unchecked
-            }
-        });
-        swrecordcamera_flash.setChecked(prefs.getBoolean("record_camera_flash", true));
-        setSubtitle(R.id.switch_sharedpref_camera_torch, "Long press to tune brightness");
-
-        findViewById(R.id.switch_sharedpref_camera_torch).setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View view) {
-
-                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-
-                int save_perc = prefs.getInt("torch_percentage", 100);
-
-                TorchTester tt = new TorchTester(MainActivity.this);
-
-                // Create slider
-                final android.widget.SeekBar seekBar = new android.widget.SeekBar(MainActivity.this);
-                seekBar.setMax(100);
-                seekBar.setProgress(save_perc);
-                seekBar.setPadding(50, 30, 50, 30);
-
-                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                    @Override
-                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                        int level = seekBar.getProgress();
-                        tt.setTorch(true, level); // Chiama il tuo metodo qui
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(SeekBar seekBar) {
-
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(SeekBar seekBar) {
-
-                    }
-                });
-
-                android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Flash intensity")
-                        .setView(seekBar)
-                        .setPositiveButton("Save", (d, which) -> {
-                            int level = seekBar.getProgress();
-                            prefs.edit().putInt("torch_percentage", level).apply();
-                            tt.close();
-                        })
-                        .setNegativeButton("Cancel", null) // IMPORTANT: null to avoid auto closing
-                        .setCancelable(false)
-                        .create();
-
-                dialog.show();
-
-                dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
-                    android.animation.ObjectAnimator anim = android.animation.ObjectAnimator.ofInt(
-                            seekBar, "progress", seekBar.getProgress(), save_perc);
-
-                    anim.setDuration(500);
-                    anim.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
-
-                    anim.addListener(new android.animation.AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(android.animation.Animator animation) {
-                            tt.close();
-                            dialog.dismiss();
-                        }
-                    });
-                    anim.start();
-                });
-
-                return true;
-            }
-        });
-
-        MaterialSwitch sw_notbeep = findViewById(R.id.switch_do_not_beep).findViewById(R.id.switch_item);
-        CompoundButton.OnCheckedChangeListener notbeeplistener = new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("do_not_beep", sw_notbeep.isChecked()).apply();  // or false when unchecked
-
-                if(sw_notbeep.isChecked()){
-                    findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.GONE);
-                    setSubtitle(R.id.switch_do_not_beep, "Beeping disabled");
-                }else{
-                    findViewById(R.id.switch_sharedpref_arduino_beep).setVisibility(View.VISIBLE);
-                    setSubtitle(R.id.switch_do_not_beep, "");
-                }
+        updateBeepUI = () -> {
+            int pos = sbBeep.getProgress();
+            switch (pos) {
+                case 0:
+                    tvBeepTitle.setText("Beep: Disabled");
+                    tvBeepSubtitle.setText("Won't be recorded");
+                    prefs.edit().putBoolean("do_not_beep", true).putBoolean("arduino_beep", true).apply();
+                    break;
+                case 1:
+                    tvBeepTitle.setText("Beep: Arduino");
+                    tvBeepSubtitle.setText("Buzzer on device");
+                    prefs.edit().putBoolean("do_not_beep", false)
+                            .putBoolean("arduino_beep", true).apply();
+                    break;
+                case 2:
+                    tvBeepTitle.setText("Beep: Android");
+                    tvBeepSubtitle.setText("Phone will beep");
+                    prefs.edit().putBoolean("do_not_beep", false)
+                            .putBoolean("arduino_beep", false).apply();
+                    break;
             }
         };
-        sw_notbeep.setOnCheckedChangeListener(notbeeplistener);
-        sw_notbeep.setChecked(prefs.getBoolean("do_not_beep", false));
-        notbeeplistener.onCheckedChanged(sw_notbeep, sw_notbeep.isChecked());
+        updateBeepUI.run();
 
-        MaterialSwitch sw_notalarm = findViewById(R.id.switch_do_not_alarm).findViewById(R.id.switch_item);
-        CompoundButton.OnCheckedChangeListener swnotalarmlistener = new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                prefs.edit().putBoolean("do_not_alarm", sw_notalarm.isChecked()).apply();  // or false when unchecked
-
-
-                if(sw_notalarm.isChecked()){
-                    findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.GONE);
-                    findViewById(R.id.switch_sharedpref_alarm_audio).setVisibility(View.GONE);
-                    setSubtitle(R.id.switch_do_not_alarm, "Alarms disabled");
-                }else{
-                    findViewById(R.id.switch_sharedpref_alarm_on_device).setVisibility(View.VISIBLE);
-                    ochlswalarmondevice.onCheckedChanged(swoalarmondevice, swoalarmondevice.isChecked());
-                    setSubtitle(R.id.switch_do_not_alarm, "");
-
-                }
+        sbBeep.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int p, boolean fromUser) {
+                if (fromUser) { vibrateHaptic(); updateBeepUI.run(); }
             }
-        };
-        sw_notalarm.setOnCheckedChangeListener(swnotalarmlistener);
-        sw_notalarm.setChecked(prefs.getBoolean("do_not_alarm", false));
-        swnotalarmlistener.onCheckedChanged(sw_notalarm, sw_notalarm.isChecked());
+            @Override public void onStartTrackingTouch(SeekBar s) {}
+            @Override public void onStopTrackingTouch(SeekBar s) {}
+        });
+
+        rowBeep.setOnClickListener(v -> {
+            sbBeep.setProgress((sbBeep.getProgress() + 1) % 3);
+            vibrateHaptic();
+            updateBeepUI.run();
+        });
+
+
+        // --- Sensori Icon-Only (Noise, Accel, Camera) ---
+        MaterialButton btnNoise = findViewById(R.id.btn_sensor_noise);
+        MaterialButton btnAccel = findViewById(R.id.btn_sensor_accel);
+        MaterialButton btnCamera = findViewById(R.id.btn_sensor_camera);
+        View cameraSuboptions = findViewById(R.id.camera_suboptions_container);
+
+        btnNoise.setChecked(prefs.getBoolean("record_noise", false));
+        btnNoise.setOnClickListener(v -> {
+            boolean checked = btnNoise.isChecked();
+            prefs.edit().putBoolean("record_noise", checked).apply();
+            vibrateHaptic();
+        });
+
+        btnAccel.setChecked(prefs.getBoolean("record_accel", false));
+        btnAccel.setOnClickListener(v -> {
+            boolean checked = btnAccel.isChecked();
+            prefs.edit().putBoolean("record_accel", checked).apply();
+            vibrateHaptic();
+        });
+
+        btnCamera.setChecked(prefs.getBoolean("record_camera", false));
+        cameraSuboptions.setVisibility(btnCamera.isChecked() ? View.VISIBLE : View.GONE);
+        btnCamera.setOnClickListener(v -> {
+            boolean checked = btnCamera.isChecked();
+            prefs.edit().putBoolean("record_camera", checked).apply();
+            cameraSuboptions.setVisibility(checked ? View.VISIBLE : View.GONE);
+            vibrateHaptic();
+        });
+
+        // --- Sotto-Opzione 1: Only on alarms ---
+        MaterialButton btnOnlyAlarms = findViewById(R.id.btn_camera_only_alarms);
+        View onlyAlarmsRow = findViewById(R.id.btn_camera_only_alarms_row);
+
+// Imposta lo stato iniziale senza triggerare listener
+        btnOnlyAlarms.setChecked(prefs.getBoolean("record_camera_onlyalarms", true));
+
+// Il bottone reagisce al cambio reale di stato (anche via toggle o ClickToState)
+        btnOnlyAlarms.addOnCheckedChangeListener((button, isChecked) -> {
+            prefs.edit().putBoolean("record_camera_onlyalarms", isChecked).apply();
+            vibrateHaptic();
+        });
+
+// Se l'utente clicca sulla riga o sul testo, basta invertire lo stato del bottone
+        if (onlyAlarmsRow != null) {
+            onlyAlarmsRow.setOnClickListener(v -> btnOnlyAlarms.toggle());
+        }
+
+
+// --- Sotto-Opzione 2: Flash / Torch ---
+        MaterialButton btnTorch = findViewById(R.id.btn_camera_torch_icon);
+        View torchRow = findViewById(R.id.btn_camera_torch_row);
+
+        btnTorch.setChecked(prefs.getBoolean("record_camera_flash", true));
+
+        btnTorch.addOnCheckedChangeListener((button, isChecked) -> {
+            prefs.edit().putBoolean("record_camera_flash", isChecked).apply();
+            vibrateHaptic();
+        });
+
+        if (torchRow != null) {
+            torchRow.setOnClickListener(v -> btnTorch.toggle());
+        }
+
+// Riutilizza il long-click già esistente sulla riga
+        torchRow.setOnLongClickListener(v -> {
+            int save_perc = prefs.getInt("torch_percentage", 100);
+            TorchTester tt = new TorchTester(MainActivity.this);
+
+            final android.widget.SeekBar seekBar = new android.widget.SeekBar(MainActivity.this);
+            seekBar.setMax(100);
+            seekBar.setProgress(save_perc);
+            seekBar.setPadding(50, 30, 50, 30);
+
+            seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    tt.setTorch(true, seekBar.getProgress());
+                }
+                @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            });
+
+            android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Flash intensity")
+                    .setView(seekBar)
+                    .setPositiveButton("Save", (d, which) -> {
+                        prefs.edit().putInt("torch_percentage", seekBar.getProgress()).apply();
+                        tt.close();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .setCancelable(false)
+                    .create();
+
+            dialog.show();
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener(vNeg -> {
+                android.animation.ObjectAnimator anim = android.animation.ObjectAnimator.ofInt(
+                        seekBar, "progress", seekBar.getProgress(), save_perc);
+                anim.setDuration(500);
+                anim.setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f));
+                anim.addListener(new android.animation.AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(android.animation.Animator animation) {
+                        tt.close();
+                        dialog.dismiss();
+                    }
+                });
+                anim.start();
+            });
+            return true;
+        });
 
         // Always disable TCP on launch. We only want this to be intentionally enabled via BLE
         prefs.edit().putBoolean("use_tcp", false).apply();
         prefs.edit().putString("tcp_address", "").apply();
 
         MaterialSwitch swtcp = findViewById(R.id.switch_tcp).findViewById(R.id.switch_item);
+        swtcp.setChecked(prefs.getBoolean("use_tcp", false));
+
         CompoundButton.OnCheckedChangeListener swtcplistener = new CompoundButton.OnCheckedChangeListener() {
             @SuppressLint("SetTextI18n")
             @Override
@@ -649,7 +694,6 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         swtcp.setOnCheckedChangeListener(swtcplistener);
-        swtcp.setChecked(prefs.getBoolean("use_tcp", false));
         swtcplistener.onCheckedChanged(swtcp, swtcp.isChecked());
 
 
@@ -736,7 +780,8 @@ public class MainActivity extends AppCompatActivity {
                 tunePlayer.stop();
             }
 
-            setSubtitle(R.id.switch_sharedpref_alarm_audio, "Tune: " + Notes.tunes[currentlySelectedIndex].name);
+
+            updateAlarmUI.run();
 
         });
 
@@ -825,13 +870,13 @@ public class MainActivity extends AppCompatActivity {
                             () -> {findViewById(R.id.wifi_signal_icon).setVisibility(View.VISIBLE); vibrateHaptic();}, 0
                     ),
 
-                    new TutorialStep(findViewById(R.id.switch_sharedpref_use_threshold),
-                            "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device.",
-                            () -> {findViewById(R.id.wifi_signal_icon).setVisibility(View.INVISIBLE); vibrateHaptic();}, 0),
+
 
                     new TutorialStep(findViewById(R.id.switch_sharedpref),
                             "Start trainer when tracker ends or every day by 8:00.\n\nThe trainer will beep randomly and ask you for feedback until 19:00.\nWhen you hear the beep, relax your jaw.\n\nNote that the beeps go into your Alarm volume channel, so you cannot mute them using Media, Call or Notification volumes.\n\nTones and alarm tunes will only play through your headphones when connected.",
-                            this::vibrateHaptic, 0),
+                            () -> {findViewById(R.id.wifi_signal_icon).setVisibility(View.INVISIBLE); vibrateHaptic();}, 0),
+
+
 
                     new TutorialStep(findViewById(R.id.button_start_trainer),
                             "You can manually start the trainer service when autostart is not enabled.",
@@ -848,6 +893,26 @@ public class MainActivity extends AppCompatActivity {
                                 vibrateHaptic();
                             }, 300),
 
+                    new TutorialStep(findViewById(R.id.switch_sharedpref_use_threshold),
+                            "When tracking, use a custom classification threshold.\n\nYou can tune this setting by long pressing the button on the tracker device.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.row_multistate_beep),
+                            "Configure warning beeps:\n• Disabled: No warnings will fire and be recorded.\n• Arduino: Device will beep\n• Android: Your phone will beep\n\nTap to cycle through options.",
+                            () -> {
+                                sbBeep.setProgress(1);
+                                updateBeepUI.run();
+                                vibrateHaptic();
+                            }, 300),
+
+                    new TutorialStep(findViewById(R.id.row_multistate_alarm),
+                            "Configure alarms:\n• Disabled: no alarms will fire and be recorded\n• Arduino: Device will play a tune\n\n• Android (Vibrate): Your phone will vibrate.\nIf you don't respond, Arduino will ring as a failsafe.\n\n• Android (Tune): Your phone will play the selected tune.\nIf you don't respond, Arduino will ring as a failsafe.\n\nLong press when set to 'Tune' to pick a melody.\n\nTap to cycle through options.",
+                            () -> {
+                                sbAlarm.setProgress(2);
+                                updateAlarmUI.run();
+                                vibrateHaptic();
+                            }, 300),
+
 
                     new TutorialStep(findViewById(R.id.switch_autostart_listener),
                             "\nEnable this to start tracking automatically,\nthe app will listen for your Arduino starting from 21:00 onwards.\n\nYou'll see a notification and will have the chance to stop or reschedule the service.\n\nLONG PRESS this switch to change the start listening time.\n\nYou'll be asked to set a preferred start time next.",
@@ -856,81 +921,68 @@ public class MainActivity extends AppCompatActivity {
                                 vibrateHaptic();
                             }, 300),
 
-                    new TutorialStep(findViewById(R.id.switch_do_not_beep), "Don't fire and record beeps during the session.",
+                    new TutorialStep(findViewById(R.id.btn_sensor_noise), "Record a noise index using your phone's microphone.",
                             () -> {
-                                ClickToState(R.id.switch_do_not_beep, false);
                                 showAutostartTimePicker();
-                                vibrateHaptic();
-                                }, 300),
 
-                    new TutorialStep(findViewById(R.id.switch_do_not_alarm), "Don't fire and record alarms during the session.",
-                            () -> {
-                                ClickToState(R.id.switch_do_not_alarm, false);
+                                ClickToState(R.id.btn_sensor_noise, false);
                                 vibrateHaptic();
                             }, 300),
 
-                    new TutorialStep(findViewById(R.id.switch_sharedpref_arduino_beep), "Select which device will beep.\nBoth Android and Arduino will beep the same way.",
+                    new TutorialStep(findViewById(R.id.btn_sensor_accel), "Record a movement index using your phone's accelerometer sensor.",
                             () -> {
-                                ClickToState(R.id.switch_sharedpref_arduino_beep, true);
+                                ClickToState(R.id.btn_sensor_accel, false);
                                 vibrateHaptic();
                             }, 300),
 
-                    new TutorialStep(findViewById(R.id.switch_sharedpref_alarm_on_device), "Select which device will run the alarm.\nYour phone will vibrate and play a tune if \"Noisy alarms\" is enabled.\n\nImportant note: if you don't stop the alarm on your phone (by pressing the power button or the button on the Arduino device), the Arduino device will also play the alarm.",
+
+
+                    new TutorialStep(findViewById(R.id.btn_sensor_camera), "Record camera around beeps and alarms.",
                             () -> {
-                                ClickToState(R.id.switch_sharedpref_alarm_on_device, true);
+
+                                ClickToState(R.id.btn_sensor_camera, true);
+                                ClickToState(R.id.btn_camera_only_alarms, true);
+                                ClickToState(R.id.btn_camera_torch_icon, true);
                                 vibrateHaptic();
                             }, 300),
 
-                    new TutorialStep(findViewById(R.id.switch_sharedpref_alarm_audio), "Your phone will vibrate by default, and play a tune if this is enabled.\n\nBoth Arduino and Android will play the same tunes.\n\nLong press to select a different tune.",
+                    new TutorialStep(findViewById(R.id.btn_camera_only_alarms_row), "Only record camera around alarms, or record around warnings when disabled.",
                             () -> {
-                                ClickToState(R.id.switch_sharedpref_alarm_on_device, true);
-                                ClickToState(R.id.switch_sharedpref_alarm_audio, true);
-                                vibrateHaptic();
-                                }, 300),
-
-                    new TutorialStep(findViewById(R.id.switch_sharedpref_camera), "Record camera around beeps and alarms.",
-                            () -> {
-                                ClickToState(R.id.switch_sharedpref_camera, false);
-                                ClickToState(R.id.switch_sharedpref_camera_only_alarms, true);
-                                ClickToState(R.id.switch_sharedpref_camera_torch, true);
                                 vibrateHaptic();
                             }, 300),
 
-                    new TutorialStep(findViewById(R.id.switch_recordaccel), "Record a movement index using your phone's accelerometer sensor.",
+                    new TutorialStep(findViewById(R.id.btn_camera_torch_row), "Whether to turn flash on when recording.\nLong press to tune brightness.",
                             () -> {
-                                ClickToState(R.id.switch_recordaccel, false);
                                 vibrateHaptic();
                             }, 300),
-
-                    new TutorialStep(findViewById(R.id.switch_recordnoise), "Record a noise index using your phone's microphone.",
-                            () -> {
-                                ClickToState(R.id.switch_recordnoise, false);
-                                vibrateHaptic();
-                            }, 300),
-
-                    new TutorialStep(findViewById(R.id.button_makecharts), "See your stats and data correlations (if any).\n\nThis is an experimental feature.",
-                            this::vibrateHaptic, 0),
 
                     new TutorialStep(findViewById(R.id.button), "Tap this button to start tracking",
-                            this::vibrateHaptic, 0),
+                            () -> {
+                                ClickToState(R.id.btn_sensor_camera, false);
+                                vibrateHaptic();
+                            }, 0),
 
-                    new TutorialStep(findViewById(R.id.button_makegraphs), "Generate and see your graphs.",
-                            this::vibrateHaptic, 0),
-
-                    new TutorialStep(findViewById(R.id.button2), "Send all data to the grapher application on your computer.",
-                            this::vibrateHaptic, 0),
-
-                    new TutorialStep(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from Health Connect, GadgetBridge or a Mi Fitness database.",
+                    new TutorialStep(findViewById(R.id.button_makecharts), "See your stats and data correlations (if any).\n\nThis is an experimental feature.",
                             this::vibrateHaptic, 0),
 
                     new TutorialStep(findViewById(R.id.button_calendar), "Calendar view of your tagged days and sessions.\nYou can tag every day even without a tracking session (diary function) through the notification you will get in the morning if no sessions were recorded during the night.\n\nYou can also easily find your \"best and worst\" sessions of the month, by selecting one of the available parameters.",
                             this::vibrateHaptic, 0),
 
-                    new TutorialStep(findViewById(R.id.button_sendwifi), "Connect your device to a different network.\n(Needs to be connected to your current network or be in TCP mode)",
+                    new TutorialStep(findViewById(R.id.button_makegraphs), "Generate and see your graphs.",
                             this::vibrateHaptic, 0),
 
                     new TutorialStep(findViewById(R.id.button_trainer_stats), "See your training performance and daytime bruxing stats",
                             this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from Health Connect, GadgetBridge or a Mi Fitness database.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button2), "Send all data to the grapher application on your computer.",
+                            this::vibrateHaptic, 0),
+
+                    new TutorialStep(findViewById(R.id.button_sendwifi), "Connect your device to a different network.\n(Needs to be connected to your current network or be in TCP mode)",
+                            this::vibrateHaptic, 0),
+
 
                     new TutorialStep(findViewById(R.id.button_tageditor), "Edit your tags so you only pick what is most pertinent for you.\n\nLet's take a look at this section now.",
                             this::vibrateHaptic, 0),
@@ -962,8 +1014,20 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private void ClickToState(int switchitem, boolean state){
-        if(((MaterialSwitch)findViewById(switchitem).findViewById(R.id.switch_item)).isChecked() != state)findViewById(switchitem).findViewById(R.id.switch_item).performClick();
+    private void ClickToState(int viewId, boolean state) {
+        View view = findViewById(viewId);
+        if (view == null) return;
+
+        if (view instanceof android.widget.Checkable) {
+            android.widget.Checkable checkable = (android.widget.Checkable) view;
+            if (checkable.isChecked() != state) view.performClick();
+        } else {
+            View item = view.findViewById(R.id.switch_item);
+            if (item instanceof android.widget.Checkable) {
+                android.widget.Checkable checkable = (android.widget.Checkable) item;
+                if (checkable.isChecked() != state) item.performClick();
+            }
+        }
     }
 
 
@@ -1169,20 +1233,7 @@ public class MainActivity extends AppCompatActivity {
         Map<Integer, String> switchLabelMap = new HashMap<>();
 
         switchLabelMap.put(R.id.switch_sharedpref, "Autostart Trainer");
-        switchLabelMap.put(R.id.switch_sharedpref_alarm_on_device, "Alarm on device");
         switchLabelMap.put(R.id.switch_autostart_listener, "Autostart Service");
-        switchLabelMap.put(R.id.switch_recordnoise, "Record noise");
-        switchLabelMap.put(R.id.switch_recordaccel, "Record movement");
-        switchLabelMap.put(R.id.switch_sharedpref_camera, "Record camera");
-        switchLabelMap.put(R.id.switch_sharedpref_camera_only_alarms, "Camera: Only alarms");
-        switchLabelMap.put(R.id.switch_sharedpref_camera_torch, "Camera: Flash");
-
-        switchLabelMap.put(R.id.switch_sharedpref_alarm_audio, "Noisy alarm");
-
-        switchLabelMap.put(R.id.switch_do_not_alarm, "Do not alarm");
-        switchLabelMap.put(R.id.switch_do_not_beep, "Do not beep");
-
-        switchLabelMap.put(R.id.switch_sharedpref_arduino_beep, "Arduino beeps");
 
         for (Map.Entry<Integer, String> entry : switchLabelMap.entrySet()) {
             View row = findViewById(entry.getKey());
@@ -2431,6 +2482,16 @@ public class MainActivity extends AppCompatActivity {
         };
 
         // Mostra il popup di sistema
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
         WifiDialogHelper.showWifiPasswordDialog(this, wpc);
     }
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Quando è attivo: colore primario di sistema -->
+    <item android:state_checked="true" android:color="@color/material_green_500" />
+    <!-- Quando è spento: grigio tenue/disattivato -->
+    <item android:color="?attr/colorTertiaryFixedDim" />
+</selector>

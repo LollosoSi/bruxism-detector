@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sfondo Capsula -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="?attr/colorSurfaceVariant" />
+            <stroke android:width="1.5dp" android:color="?attr/colorOutline" />
+        </shape>
+    </item>
+
+    <!-- Pallino Step 0 (Sinistra) -->
+    <item android:gravity="start|center_vertical" android:left="14dp">
+        <shape android:shape="oval">
+            <size android:width="4dp" android:height="4dp" />
+            <solid android:color="?attr/colorOutline" />
+        </shape>
+    </item>
+
+    <!-- Pallino Step 1 (1/3) -->
+    <item android:gravity="start|center_vertical" android:left="31dp">
+        <shape android:shape="oval">
+            <size android:width="4dp" android:height="4dp" />
+            <solid android:color="?attr/colorOutline" />
+        </shape>
+    </item>
+
+    <!-- Pallino Step 2 (2/3) -->
+    <item android:gravity="start|center_vertical" android:left="48dp">
+        <shape android:shape="oval">
+            <size android:width="4dp" android:height="4dp" />
+            <solid android:color="?attr/colorOutline" />
+        </shape>
+    </item>
+
+    <!-- Pallino Step 3 (Destra) -->
+    <item android:gravity="end|center_vertical" android:right="14dp">
+        <shape android:shape="oval">
+            <size android:width="4dp" android:height="4dp" />
+            <solid android:color="?attr/colorOutline" />
+        </shape>
+    </item>
+</layer-list>
