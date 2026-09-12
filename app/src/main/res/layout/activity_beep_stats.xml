@@ -196,7 +196,39 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Average Yes Responses (8:00 - 19:00)" android:textAlignment="center" android:textSize="14sp" android:layout_marginBottom="8dp" android:textColor="?attr/colorOnSurface"/>
                 <com.github.mikephil.charting.charts.BarChart
-                    android:id="@+id/chart_hourly_yes"
+                    android:id="@+id/chart_hourly_yes_all"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+            app:strokeWidth="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Yes Responses with Tone" android:textAlignment="center" android:textSize="14sp" android:layout_marginBottom="8dp" android:textColor="?attr/colorOnSurface"/>
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_hourly_yes_tone"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+            app:strokeWidth="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Yes Responses without Tone" android:textAlignment="center" android:textSize="14sp" android:layout_marginBottom="8dp" android:textColor="?attr/colorOnSurface"/>
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/chart_hourly_yes_notone"
                     android:layout_width="match_parent"
                     android:layout_height="300dp" />
             </LinearLayout>

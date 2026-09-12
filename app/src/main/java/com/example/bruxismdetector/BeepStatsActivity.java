@@ -3,6 +3,7 @@ package com.example.bruxismdetector;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.TextView;
@@ -37,8 +38,10 @@ public class BeepStatsActivity extends AppCompatActivity {
     private BeepDatabaseHelper dbHelper;
     private TextView textResponsesSummary, textResponseRates, textWithBeep, textWithoutBeep, textAvgDelay;
     private LineChart chartTimelineResponseRates, chartTimelineYes, chartTimelineNo;
-    private BarChart chartHourlyYes;
+    private BarChart chartHourlyYesAll, chartHourlyYesTone, chartHourlyYesNoTone;
 
+    // Risolviamo i colori dal tema Material You
+    int colorAll, colorTone, colorNoTone;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +67,14 @@ public class BeepStatsActivity extends AppCompatActivity {
         chartTimelineResponseRates = findViewById(R.id.chart_timeline_response_rates);
         chartTimelineYes = findViewById(R.id.chart_timeline_yes);
         chartTimelineNo = findViewById(R.id.chart_timeline_no);
-        chartHourlyYes = findViewById(R.id.chart_hourly_yes);
+        chartHourlyYesAll = findViewById(R.id.chart_hourly_yes_all);
+        chartHourlyYesTone = findViewById(R.id.chart_hourly_yes_tone);
+        chartHourlyYesNoTone = findViewById(R.id.chart_hourly_yes_notone);
+
+        // Risolviamo i colori dal tema Material You
+        colorAll = getTextColor(); // Colore neutro (testo)
+        colorTone = getThemeColor(com.google.android.material.R.attr.colorPrimary);
+        colorNoTone = getThemeColor(com.google.android.material.R.attr.colorTertiary);
 
         loadDataAndPopulate();
     }
@@ -174,8 +184,12 @@ public class BeepStatsActivity extends AppCompatActivity {
     }
 
     private void configureLineChart(LineChart chart, List<String> xLabels, String label1, List<Entry> entries1, String label2, List<Entry> entries2) {
-        LineDataSet ds1 = new LineDataSet(entries1, label1); ds1.setColor(Color.BLUE); ds1.setCircleColor(Color.BLUE);
-        LineDataSet ds2 = new LineDataSet(entries2, label2); ds2.setColor(Color.RED); ds2.setCircleColor(Color.RED);
+        LineDataSet ds1 = new LineDataSet(entries1, label1); ds1.setColor(colorTone); ds1.setCircleColor(colorTone);
+        LineDataSet ds2 = new LineDataSet(entries2, label2); ds2.setColor(colorNoTone); ds2.setCircleColor(colorNoTone);
+
+        // Disable labels
+        ds1.setDrawValues(false);
+        ds2.setDrawValues(false);
 
         ds1.setValueTextColor(getTextColor());
         ds2.setValueTextColor(getTextColor());
@@ -191,41 +205,88 @@ public class BeepStatsActivity extends AppCompatActivity {
         chart.getAxisLeft().setTextColor(getTextColor());
         chart.getLegend().setTextColor(getTextColor());
 
+        chart.getAxisLeft().setAxisMinimum(0f);
+        chart.getAxisLeft().setAxisMaximum(100f); // Un po' di padding extra per le etichette sopra le barre
+
         chart.invalidate();
     }
 
     private void setupHourlyChart(HourlyStats[] stats) {
-        List<BarEntry> allYesEntries = new ArrayList<>(), beepYesEntries = new ArrayList<>(), noBeepYesEntries = new ArrayList<>();
+        List<BarEntry> allEntries = new ArrayList<>(), beepEntries = new ArrayList<>(), noBeepEntries = new ArrayList<>();
         for (int h = 8; h <= 19; h++) {
-            HourlyStats s = stats[h]; float x = h;
-            allYesEntries.add(new BarEntry(x, s.allTotal > 0 ? (float)(s.allYes * 100.0 / s.allTotal) : 0));
-            beepYesEntries.add(new BarEntry(x, s.beepTotal > 0 ? (float)(s.beepYes * 100.0 / s.beepTotal) : 0));
-            noBeepYesEntries.add(new BarEntry(x, s.noBeepTotal > 0 ? (float)(s.noBeepYes * 100.0 / s.noBeepTotal) : 0));
+            HourlyStats s = stats[h];
+            float x = h;
+            allEntries.add(new BarEntry(x, s.allTotal > 0 ? (float)(s.allYes * 100.0 / s.allTotal) : 0));
+            beepEntries.add(new BarEntry(x, s.beepTotal > 0 ? (float)(s.beepYes * 100.0 / s.beepTotal) : 0));
+            noBeepEntries.add(new BarEntry(x, s.noBeepTotal > 0 ? (float)(s.noBeepYes * 100.0 / s.noBeepTotal) : 0));
         }
 
-        BarDataSet dsAll = new BarDataSet(allYesEntries, "Avg Yes (All)"); dsAll.setColor(Color.LTGRAY);
-        BarDataSet dsBeep = new BarDataSet(beepYesEntries, "Avg Yes (Tone)"); dsBeep.setColor(Color.BLUE);
-        BarDataSet dsNoBeep = new BarDataSet(noBeepYesEntries, "Avg Yes (No Tone)"); dsNoBeep.setColor(Color.RED);
+        configureBarChart(chartHourlyYesAll, allEntries, "Avg Yes (All)", colorAll);
+        configureBarChart(chartHourlyYesTone, beepEntries, "Avg Yes (Tone)", colorTone);
+        configureBarChart(chartHourlyYesNoTone, noBeepEntries, "Avg Yes (No Tone)", colorNoTone);
+    }
 
-        dsAll.setValueTextColor(getTextColor());
-        dsBeep.setValueTextColor(getTextColor());
-        dsNoBeep.setValueTextColor(getTextColor());
+    void configureBarChart(BarChart bc, List<BarEntry> entries, String title, int color){
+        BarDataSet ds = new BarDataSet(entries, title);
+        ds.setColor(color);
+        ds.setValueTextColor(getTextColor());
+        ds.setValueTextSize(7f);
 
+        // Formattatore per mostrare la percentuale sopra le barre
+        ds.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return value > 0 ? String.format(Locale.US, "%.0f%%", value) : "";
+            }
+        });
 
-        BarData data = new BarData(dsAll, dsBeep, dsNoBeep);
-        data.setBarWidth(0.28f); chartHourlyYes.setData(data); chartHourlyYes.groupBars(8f, 0.06f, 0.02f);
-        XAxis xAxis = chartHourlyYes.getXAxis();
-        xAxis.setGranularity(1f); xAxis.setCenterAxisLabels(true); xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setAxisMinimum(8f); xAxis.setAxisMaximum(20f);
+        BarData data = new BarData(ds);
+        data.setBarWidth(0.6f); // Barre più larghe per riempire meglio lo spazio
+        bc.setData(data);
+
+        // Configurazione XAxis
+        XAxis xAxis = bc.getXAxis();
+        xAxis.setGranularity(1f);
+        xAxis.setCenterAxisLabels(false);
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setAxisMinimum(7.5f);
+        xAxis.setAxisMaximum(19.5f);
         xAxis.setTextColor(getTextColor());
-        xAxis.setValueFormatter(new ValueFormatter() { @Override public String getFormattedValue(float value) { return ((int)value) + ":00"; } });
-        chartHourlyYes.getAxisRight().setEnabled(false); chartHourlyYes.getDescription().setEnabled(false);
+        xAxis.setDrawGridLines(false); // Pulizia visiva
+        xAxis.setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return String.valueOf((int)value); //+ ":00";
+            }
+        });
 
-        chartHourlyYes.setNoDataTextColor(getTextColor());
-        chartHourlyYes.getAxisLeft().setTextColor(getTextColor());
-        chartHourlyYes.getLegend().setTextColor(getTextColor());
+        // Configurazione YAxis (Sinistra) - Fissa 0-100%
+        bc.getAxisLeft().setAxisMinimum(0f);
+        bc.getAxisLeft().setAxisMaximum(115f); // Un po' di padding extra per le etichette sopra le barre
+        bc.getAxisLeft().setTextColor(getTextColor());
+        bc.getAxisLeft().setDrawGridLines(true);
+        bc.getAxisLeft().setGridColor(Color.argb(40, Color.red(color), Color.green(color), Color.blue(color)));
+        bc.getAxisLeft().setValueFormatter(new ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                return (int)value + "%";
+            }
+        });
 
-        chartHourlyYes.invalidate();
+        bc.getAxisRight().setEnabled(false);
+        bc.getDescription().setEnabled(false);
+        bc.setNoDataTextColor(getTextColor());
+        bc.getLegend().setTextColor(getTextColor());
+        bc.setExtraOffsets(0, 0, 0, 10); // Spazio per le label in basso
+
+        bc.animateY(1000); // Aggiungiamo una piccola animazione all'apertura
+        bc.invalidate();
+    }
+
+    private int getThemeColor(int attr) {
+        TypedValue typedValue = new TypedValue();
+        getTheme().resolveAttribute(attr, typedValue, true);
+        return typedValue.data;
     }
 
     private int getTextColor(){
