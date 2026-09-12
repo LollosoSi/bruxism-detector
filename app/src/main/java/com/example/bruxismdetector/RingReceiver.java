@@ -90,6 +90,7 @@ public class RingReceiver extends BroadcastReceiver {
         if (action != null) {
             if (action.equals(cancel_action_notif)) {
                 cancel(context);
+                Toast.makeText(context, "Trainer stopped for the day", Toast.LENGTH_LONG).show();
                 NotificationManagerCompat.from(context).cancel(REQUEST_CODE);
                 return;
             }
@@ -151,14 +152,16 @@ public class RingReceiver extends BroadcastReceiver {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, targetChannel)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle("Were you bruxing?")
-                .setContentText(toneText + ". Beeps end at 19:00")
+                .setContentText(toneText + ". Beeps end at 19:00.\nTap this notification to stop early.")
                 .setPriority(beeped ? NotificationCompat.PRIORITY_LOW : NotificationCompat.PRIORITY_MAX)
                 .setAutoCancel(false)
                 .setOngoing(true)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .addAction(android.R.drawable.ic_input_add, "Yes", yesPI)
                 .addAction(android.R.drawable.ic_delete, "No", noPI)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Ignore", ignorePI)
-                .addAction(android.R.drawable.ic_lock_power_off, "Stop", stopPI);
+                .setContentIntent(stopPI);
 
         // If there was no beep, enable default sound and vibration for android < 8.0
         if (!beeped) {
