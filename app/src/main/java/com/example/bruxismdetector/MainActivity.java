@@ -332,6 +332,9 @@ public class MainActivity extends AppCompatActivity {
                 }
         );
 
+        String ip = prefs.getString("tcp_address", "");
+        findViewById(R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
+
     }
 
     @SuppressLint("SetTextI18n")
@@ -721,8 +724,7 @@ public class MainActivity extends AppCompatActivity {
         swtcp.setOnCheckedChangeListener(swtcplistener);
         swtcplistener.onCheckedChanged(swtcp, swtcp.isChecked());
 
-        String ip = prefs.getString("tcp_address", "");
-        findViewById(R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
+
 
 
         SeekBar sbar = findViewById(R.id.reception);
@@ -2474,9 +2476,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startCalendar(View v){
-        // Launch Calendar activity
-        Intent intent = new Intent(this, CalendarViewer.class);
-        startActivity(intent);
+
+        makeGraphs(this, new GrapherAsyncTask.GraphTaskCallback() {
+            @Override
+            public void onGraphTaskCompleted() {
+                // Launch Calendar activity
+                Intent intent = new Intent(MainActivity.this, CalendarViewer.class);
+                startActivity(intent);
+            }
+        });
+
+
     }
 
     // Token here. Do not publish.
