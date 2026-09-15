@@ -26,6 +26,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.os.VibrationEffect;
@@ -64,6 +65,8 @@ import com.example.bruxismdetector.bruxism_grapher2.GrapherAsyncTask;
 import com.example.bruxismdetector.bruxism_grapher2.Notes;
 import com.example.bruxismdetector.bruxism_grapher2.SVMTrainer;
 import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
+import com.example.bruxismdetector.cloud.CloudPreferences;
+import com.example.bruxismdetector.cloud.SyncEngine;
 import com.example.bruxismdetector.mibanddbconverter.GadgetbridgeImporter;
 import com.example.bruxismdetector.mibanddbconverter.HealthConnectImporter;
 import com.example.bruxismdetector.mibanddbconverter.MiBandDBConverter;
@@ -140,6 +143,8 @@ public class MainActivity extends AppCompatActivity {
     Runnable updateBeepUI;
     SeekBar sbBeep;
 
+    CloudPreferences cprefs = null;
+
 
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -208,15 +213,25 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
+        cprefs = new CloudPreferences(getApplicationContext());
+
         chart = findViewById(R.id.fft_chart);
         chart.getDescription().setEnabled(false);
+        chart.getLegend().setEnabled(false);
         chart.setDrawGridBackground(false);
-        chart.setExtraOffsets(40f, 10f, 10f, 40f); // spazio per le etichette
+
+// Rimuove i padding interni automatici
+        chart.setMinOffset(0f);
+        chart.setExtraOffsets(10f, 0f, 10f, 0f);
+
+        //chart.getAxisRight().setEnabled(false);
+// Se non ti servono i numeri verticali a sinistra:
+        chart.getAxisLeft().setEnabled(false);
+
         chart.setAutoScaleMinMaxEnabled(false);
         chart.setPinchZoom(false);
         chart.setScaleEnabled(false);
         chart.setHighlightPerTapEnabled(false);
-        chart.getAxisRight().setEnabled(false);
 
 
 
@@ -240,6 +255,13 @@ public class MainActivity extends AppCompatActivity {
         if(prefs.getBoolean("tutorial",true) || prefs.getInt("tutorial_version",0) < CURRENT_TUTORIAL_VERSION) {
             prefs.edit().putInt("tutorial_version", CURRENT_TUTORIAL_VERSION).apply();
             playTutorial();
+        } else {
+            checkCloudTutorial();
+
+            // To reset and show tutorial
+            //cprefs.resetUUID();
+            //prefs.edit().putBoolean("redirect_cloud",true).apply();
+
         }
 
         testAI();
@@ -309,10 +331,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         );
-
-        String ip = prefs.getString("tcp_address", "");
-        findViewById (R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
-
 
     }
 
@@ -687,14 +705,24 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                 prefs.edit().putBoolean("use_tcp", swtcp.isChecked()).apply();  // or false when unchecked
+
                 String ip = prefs.getString("tcp_address", "");
-                ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP");
-                setSubtitle(R.id.switch_tcp, ip);
+                ((TextView)findViewById(R.id.switch_tcp).findViewById(R.id.switch_label)).setText("TCP Mode");
+                setSubtitle(R.id.switch_tcp, ip.isEmpty() ? "Not set" : ip);
                 swtcp.setEnabled(!ip.isEmpty());
+
+
+                if(ip.isEmpty() && swtcp.isChecked()){
+                    swtcp.setChecked(false);
+                    setSubtitle(R.id.switch_tcp, "No address");
+                }
             }
         };
         swtcp.setOnCheckedChangeListener(swtcplistener);
         swtcplistener.onCheckedChanged(swtcp, swtcp.isChecked());
+
+        String ip = prefs.getString("tcp_address", "");
+        findViewById(R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
 
 
         SeekBar sbar = findViewById(R.id.reception);
@@ -727,6 +755,25 @@ public class MainActivity extends AppCompatActivity {
         switchManager = new SwitchManager(findViewById(android.R.id.content), this, false);
         new MoodSeekbarClass(findViewById(android.R.id.content), this);
 
+
+        Button btnDonate = findViewById(R.id.share_training_data);
+
+        btnDonate.setOnClickListener(v -> {
+            Toast.makeText(this, "Sharing training data...", Toast.LENGTH_SHORT).show();
+
+            Executors.newSingleThreadExecutor().execute(() -> {
+
+
+                SyncEngine engine = new SyncEngine(getApplicationContext());
+                engine.uploadTrainingDonation();
+
+                // Aggiornamento UI al termine
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(this, "Thank you!", Toast.LENGTH_SHORT).show()
+                );
+
+            });
+        });
     }
 
     TunePlayer tunePlayer;
@@ -840,6 +887,46 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
+    public void checkCloudTutorial(){
+
+        if(cprefs == null)
+            return;
+
+        findViewById(R.id.share_training_data).setEnabled(cprefs.getUUID() != null);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if(prefs.getBoolean("tutorial", true))
+            return;
+
+        if(cprefs.getUUID() != null && cprefs.getPassword() == null && prefs.getBoolean("redirect_cloud",true)){
+
+
+            new Handler(Looper.getMainLooper()).post(() -> {
+                List<TutorialStep> steps = Arrays.asList(
+                        new TutorialStep(null, "You're eligible for Cloud Sync!",
+                                this::vibrateHaptic, 300),
+                        new TutorialStep(findViewById(R.id.data_sharing), "Local and Cloud Sync now live together.\nLet's wish them well!",
+                                () ->{
+                                    vibrateHaptic();
+                                }, 0),
+
+
+                        new TutorialStep(null, "You're all set!",
+                                () -> {
+                                    vibrateHaptic();
+                                    launchDataSharingActivity(null);
+                                    prefs.edit().putBoolean("redirect_cloud", false).apply();
+                                }, 200)
+                );
+
+                new TutorialOverlayManager(MainActivity.this, steps).start(() -> {
+
+                });
+            });
+
+        }
+    }
     public void playTutorial() {
 
 
@@ -977,7 +1064,7 @@ public class MainActivity extends AppCompatActivity {
                     new TutorialStep(findViewById(R.id.button_extractdb), "This is an experimental feature.\nExtracts sleep data from Health Connect, GadgetBridge or a Mi Fitness database.",
                             this::vibrateHaptic, 0),
 
-                    new TutorialStep(findViewById(R.id.button2), "Send all data to the grapher application on your computer.",
+                    new TutorialStep(findViewById(R.id.data_sharing), "Cloud manager: send all data to the grapher application on your computer or to our server.",
                             this::vibrateHaptic, 0),
 
                     new TutorialStep(findViewById(R.id.button_sendwifi), "Connect your device to a different network.\n(Needs to be connected to your current network or be in TCP mode)",
@@ -996,7 +1083,10 @@ public class MainActivity extends AppCompatActivity {
                             }, 200)
             );
 
-            new TutorialOverlayManager(MainActivity.this, steps).start(() -> prefs.edit().putBoolean("tutorial", false).apply());
+            new TutorialOverlayManager(MainActivity.this, steps).start(() -> {
+                prefs.edit().putBoolean("tutorial", false).apply();
+                checkCloudTutorial();
+            });
         });
     }
     public void launchcameratest(View v){
@@ -1409,18 +1499,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void sendMyFolder(View v) {
-        new Thread(() -> {
-            String serverIp = ServerDiscovery.discoverServerIP();
-            if (serverIp == null) {
-                Log.e("Send", "Server not found.");
-                return;
-            }
-
-            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-            File recordingsDir = new File(documentsDir, "RECORDINGS");
-            FileSenderClient.sendFolder(recordingsDir, recordingsDir, serverIp, 5000, this);
-        }).start();
+    public void launchDataSharingActivity(View v){
+        Intent intent = new Intent(this, DataSharingActivity.class);
+        startActivity(intent);
     }
 
     public void startTrainer(View v) {
@@ -1596,7 +1677,10 @@ public class MainActivity extends AppCompatActivity {
         multicastLock.setReferenceCounted(true);
         multicastLock.acquire();
 
+        CloudPreferences cprefs = new CloudPreferences(MainActivity.this);
+
         boolean check_version = true;
+        boolean waiting_uuid = false;
         sendUDP(new byte[]{(byte)15});
         while (running) {
             try {
@@ -1609,6 +1693,33 @@ public class MainActivity extends AppCompatActivity {
 
                 if(check_version){
                     sendUDP(new byte[]{(byte)15});
+                }
+                if(waiting_uuid && length == 33 && data[0] == SessionTracker.REQUEST_UUID) {
+                    String receivedUuid = new String(data, 1, 32, java.nio.charset.StandardCharsets.UTF_8);
+
+
+                    cprefs.setUUID(receivedUuid);
+
+
+                    waiting_uuid = false;
+
+                    // Create the thread and give it a name for easier debugging
+                    HandlerThread backgroundThread = new HandlerThread("CloudCheckThread");
+
+                    // Start the thread before creating the Handler
+                    backgroundThread.start();
+
+                    // Create a Handler attached to the background thread's Looper
+                    Handler backgroundHandler = new Handler(backgroundThread.getLooper());
+
+                    backgroundHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            checkCloudTutorial();
+                        }
+                    });
+
+                    continue;
                 }
                 if(length == 3){
 
@@ -1662,6 +1773,11 @@ public class MainActivity extends AppCompatActivity {
                                 updateWifiSignal(rssi);
                             }
                         });
+
+                        if(cprefs.getUUID() == null) {
+                            waiting_uuid = true;
+                            sendUDP(new byte[]{(byte) SessionTracker.REQUEST_UUID});
+                        }
                     }
                 } else if(length == 11) {
 
@@ -2255,9 +2371,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void LaunchSwitchEditor(View v){
         startActivity(new Intent(MainActivity.this, SwitchEditor.class));
-
     }
-
 
 
     private boolean isSessionExpanded = true;
@@ -2287,7 +2401,7 @@ public class MainActivity extends AppCompatActivity {
         collapsedSet.setVisibility(R.id.button_tageditor, View.GONE);
         collapsedSet.setVisibility(R.id.right_column_switches, View.GONE);
         collapsedSet.setVisibility(R.id.left_column_switches, View.GONE);
-        collapsedSet.setVisibility(R.id.button2, View.GONE);
+        collapsedSet.setVisibility(R.id.data_sharing, View.GONE);
         collapsedSet.setVisibility(R.id.button_start_trainer, View.GONE);
 
         collapsedSet.setVisibility(R.id.button_calendar, View.GONE);

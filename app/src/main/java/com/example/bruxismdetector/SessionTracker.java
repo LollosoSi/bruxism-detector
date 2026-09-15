@@ -51,6 +51,8 @@ public class SessionTracker {
     public static final byte RSSI_WIFI = 21;
     public static final byte GRACE_ACTIVE = 22;
 
+    public static final byte REQUEST_UUID = 23;
+
     private static final String TAG = "BruxismTracker:SessionTracker";
     public String csv_folder_path = "RECORDINGS/";
     Context ctx;

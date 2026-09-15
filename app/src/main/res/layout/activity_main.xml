@@ -9,7 +9,8 @@
     android:gravity="center"
     android:orientation="vertical"
     android:animateLayoutChanges="true"
-    tools:context=".MainActivity">
+    tools:context=".MainActivity"
+    >
 
     <LinearLayout
         android:id="@+id/main_container"
@@ -19,16 +20,17 @@
         android:fillViewport="true"
         android:gravity="center"
         android:orientation="vertical"
-        android:visibility="visible">
+        android:visibility="visible"
+        tools:visibility="visible">
 
         <LinearLayout
             android:id="@+id/menu_content"
-            android:paddingTop="10dp"
-            android:paddingHorizontal="16dp"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="10dp">
 
             <TextView
                 android:id="@+id/textView5"
@@ -64,11 +66,11 @@
         </LinearLayout>
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/sessioncard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardCornerRadius="24dp"
-            app:cardElevation="@dimen/cardview_default_elevation"
-            android:id="@+id/sessioncard">
+            app:cardElevation="@dimen/cardview_default_elevation">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/session_card_root"
@@ -84,15 +86,14 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_marginStart="8dp"
-                    android:visibility="gone"
-                    tools:visibility="visible"
                     android:contentDescription="WiFi RSSI"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="@id/session_settings_textview_handle"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="@id/session_settings_textview_handle"
-                    app:layout_constraintBottom_toBottomOf="@id/session_settings_textview_handle"
-                    app:tint="@color/material_dynamic_primary70"
                     app:srcCompat="@drawable/wifi_boh"
-                    />
+                    app:tint="@color/material_dynamic_primary70"
+                    tools:visibility="visible" />
 
                 <TextView
                     android:id="@+id/update_clickme"
@@ -150,14 +151,14 @@
                         layout="@layout/switch_row" />
 
 
-
                     <!-- Multi-state Beep Row (3 stati) -->
                     <LinearLayout
                         android:id="@+id/row_multistate_beep"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
+                        android:minHeight="48dp"
                         android:gravity="center_vertical"
+                        android:orientation="horizontal"
                         android:padding="4dp">
 
                         <!-- Multi-state Beep Row (3 stati) -->
@@ -166,20 +167,20 @@
                             android:layout_width="56dp"
                             android:layout_height="32dp"
                             android:max="2"
-                            android:progress="1"
-                            android:splitTrack="false"
-                            android:thumbOffset="10dp"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
+                            android:progress="1"
                             android:progressDrawable="@drawable/m3_switch_multistate_track"
+                            android:splitTrack="false"
                             android:thumb="@drawable/m3_switch_multistate_thumb"
+                            android:thumbOffset="10dp"
                             android:tickMark="@drawable/m3_switch_tickmark" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:layout_marginStart="8dp">
+                            android:layout_marginStart="8dp"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/beep_multistate_title"
@@ -193,8 +194,8 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Disabled"
-                                android:textSize="9sp"
-                                android:textColor="?android:attr/textColorSecondary" />
+                                android:textColor="?android:attr/textColorSecondary"
+                                android:textSize="9sp" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -204,8 +205,9 @@
                         android:id="@+id/row_multistate_alarm"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
+                        android:minHeight="48dp"
                         android:gravity="center_vertical"
+                        android:orientation="horizontal"
                         android:padding="4dp">
 
                         <!-- Multi-state Alarm Row (4 stati) -->
@@ -214,20 +216,20 @@
                             android:layout_width="72dp"
                             android:layout_height="32dp"
                             android:max="3"
-                            android:progress="0"
-                            android:splitTrack="false"
-                            android:thumbOffset="10dp"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
+                            android:progress="0"
                             android:progressDrawable="@drawable/m3_switch_multistate_track"
+                            android:splitTrack="false"
                             android:thumb="@drawable/m3_switch_multistate_thumb"
+                            android:thumbOffset="10dp"
                             android:tickMark="@drawable/m3_switch_tickmark" />
 
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:layout_marginStart="8dp">
+                            android:layout_marginStart="8dp"
+                            android:orientation="vertical">
 
                             <TextView
                                 android:id="@+id/alarm_multistate_title"
@@ -241,13 +243,10 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Disabled"
-                                android:textSize="9sp"
-                                android:textColor="?android:attr/textColorSecondary" />
+                                android:textColor="?android:attr/textColorSecondary"
+                                android:textSize="9sp" />
                         </LinearLayout>
                     </LinearLayout>
-
-
-
 
 
                 </LinearLayout>
@@ -273,65 +272,70 @@
                         android:id="@+id/sensor_icons_row"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
+                        android:minHeight="48dp"
+                        android:padding="4dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_sensor_noise"
                             style="?attr/borderlessButtonStyle"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
                             android:layout_weight="1"
+                            android:background="@android:color/transparent"
                             android:checkable="true"
                             android:contentDescription="Record noise"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:padding="0dp"
-                            android:background="@android:color/transparent"
-                            app:rippleColor="@android:color/transparent"
                             app:icon="@drawable/mic"
                             app:iconGravity="textTop"
                             app:iconPadding="0dp"
                             app:iconSize="26dp"
-                            app:iconTint="@color/icon_toggle_tint" />
+                            app:iconTint="@color/icon_toggle_tint"
+                            app:rippleColor="@android:color/transparent" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_sensor_accel"
                             style="?attr/borderlessButtonStyle"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
                             android:layout_weight="1"
+                            android:background="@android:color/transparent"
                             android:checkable="true"
                             android:contentDescription="Record movement"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:padding="0dp"
-                            android:background="@android:color/transparent"
-                            app:rippleColor="@android:color/transparent"
                             app:icon="@drawable/accel"
                             app:iconGravity="textTop"
                             app:iconPadding="0dp"
                             app:iconSize="26dp"
-                            app:iconTint="@color/icon_toggle_tint" />
+                            app:iconTint="@color/icon_toggle_tint"
+                            app:rippleColor="@android:color/transparent" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_sensor_camera"
                             style="?attr/borderlessButtonStyle"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
                             android:layout_weight="1"
+                            android:background="@android:color/transparent"
                             android:checkable="true"
                             android:contentDescription="Record camera"
                             android:insetTop="0dp"
                             android:insetBottom="0dp"
                             android:padding="0dp"
-                            android:background="@android:color/transparent"
-                            app:rippleColor="@android:color/transparent"
                             app:icon="@drawable/camera"
                             app:iconGravity="textTop"
                             app:iconPadding="0dp"
                             app:iconSize="26dp"
-                            app:iconTint="@color/icon_toggle_tint" />
+                            app:iconTint="@color/icon_toggle_tint"
+                            app:rippleColor="@android:color/transparent" />
 
                     </LinearLayout>
 
@@ -351,29 +355,30 @@
                         <LinearLayout
                             android:id="@+id/btn_camera_only_alarms_row"
                             android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:orientation="horizontal"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
+                            android:background="@android:color/transparent"
                             android:gravity="center_vertical"
-                            android:background="@android:color/transparent">
+                            android:orientation="horizontal">
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btn_camera_only_alarms"
                                 style="?attr/borderlessButtonStyle"
                                 android:layout_width="32dp"
                                 android:layout_height="32dp"
-                                android:checkable="true"
-                                android:padding="0dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:insetLeft="0dp"
-                                android:insetRight="0dp"
                                 android:background="@android:color/transparent"
-                                app:rippleColor="@android:color/transparent"
+                                android:checkable="true"
+                                android:insetLeft="0dp"
+                                android:insetTop="0dp"
+                                android:insetRight="0dp"
+                                android:insetBottom="0dp"
+                                android:padding="0dp"
                                 app:icon="@drawable/alarms"
                                 app:iconGravity="textTop"
                                 app:iconPadding="0dp"
                                 app:iconSize="20dp"
-                                app:iconTint="@color/icon_toggle_tint" />
+                                app:iconTint="@color/icon_toggle_tint"
+                                app:rippleColor="@android:color/transparent" />
 
                             <TextView
                                 android:id="@+id/camera_only_alarms_title"
@@ -381,43 +386,44 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
                                 android:text="Only on alarms"
-                                android:textSize="11sp"
-                                android:textColor="?android:attr/textColorPrimary" />
+                                android:textColor="?android:attr/textColorPrimary"
+                                android:textSize="11sp" />
                         </LinearLayout>
 
                         <!-- Flash / Torch -->
                         <LinearLayout
                             android:id="@+id/btn_camera_torch_row"
                             android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:orientation="horizontal"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
+                            android:background="@android:color/transparent"
                             android:gravity="center_vertical"
-                            android:background="@android:color/transparent">
+                            android:orientation="horizontal">
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btn_camera_torch_icon"
                                 style="?attr/borderlessButtonStyle"
                                 android:layout_width="32dp"
                                 android:layout_height="32dp"
-                                android:checkable="true"
-                                android:padding="0dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:insetLeft="0dp"
-                                android:insetRight="0dp"
                                 android:background="@android:color/transparent"
-                                app:rippleColor="@android:color/transparent"
+                                android:checkable="true"
+                                android:insetLeft="0dp"
+                                android:insetTop="0dp"
+                                android:insetRight="0dp"
+                                android:insetBottom="0dp"
+                                android:padding="0dp"
                                 app:icon="@drawable/torch"
                                 app:iconGravity="textTop"
                                 app:iconPadding="0dp"
                                 app:iconSize="20dp"
-                                app:iconTint="@color/icon_toggle_tint" />
+                                app:iconTint="@color/icon_toggle_tint"
+                                app:rippleColor="@android:color/transparent" />
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:orientation="vertical"
-                                android:layout_marginStart="8dp">
+                                android:layout_marginStart="8dp"
+                                android:orientation="vertical">
 
                                 <TextView
                                     android:id="@+id/camera_torch_title"
@@ -431,15 +437,12 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="Hold to tune brightness"
-                                    android:textSize="9sp"
-                                    android:textColor="?android:attr/textColorSecondary" />
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    android:textSize="9sp" />
                             </LinearLayout>
                         </LinearLayout>
 
                     </LinearLayout>
-
-
-
 
 
                     <include
@@ -463,8 +466,8 @@
                     android:id="@+id/button"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
-                    android:layout_marginTop="12dp"
                     android:layout_marginStart="4dp"
+                    android:layout_marginTop="12dp"
                     android:layout_marginEnd="4dp"
                     android:onClick="startService"
                     android:text="Start"
@@ -473,8 +476,8 @@
                     app:iconGravity="textStart"
                     app:iconPadding="8dp"
                     app:iconSize="22dp"
-                    app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/switches_bottom_barrier" />
 
                 <!-- ========================================================= -->
@@ -485,24 +488,24 @@
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="42dp"
-                    android:layout_marginTop="8dp"
                     android:layout_marginStart="2dp"
+                    android:layout_marginTop="8dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="launchChartActivity"
+                    android:paddingHorizontal="6dp"
                     android:text="Summary"
+                    android:textSize="12sp"
                     app:icon="@drawable/summary"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
+                    app:layout_constraintEnd_toStartOf="@id/button_calendar"
                     app:layout_constraintHorizontal_chainStyle="spread"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/button_calendar"
                     app:layout_constraintTop_toBottomOf="@id/button" />
 
                 <Button
@@ -513,19 +516,19 @@
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="startCalendar"
+                    android:paddingHorizontal="6dp"
                     android:text="Calendar"
+                    android:textSize="12sp"
                     app:icon="@drawable/calendar_icon"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:layout_constraintStart_toEndOf="@id/button_makecharts"
                     app:layout_constraintEnd_toStartOf="@id/button_makegraphs"
+                    app:layout_constraintStart_toEndOf="@id/button_makecharts"
                     app:layout_constraintTop_toTopOf="@id/button_makecharts" />
 
                 <Button
@@ -536,19 +539,19 @@
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="tryGraphing"
+                    android:paddingHorizontal="6dp"
                     android:text="Graphs"
+                    android:textSize="12sp"
                     app:icon="@drawable/graphs_icon"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:layout_constraintStart_toEndOf="@id/button_calendar"
                     app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/button_calendar"
                     app:layout_constraintTop_toTopOf="@id/button_makecharts" />
 
                 <!-- ========================================================= -->
@@ -559,24 +562,24 @@
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="42dp"
-                    android:layout_marginTop="6dp"
                     android:layout_marginStart="2dp"
+                    android:layout_marginTop="6dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="launchTrainerStats"
+                    android:paddingHorizontal="6dp"
                     android:text="Trainer Stats"
+                    android:textSize="12sp"
                     app:icon="@drawable/analytics"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
+                    app:layout_constraintEnd_toStartOf="@id/button_extractdb"
                     app:layout_constraintHorizontal_chainStyle="spread"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/button_extractdb"
                     app:layout_constraintTop_toBottomOf="@id/button_makecharts" />
 
                 <Button
@@ -587,19 +590,19 @@
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="openFilePicker"
+                    android:paddingHorizontal="6dp"
                     android:text="Smartband"
+                    android:textSize="12sp"
                     app:icon="@drawable/tbconvert"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:layout_constraintStart_toEndOf="@id/button_trainer_stats"
                     app:layout_constraintEnd_toStartOf="@id/button_tageditor"
+                    app:layout_constraintStart_toEndOf="@id/button_trainer_stats"
                     app:layout_constraintTop_toTopOf="@id/button_trainer_stats" />
 
                 <Button
@@ -610,47 +613,47 @@
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="LaunchSwitchEditor"
+                    android:paddingHorizontal="6dp"
                     android:text="Tags"
+                    android:textSize="12sp"
                     app:icon="@drawable/tagging"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:layout_constraintStart_toEndOf="@id/button_extractdb"
                     app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/button_extractdb"
                     app:layout_constraintTop_toTopOf="@id/button_trainer_stats" />
 
                 <!-- ========================================================= -->
                 <!-- RIGA 4: PC, SET WIFI, TRAINER                             -->
                 <!-- ========================================================= -->
                 <Button
-                    android:id="@+id/button2"
+                    android:id="@+id/data_sharing"
                     style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="0dp"
                     android:layout_height="42dp"
-                    android:layout_marginTop="6dp"
                     android:layout_marginStart="2dp"
+                    android:layout_marginTop="6dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
+                    android:onClick="launchDataSharingActivity"
                     android:paddingHorizontal="6dp"
+                    android:text="Cloud Sync"
                     android:textSize="12sp"
-                    android:onClick="sendMyFolder"
-                    android:text="PC"
-                    app:icon="@drawable/desktop_windows"
+                    app:icon="@drawable/cloud"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
+                    app:layout_constraintEnd_toStartOf="@id/button_sendwifi"
                     app:layout_constraintHorizontal_chainStyle="spread"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/button_sendwifi"
                     app:layout_constraintTop_toBottomOf="@id/button_trainer_stats" />
 
                 <Button
@@ -661,20 +664,20 @@
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="updateWifiViaNetwork"
+                    android:paddingHorizontal="6dp"
                     android:text="Set WiFi"
+                    android:textSize="12sp"
                     app:icon="@drawable/wifi_icon"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:layout_constraintStart_toEndOf="@id/button2"
                     app:layout_constraintEnd_toStartOf="@id/button_start_trainer"
-                    app:layout_constraintTop_toTopOf="@id/button2" />
+                    app:layout_constraintStart_toEndOf="@id/data_sharing"
+                    app:layout_constraintTop_toTopOf="@id/data_sharing" />
 
                 <!-- Visibilità gestita a codice (compare se autostart è disabilitato) -->
                 <Button
@@ -685,21 +688,21 @@
                     android:layout_marginStart="2dp"
                     android:layout_marginEnd="2dp"
                     android:insetLeft="0dp"
-                    android:insetRight="0dp"
                     android:insetTop="0dp"
+                    android:insetRight="0dp"
                     android:insetBottom="0dp"
-                    android:paddingHorizontal="6dp"
-                    android:textSize="12sp"
                     android:onClick="startTrainer"
+                    android:paddingHorizontal="6dp"
                     android:text="Trainer"
+                    android:textSize="12sp"
                     android:visibility="gone"
                     app:icon="@drawable/trainer"
                     app:iconGravity="textStart"
                     app:iconPadding="4dp"
                     app:iconSize="18dp"
-                    app:layout_constraintStart_toEndOf="@id/button_sendwifi"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/button2" />
+                    app:layout_constraintStart_toEndOf="@id/button_sendwifi"
+                    app:layout_constraintTop_toTopOf="@id/data_sharing" />
 
                 <!-- ========================================================= -->
                 <!-- TASTI EVENTUALI NASCOSTI (Default GONE, agganciati in fondo) -->
@@ -714,7 +717,7 @@
                     android:visibility="gone"
                     app:icon="@drawable/trainer"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/button2" />
+                    app:layout_constraintTop_toBottomOf="@id/data_sharing" />
 
                 <Button
                     android:id="@+id/button_startcatcher"
@@ -726,7 +729,7 @@
                     android:visibility="gone"
                     app:icon="@drawable/start_recording"
                     app:layout_constraintStart_toEndOf="@id/button_test"
-                    app:layout_constraintTop_toBottomOf="@id/button2" />
+                    app:layout_constraintTop_toBottomOf="@id/data_sharing" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -738,17 +741,15 @@
         android:id="@+id/reception_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:layout_gravity="center"
-        android:gravity="center"
-        android:layout_marginRight="10dp"
         android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
         android:animateLayoutChanges="true"
-        android:visibility="gone">
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        tools:visibility="gone">
 
-        <Space
-            android:layout_width="match_parent"
-            android:layout_height="10dp" />
 
         <TextView
             android:id="@+id/titleinfo"
@@ -766,7 +767,7 @@
 
         <Space
             android:layout_width="wrap_content"
-            android:layout_height="10dp"/>
+            android:layout_height="10dp" />
 
         <SeekBar
             android:id="@+id/reception"
@@ -807,7 +808,7 @@
 
         <Space
             android:layout_width="wrap_content"
-            android:layout_height="30dp"/>
+            android:layout_height="30dp" />
 
         <Button
             android:id="@+id/button_awesome"
@@ -820,7 +821,7 @@
             android:id="@+id/fft_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="6dp"
             android:animateLayoutChanges="true"
             android:elevation="4dp"
             android:visibility="visible"
@@ -829,114 +830,141 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
+                android:layout_height="match_parent"
                 android:animateLayoutChanges="true"
-                android:padding="16dp">
+                android:orientation="vertical"
+                android:padding="6dp">
 
                 <TextView
                     android:id="@+id/fft_status_text"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingBottom="8dp"
                     android:text="Listening for FFT parameters..."
-                    android:textAlignment="center"
-                    android:paddingBottom="8dp" />
+                    android:textAlignment="center" />
 
                 <LinearLayout
                     android:id="@+id/recording_holder"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:animateLayoutChanges="true"
                     android:orientation="vertical"
                     android:visibility="gone"
-                    android:layout_gravity="center"
-                    android:animateLayoutChanges="true">
+                    tools:visibility="visible">
 
                     <Button
                         android:id="@+id/button_start_over"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
+                        android:layout_weight="0.5"
                         android:text="Delete old recordings"
-                        android:textAllCaps="false" />
+                        android:textAllCaps="false"
+                        android:textSize="14sp" />
+
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center"
                         android:layout_marginTop="8dp"
-                        android:layout_marginBottom="8dp">
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
 
                         <TextView
                             android:id="@+id/hold_label"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="Hold to record:"
-                            android:textAppearance="?attr/textAppearanceBodyMedium"
                             android:layout_marginEnd="12dp"
-                            android:layout_weight="1"/>
+                            android:layout_weight="0.5"
+                            android:text="Hold to record:"
+                            android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                         <LinearLayout
-                            android:layout_weight="1"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:gravity="center">
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
 
                             <Button
                                 android:id="@+id/button_non_clenching"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:layout_marginBottom="4dp"
                                 android:text="Non-Clenching"
                                 android:textAllCaps="false"
-                                android:layout_marginBottom="4dp" />
+                                android:textSize="14sp" />
 
                             <Button
                                 android:id="@+id/button_clenching"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:text="Clenching"
-                                android:textAllCaps="false" />
+                                android:textAllCaps="false"
+                                android:textSize="14sp" />
                         </LinearLayout>
+
                     </LinearLayout>
 
-                    <Button
-                        android:id="@+id/button_calculate_weights"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Calculate weights"
-                        android:textAllCaps="false" />
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/button_calculate_weights"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.5"
+                            android:text="Calculate weights"
+                            android:textAllCaps="false"
+                            android:textSize="14sp" />
+
+                        <Button
+                            android:id="@+id/share_training_data"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.5"
+                            android:text="Donate Data"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
+
 
                     <ProgressBar
                         android:id="@+id/weights_progress_bar"
                         style="?android:attr/progressBarStyleHorizontal"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
+                        android:indeterminate="false"
                         android:max="100"
                         android:progress="0"
-                        android:indeterminate="false"
-                        android:visibility="gone"/>
+                        android:visibility="gone"
+                        tools:visibility="visible" />
 
                     <EditText
                         android:id="@+id/weights_output"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
+                        android:gravity="top"
                         android:hint="Weights will appear here"
                         android:inputType="textMultiLine"
-                        android:gravity="top"
-                        android:minLines="3"
                         android:maxLines="6"
-                        android:scrollbars="vertical"
+                        android:minLines="3"
                         android:padding="8dp"
+                        android:scrollbars="vertical"
                         android:visibility="gone" />
 
                     <com.github.mikephil.charting.charts.BarChart
                         android:id="@+id/fft_chart"
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
-                        android:layout_marginTop="16dp" />
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="0dp"
+                        android:minHeight="200dp"
+                        tools:visibility="visible" />
 
                 </LinearLayout>
             </LinearLayout>

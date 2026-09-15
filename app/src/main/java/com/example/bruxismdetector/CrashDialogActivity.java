@@ -110,7 +110,7 @@ public class CrashDialogActivity extends Activity {
         // intent.setType("text/plain"); // More generic, might show more sharing options
 
         // TODO: Replace with your actual support email address
-        intent.putExtra(Intent.EXTRA_EMAIL, new String[]{"lollosositv@gmail.com"});
+        intent.putExtra(Intent.EXTRA_EMAIL, new String[]{"lollosositv+bruxismdetectorhelp@gmail.com"});
         intent.putExtra(Intent.EXTRA_SUBJECT, "Crash Report: " + getApplicationName());
         intent.putExtra(Intent.EXTRA_TEXT, reportDetails);
 
