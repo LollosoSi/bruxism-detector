@@ -308,8 +308,8 @@ public class MainActivity extends AppCompatActivity {
         ((Button)findViewById(R.id.button_makegraphs)).setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View view) {
-                prefs.edit().putBoolean("regen_graph_scroll", true).apply();
-                Toast.makeText(MainActivity.this, "Regen scrolling is now enabled", Toast.LENGTH_LONG).show();
+                prefs.edit().putBoolean("regen_graph_scroll", !prefs.getBoolean("regen_graph_scroll", true)).apply();
+                Toast.makeText(MainActivity.this, "Regen scrolling is now " + (prefs.getBoolean("regen_graph_scroll", true) ? "enabled" : "disabled"), Toast.LENGTH_LONG).show();
                 return true;
             }
         });

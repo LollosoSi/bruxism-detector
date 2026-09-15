@@ -23,10 +23,13 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import android.os.Handler;
+import android.os.Looper;
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.animation.ArgbEvaluator;
 import androidx.core.animation.ObjectAnimator;
+import com.google.android.material.snackbar.Snackbar;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager2.widget.ViewPager2;
 
@@ -165,7 +168,7 @@ public class GraphViewer extends AppCompatActivity {
                 Log.d("GraphViewer", "Page selected: " + position);
 
 
-                if(prefs.getBoolean("regen_graph_scroll", false)){
+                if(prefs.getBoolean("regen_graph_scroll", true)){
                 for (int i = 0; i < 5; i++) {
                     final int currentPosition = position - i;
                     if (currentPosition >= 0 && currentPosition < generated_upto) {
@@ -204,6 +207,58 @@ public class GraphViewer extends AppCompatActivity {
         }
 
         viewPager.setCurrentItem(graphFiles.length - 1, true);
+
+        // Delay the snackbar to allow the UI to stabilize
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            showInitialSnackbar(prefs);
+        }, 1000);
+    }
+
+    private void showInitialSnackbar(SharedPreferences prefs) {
+        if (isFinishing()) return;
+
+        if(prefs.getBoolean("regen_graph_scroll", true)){
+            // Get our perfectly centered anchor
+            View anchor = findViewById(R.id.snackbar_anchor);
+
+            Snackbar snackbar = Snackbar.make(anchor, "Scroll regeneration is active", Snackbar.LENGTH_LONG);
+
+            snackbar.setAction("Disable", v -> {
+                prefs.edit().putBoolean("regen_graph_scroll", false).apply();
+                Snackbar.make(anchor, "Long press the Graph button in main menu to re-enable", Snackbar.LENGTH_SHORT).show();
+            });
+
+            snackbar.show();
+        }
+    }
+
+    // --- Add this safe helper method to your class ---
+    private void centerSnackbar(Snackbar snackbar) {
+        View snackbarView = snackbar.getView();
+        android.view.ViewGroup.LayoutParams params = snackbarView.getLayoutParams();
+
+        if (params instanceof androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams) {
+            androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams clParams =
+                    (androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams) params;
+
+            clParams.gravity = android.view.Gravity.CENTER_HORIZONTAL | android.view.Gravity.BOTTOM;
+            // Equalize the margins so it doesn't push to the right
+            clParams.leftMargin = clParams.bottomMargin;
+            clParams.rightMargin = clParams.bottomMargin;
+
+            snackbarView.setLayoutParams(clParams);
+
+        } else if (params instanceof android.widget.FrameLayout.LayoutParams) {
+            android.widget.FrameLayout.LayoutParams flParams =
+                    (android.widget.FrameLayout.LayoutParams) params;
+
+            flParams.gravity = android.view.Gravity.CENTER_HORIZONTAL | android.view.Gravity.BOTTOM;
+            // Equalize the margins so it doesn't push to the right
+            flParams.leftMargin = flParams.bottomMargin;
+            flParams.rightMargin = flParams.bottomMargin;
+
+            snackbarView.setLayoutParams(flParams);
+        }
     }
 
     @Override
@@ -286,14 +341,18 @@ public class GraphViewer extends AppCompatActivity {
     }
 
     private void setWeights(float viewPagerWeight, float aiPanelWeight) {
-        LinearLayout.LayoutParams viewPagerParams = (LinearLayout.LayoutParams) viewPager.getLayoutParams();
+        // 1. Grab the new Wrapper instead of the ViewPager
+        View wrapper = findViewById(R.id.viewPagerWrapper);
+
+        // 2. Apply the LayoutParams to the wrapper
+        LinearLayout.LayoutParams wrapperParams = (LinearLayout.LayoutParams) wrapper.getLayoutParams();
         LinearLayout.LayoutParams aiPanelParams = (LinearLayout.LayoutParams) aiEvaluationPanel.getLayoutParams();
 
-        viewPagerParams.weight = viewPagerWeight;
+        wrapperParams.weight = viewPagerWeight;
         aiPanelParams.weight = aiPanelWeight;
 
-        // Applica le modifiche
-        viewPager.setLayoutParams(viewPagerParams);
+        // 3. Request layout update
+        wrapper.setLayoutParams(wrapperParams);
         aiEvaluationPanel.setLayoutParams(aiPanelParams);
     }
 
@@ -669,10 +728,14 @@ public class GraphViewer extends AppCompatActivity {
     }
 
     private void animateWeights(float targetViewPagerWeight, float targetAiPanelWeight) {
-        // Ottieni i pesi di partenza
-        LinearLayout.LayoutParams viewPagerParams = (LinearLayout.LayoutParams) viewPager.getLayoutParams();
+        // 1. Grab the Wrapper instead of the ViewPager
+        View wrapper = findViewById(R.id.viewPagerWrapper);
+
+        // 2. Ottieni i pesi di partenza dal wrapper e dal pannello
+        LinearLayout.LayoutParams wrapperParams = (LinearLayout.LayoutParams) wrapper.getLayoutParams();
         LinearLayout.LayoutParams aiPanelParams = (LinearLayout.LayoutParams) aiEvaluationPanel.getLayoutParams();
-        final float startViewPagerWeight = viewPagerParams.weight;
+
+        final float startViewPagerWeight = wrapperParams.weight;
         final float startAiPanelWeight = aiPanelParams.weight;
 
         // Se c'è un'animazione precedente, cancellala
@@ -691,7 +754,7 @@ public class GraphViewer extends AppCompatActivity {
             float currentViewPagerWeight = startViewPagerWeight + (targetViewPagerWeight - startViewPagerWeight) * fraction;
             float currentAiPanelWeight = startAiPanelWeight + (targetAiPanelWeight - startAiPanelWeight) * fraction;
 
-            // Applica i nuovi pesi
+            // Applica i nuovi pesi (setWeights usa già il wrapper, quindi siamo a posto)
             setWeights(currentViewPagerWeight, currentAiPanelWeight);
         });
 

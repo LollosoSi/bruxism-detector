@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".GraphViewer"
@@ -15,12 +16,38 @@
         android:orientation="horizontal"
         android:baselineAligned="false">
 
-        <!-- Pannello Sinistro: ViewPager -->
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/viewPager"
+        <!-- WRAPPER: Il peso (weight) ora si applica qui, raggruppando grafico e bottoni -->
+        <FrameLayout
+            android:id="@+id/viewPagerWrapper"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="7" /> <!-- Peso iniziale -->
+            android:layout_weight="7">
+
+            <!-- Pannello Sinistro: ViewPager -->
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/viewPager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- Pulsanti di navigazione FLUTTANTI SOPRA IL GRAFICO -->
+            <ImageButton
+                android:id="@+id/btnLeft"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="start|center_vertical"
+                android:layout_marginStart="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_media_previous" />
+
+            <ImageButton
+                android:id="@+id/btnRight"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_media_next" />
+        </FrameLayout>
 
         <ImageView
             android:id="@+id/drag_handle"
@@ -31,7 +58,7 @@
             app:tint="?attr/colorPrimary"
             android:scaleType="center"
             android:contentDescription="Drag to resize"
-            android:visibility="gone"/> <!-- Inizialmente nascosto -->
+            android:visibility="gone"/>
 
         <!-- Pannello Destro: AI Evaluation -->
         <LinearLayout
@@ -42,7 +69,7 @@
             android:orientation="vertical"
             android:visibility="gone"
             android:padding="8dp"
-            android:background="?attr/colorSurfaceContainer"> <!-- Sfondo per visibilità -->
+            android:background="?attr/colorSurfaceContainer">
 
             <TextView
                 android:id="@+id/comparisonModeTextView"
@@ -69,32 +96,15 @@
             </ScrollView>
         </LinearLayout>
 
-
-
-
     </LinearLayout>
 
-    <!-- Pulsanti di navigazione sopra il ViewPager -->
-    <ImageButton
-        android:id="@+id/btnLeft"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_media_previous"
+    <!-- Anchor modificato: match_parent permette alla Snackbar di espandersi -->
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:id="@+id/snackbar_anchor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageButton
-        android:id="@+id/btnRight"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginEnd="16dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_media_next"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
