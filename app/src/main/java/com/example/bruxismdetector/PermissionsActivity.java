@@ -16,12 +16,15 @@ import android.provider.Settings;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.Toast;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -50,8 +53,18 @@ public class PermissionsActivity extends AppCompatActivity {
         });
 
 
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // Don't exit
+                Toast.makeText(PermissionsActivity.this, "All permissions are required to proceed.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
         checkset();
     }
+
 
     public void checkset(){
         int uncoolperms = 0;
@@ -191,6 +204,21 @@ public class PermissionsActivity extends AppCompatActivity {
             });
         }
 
+        if(isLocalNetworkAccessGranted(this)){
+            com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.localnetworkaccess));
+            sw.setChecked(true);
+            sw.setEnabled(false);
+        }else{
+            uncoolperms++;
+            ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.localnetworkaccess)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    requestLocalNetworkAccessPermission(PermissionsActivity.this, 10000);
+                    checkset();
+                }
+            });
+        }
+
         if(isBackgroundLocationGranted(this)){
             com.google.android.material.materialswitch.MaterialSwitch sw = ((com.google.android.material.materialswitch.MaterialSwitch)findViewById(R.id.backloc));
             sw.setChecked(true);
@@ -296,6 +324,13 @@ public class PermissionsActivity extends AppCompatActivity {
         return (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) || isBackgroundLocationGranted(context);
     }
 
+    public static boolean isLocalNetworkAccessGranted(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+            return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
     public static boolean isBackgroundLocationGranted(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -315,6 +350,24 @@ public class PermissionsActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(activity,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     requestCode);
+        }
+
+    }
+
+    public static void requestLocalNetworkAccessPermission(Activity activity, int requestCode) {
+
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.ACCESS_LOCAL_NETWORK) &&
+                    ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED) {
+                // User has selected "Don't ask again" or permission is disabled by policy.
+                // Guide them to app settings.
+                showAppSettingsDialog(activity, "Local Network Access was denied with 'Don't ask again'. To use this feature, please enable the permission manually in app settings.");
+            } else {
+
+                ActivityCompat.requestPermissions(activity,
+                        new String[]{Manifest.permission.ACCESS_LOCAL_NETWORK},
+                        requestCode);
+            }
         }
 
     }
