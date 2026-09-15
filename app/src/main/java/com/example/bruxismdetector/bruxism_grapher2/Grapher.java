@@ -194,6 +194,11 @@ public class Grapher<Image, Color, Font> {
 		icons.put("onlyalarm", new IconAndNiceness(icm.loadImage("onlyalarms.png", Neutral), Neutral));
 		icons.put("tired", new IconAndNiceness(icm.loadImage("tired.png", Mediocre), Mediocre));
 		icons.put("mouth guard", new IconAndNiceness(icm.loadImage("mouthguard.png", Neutral), Neutral));
+		icons.put("treatment: mouth guard", new IconAndNiceness(icm.loadImage("mouthguard.png", Neutral), Neutral));
+
+
+		icons.put("donotbeep", new IconAndNiceness(icm.loadImage("no_beep.png", Neutral), Neutral));
+		icons.put("donotalarm", new IconAndNiceness(icm.loadImage("no_alarm.png", Neutral), Neutral));
 
 	}
 
@@ -1031,38 +1036,52 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 		ArrayList<IconAndNiceness> sessionicons = new ArrayList<>();
 
 		for (Event e : events) {
-			if (e.type.equals("ANDROID") && androidIcon==null) {
+			System.out.println("Event Type: " + e.type);
+			if (e.type.equalsIgnoreCase("android") && androidIcon==null) {
 				androidIcon =  icons.get("android").icon;
 			}
 
-			if (e.type.toLowerCase().equals("info")) {
-				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
-				if(ian==null) {
-					System.out.println("Info icon is null: " + e.notes.toLowerCase());
-					continue;
+			if (e.type.equalsIgnoreCase("info")) {
+				// Splitting by comma handles cases like "Alcohol,Life Event,Caffeine"
+				String[] splitNotes = e.notes.split(",");
+				for (String note : splitNotes) {
+					String noteKey = note.trim().toLowerCase();
+					IconAndNiceness ian = icons.get(noteKey);
+					if(ian==null) {
+						System.out.println("Info icon is null: " + noteKey);
+
+					} else {
+						infoicons.add(ian);
+					}
 				}
-				infoicons.add(icons.get(e.notes.toLowerCase()));
+
+
 
 			}
 
-			if (e.type.equals("SESSION")) {
-
-				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+			if (e.type.equalsIgnoreCase("session")) {
+				String noteKey = e.notes.trim().toLowerCase();
+				IconAndNiceness ian = icons.get(noteKey);
 				if(ian==null) {
-					System.out.println("Session icon is null: " + e.notes.toLowerCase());
-					continue;
+					System.out.println("Session icon is null: " + noteKey);
+
+				} else {
+					sessionicons.add(ian);
 				}
-				sessionicons.add(ian);
+
 
 			}
 
-			if (e.type.equals("MOOD") && moodIcon==null) {
-				IconAndNiceness ian = icons.get(e.notes.toLowerCase());
+			if (e.type.equalsIgnoreCase("mood") && moodIcon==null) {
+				String noteKey = e.notes.trim().toLowerCase();
+				IconAndNiceness ian = icons.get(noteKey);
 				if(ian==null) {
-					System.out.println("Mood icon is null: " + e.notes.toLowerCase());
-					continue;
+					System.out.println("Mood icon is null: " + noteKey);
+
+				} else {
+					moodIcon = ian.icon;
 				}
-				moodIcon = ian.icon;
+
 
 
 			}
