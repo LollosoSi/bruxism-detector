@@ -25,7 +25,10 @@ import android.widget.TextView;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Toast;
+
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.animation.ArgbEvaluator;
 import androidx.core.animation.ObjectAnimator;
@@ -50,11 +53,14 @@ import java.util.concurrent.Executors;
 
 public class GraphViewer extends AppCompatActivity {
 
-    private File[] graphFiles;
+    private ArrayList<File> graphFiles;
     private ViewPager2 viewPager;
     private LinearLayout aiEvaluationPanel;
     private LinearLayout barChartContainer;
     private ImageView dragHandle;
+
+    ImageButton btnLeft, btnRight, btnDelete;
+
     private ValueAnimator weightAnimator;
     private float startX;
     private static final int CLICK_ACTION_THRESHOLD = 20;
@@ -109,8 +115,9 @@ public class GraphViewer extends AppCompatActivity {
         executorService = Executors.newFixedThreadPool(coreCount);
 
         viewPager = findViewById(R.id.viewPager);
-        ImageButton btnLeft = findViewById(R.id.btnLeft);
-        ImageButton btnRight = findViewById(R.id.btnRight);
+        btnLeft = findViewById(R.id.btnLeft);
+        btnRight = findViewById(R.id.btnRight);
+        btnDelete = findViewById(R.id.btnDelete);
 
         aiEvaluationPanel = findViewById(R.id.aiEvaluationPanel);
         barChartContainer = findViewById(R.id.barChartContainer); // Get the new container
@@ -128,7 +135,7 @@ public class GraphViewer extends AppCompatActivity {
         });
 
         graphFiles = getGraphs();
-        if (graphFiles == null || graphFiles.length == 0) {
+        if (graphFiles == null || graphFiles.isEmpty()) {
             return;
         }
 
@@ -154,8 +161,20 @@ public class GraphViewer extends AppCompatActivity {
             }
         });
 
+        btnDelete.setOnClickListener(v -> {
+            // Are you sure you wish to delete file dialog
+            new AlertDialog.Builder(this)
+                    .setTitle("Delete Session")
+                    .setMessage("Are you sure you want to delete this recording and all its associated files?")
+                    .setPositiveButton("Sure", (dialog, which) -> {
+                        deleteCurrent();
+                    })
+                    .setNegativeButton("No", null)
+                    .show();
+        });
+
         GrapherAsyncTask gat = new GrapherAsyncTask(this);
-        generated_upto = graphFiles.length;
+        generated_upto = graphFiles.size();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
@@ -163,7 +182,7 @@ public class GraphViewer extends AppCompatActivity {
             public void onPageSelected(int position) {
                 super.onPageSelected(position);
                 btnLeft.setVisibility(position != 0 ? View.VISIBLE : View.INVISIBLE);
-                btnRight.setVisibility(position != graphFiles.length - 1 ? View.VISIBLE : View.INVISIBLE);
+                btnRight.setVisibility(position != graphFiles.size() - 1 ? View.VISIBLE : View.INVISIBLE);
                 updateAiPanelVisibility(position);
                 Log.d("GraphViewer", "Page selected: " + position);
 
@@ -206,7 +225,7 @@ public class GraphViewer extends AppCompatActivity {
             Log.e("GraphViewer", "Failed to read summary", e);
         }
 
-        viewPager.setCurrentItem(graphFiles.length - 1, true);
+        viewPager.setCurrentItem(graphFiles.size() - 1, true);
 
         // Delay the snackbar to allow the UI to stabilize
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -269,7 +288,7 @@ public class GraphViewer extends AppCompatActivity {
             executorService.shutdown();
         }
     }
-    private File[] getGraphs() {
+    private ArrayList<File> getGraphs() {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
         File recordingsDir = new File(documentsDir, "RECORDINGS");
         File graphDir = new File(recordingsDir, "Graphs");
@@ -278,7 +297,7 @@ public class GraphViewer extends AppCompatActivity {
         if (files == null) return null;
 
         Arrays.sort(files, Comparator.comparing(File::getName));
-        return files;
+        return new ArrayList<>(Arrays.asList(files));
     }
 
     private void updateAiPanelVisibility(int position) {
@@ -762,11 +781,11 @@ public class GraphViewer extends AppCompatActivity {
     }
 
     private File checkCorrespondingCsv(int position) {
-        if (graphFiles == null || position >= graphFiles.length) {
+        if (graphFiles == null || position >= graphFiles.size()) {
             return null;
         }
 
-        File pngFile = graphFiles[position];
+        File pngFile = graphFiles.get(position);
         String csvFileName = pngFile.getName().replace(".png", ".csv");
 
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
@@ -780,6 +799,97 @@ public class GraphViewer extends AppCompatActivity {
         } else {
             Log.w("GraphViewer", "Corresponding CSV file NOT found: " + csvFile.getName());
             return null;
+        }
+    }
+
+    private boolean deleteFileIfExists(String relativepath){
+        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        File recordingsDir = new File(documentsDir, "RECORDINGS");
+        File target = new File(recordingsDir, relativepath);
+        if(target.exists()){
+            target.delete();
+            // Toast.makeText(this, "Deleted: " + relativepath, Toast.LENGTH_LONG).show();
+            return true;
+        } else{
+            return false;
+        }
+    }
+
+    private void deleteCurrent(){
+        int current = viewPager.getCurrentItem();
+
+        // 1. Delete physical files
+        File csvfile = checkCorrespondingCsv(current);
+        if(csvfile != null) {
+            String filename_csv = csvfile.getName();
+
+            String relative_graph = "Graphs/" + filename_csv.replace(".csv", ".png");
+            String relative_raw = "RAW/" + filename_csv.replace(".csv", "_RAW.csv");
+            String relative_accel = "ACCEL/" + filename_csv.replace(".csv", "_ACCEL.csv");
+            String relative_noise = "NOISE/" + filename_csv.replace(".csv", "_NOISE.csv");
+
+
+            StringBuilder deletion = new StringBuilder("Deleted:\n");
+
+            deletion.append(deleteFileIfExists(filename_csv) ? filename_csv+"\n" : "");
+
+            deletion.append(deleteFileIfExists(relative_graph) ? relative_graph+"\n" : "");
+            deletion.append(deleteFileIfExists(relative_raw) ? relative_raw+"\n" : "");
+            deletion.append(deleteFileIfExists(relative_accel) ? relative_accel+"\n" : "");
+            deletion.append(deleteFileIfExists(relative_noise) ? relative_noise+"\n" : "");
+
+            View anchor = findViewById(R.id.snackbar_anchor);
+            Snackbar snackbar = Snackbar.make(anchor, deletion.toString(), Snackbar.LENGTH_LONG);
+            View snackbarView = snackbar.getView();
+            TextView textView = snackbarView.findViewById(com.google.android.material.R.id.snackbar_text);
+            textView.setMaxLines(10); // Allows up to 10 lines
+            snackbar.show();
+
+        }else if(graphFiles != null){
+            File pngFile = graphFiles.get(current);
+
+            View anchor = findViewById(R.id.snackbar_anchor);
+
+            Snackbar snackbar = Snackbar.make(anchor, "Deleting orphan: "+pngFile.getName(), Snackbar.LENGTH_LONG);
+            View snackbarView = snackbar.getView();
+            TextView textView = snackbarView.findViewById(com.google.android.material.R.id.snackbar_text);
+            textView.setMaxLines(10); // Allows up to 10 lines
+            snackbar.show();
+            pngFile.delete();
+
+        }
+
+        // 2. Remove from in-memory Graph list
+        // (Requires changing private File[] graphFiles to private ArrayList<File> graphFiles)
+        graphFiles.remove(current);
+
+        // 3. Notify the Adapter
+        adapter.notifyItemRemoved(current);
+        // Optional but recommended: notify that subsequent items shifted
+        adapter.notifyItemRangeChanged(current, graphFiles.size() - current);
+
+        // 4. Remove from AI Panel Summary Data to keep indices synchronized
+        if (summaryTuples != null && current < summaryTuples.size()) {
+            summaryTuples.remove(current);
+            // Recalculate averages if necessary, or just let the panel update
+            updateAiPanelVisibility(viewPager.getCurrentItem());
+        }
+
+        // 5. Adjust background generation tracker
+        if (current < generated_upto) {
+            generated_upto--;
+        }
+
+        // 6. Handle edge case: what if we deleted the last remaining item?
+        if (graphFiles.isEmpty()) {
+            finish(); // Close the activity if no graphs are left
+        } else {
+            // 7. Update UI state for the new current item
+            int nextPos = Math.min(current, graphFiles.size() - 1);
+            viewPager.setCurrentItem(nextPos, false);
+            updateAiPanelVisibility(nextPos);
+            btnLeft.setVisibility(nextPos != 0 ? View.VISIBLE : View.INVISIBLE);
+            btnRight.setVisibility(nextPos != graphFiles.size() - 1 ? View.VISIBLE : View.INVISIBLE);
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.github.chrisbanes.photoview.PhotoView;
 
 import java.io.File;
+import java.util.ArrayList;
 
 public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.PhotoViewHolder> {
 
@@ -19,10 +20,10 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Ph
         void onScaleChanged(float scale);
     }
 
-    private final File[] imageFiles;
+    private final ArrayList<File> imageFiles;
     private final OnScaleChangedListener scaleChangedListener;
 
-    public ImagePagerAdapter(File[] files, OnScaleChangedListener listener) {
+    public ImagePagerAdapter(ArrayList<File> files, OnScaleChangedListener listener) {
         this.imageFiles = files;
         this.scaleChangedListener = listener;
     }
@@ -36,7 +37,7 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Ph
 
     @Override
     public void onBindViewHolder(@NonNull PhotoViewHolder holder, int position) {
-        Bitmap bitmap = BitmapFactory.decodeFile(imageFiles[position].getAbsolutePath());
+        Bitmap bitmap = BitmapFactory.decodeFile(imageFiles.get(position).getAbsolutePath());
         holder.photoView.setImageBitmap(bitmap);
 
         // Set scale change listener on the PhotoView
@@ -55,7 +56,7 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Ph
 
     @Override
     public int getItemCount() {
-        return imageFiles.length;
+        return imageFiles.size();
     }
 
     static class PhotoViewHolder extends RecyclerView.ViewHolder {
