@@ -32,6 +32,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.animation.ArgbEvaluator;
 import androidx.core.animation.ObjectAnimator;
+
+import com.example.bruxismdetector.cloud.CloudPreferences;
+import com.example.bruxismdetector.cloud.SyncEngine;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager2.widget.ViewPager2;
@@ -820,6 +823,10 @@ public class GraphViewer extends AppCompatActivity {
 
         // 1. Delete physical files
         File csvfile = checkCorrespondingCsv(current);
+
+        // Lista per raccogliere i percorsi relativi da eliminare sul cloud
+        java.util.ArrayList<String> filesToDeleteOnCloud = new java.util.ArrayList<>();
+
         if(csvfile != null) {
             String filename_csv = csvfile.getName();
 
@@ -828,51 +835,76 @@ public class GraphViewer extends AppCompatActivity {
             String relative_accel = "ACCEL/" + filename_csv.replace(".csv", "_ACCEL.csv");
             String relative_noise = "NOISE/" + filename_csv.replace(".csv", "_NOISE.csv");
 
-
             StringBuilder deletion = new StringBuilder("Deleted:\n");
 
-            deletion.append(deleteFileIfExists(filename_csv) ? filename_csv+"\n" : "");
-
-            deletion.append(deleteFileIfExists(relative_graph) ? relative_graph+"\n" : "");
-            deletion.append(deleteFileIfExists(relative_raw) ? relative_raw+"\n" : "");
-            deletion.append(deleteFileIfExists(relative_accel) ? relative_accel+"\n" : "");
-            deletion.append(deleteFileIfExists(relative_noise) ? relative_noise+"\n" : "");
+            if (deleteFileIfExists(filename_csv)) {
+                deletion.append(filename_csv).append("\n");
+                filesToDeleteOnCloud.add(filename_csv);
+            }
+            if (deleteFileIfExists(relative_graph)) {
+                deletion.append(relative_graph).append("\n");
+                filesToDeleteOnCloud.add(relative_graph);
+            }
+            if (deleteFileIfExists(relative_raw)) {
+                deletion.append(relative_raw).append("\n");
+                filesToDeleteOnCloud.add(relative_raw);
+            }
+            if (deleteFileIfExists(relative_accel)) {
+                deletion.append(relative_accel).append("\n");
+                filesToDeleteOnCloud.add(relative_accel);
+            }
+            if (deleteFileIfExists(relative_noise)) {
+                deletion.append(relative_noise).append("\n");
+                filesToDeleteOnCloud.add(relative_noise);
+            }
 
             View anchor = findViewById(R.id.snackbar_anchor);
             Snackbar snackbar = Snackbar.make(anchor, deletion.toString(), Snackbar.LENGTH_LONG);
             View snackbarView = snackbar.getView();
             TextView textView = snackbarView.findViewById(com.google.android.material.R.id.snackbar_text);
-            textView.setMaxLines(10); // Allows up to 10 lines
+            textView.setMaxLines(10);
             snackbar.show();
 
         }else if(graphFiles != null){
             File pngFile = graphFiles.get(current);
 
             View anchor = findViewById(R.id.snackbar_anchor);
-
             Snackbar snackbar = Snackbar.make(anchor, "Deleting orphan: "+pngFile.getName(), Snackbar.LENGTH_LONG);
-            View snackbarView = snackbar.getView();
-            TextView textView = snackbarView.findViewById(com.google.android.material.R.id.snackbar_text);
-            textView.setMaxLines(10); // Allows up to 10 lines
             snackbar.show();
-            pngFile.delete();
 
+            String relative_graph = "Graphs/" + pngFile.getName();
+            if (pngFile.delete()) {
+                filesToDeleteOnCloud.add(relative_graph);
+            }
         }
 
+        // --- TRIGGER CLOUD DELETION ---
+        if (!filesToDeleteOnCloud.isEmpty()) {
+            CloudPreferences prefs = new CloudPreferences(this);
+            if (prefs.getUUID() != null && prefs.getPassword() != null) {
+                // Usa l'executorService già esistente per non bloccare la UI
+                executorService.submit(() -> {
+                    SyncEngine engine = new SyncEngine(getApplicationContext());
+                    engine.deleteRemoteFiles(filesToDeleteOnCloud);
+                });
+            }
+        }
+        // ------------------------------
+
         // 2. Remove from in-memory Graph list
-        // (Requires changing private File[] graphFiles to private ArrayList<File> graphFiles)
         graphFiles.remove(current);
 
         // 3. Notify the Adapter
         adapter.notifyItemRemoved(current);
-        // Optional but recommended: notify that subsequent items shifted
         adapter.notifyItemRangeChanged(current, graphFiles.size() - current);
 
-        // 4. Remove from AI Panel Summary Data to keep indices synchronized
+        // 4. Remove from AI Panel Summary Data
         if (summaryTuples != null && current < summaryTuples.size()) {
             summaryTuples.remove(current);
-            // Recalculate averages if necessary, or just let the panel update
-            updateAiPanelVisibility(viewPager.getCurrentItem());
+            // We only recalculate visibility if we aren't finishing the activity
+            if (!graphFiles.isEmpty()) {
+                updateAiPanelVisibility(viewPager.getCurrentItem());
+            }
         }
 
         // 5. Adjust background generation tracker
@@ -880,14 +912,17 @@ public class GraphViewer extends AppCompatActivity {
             generated_upto--;
         }
 
-        // 6. Handle edge case: what if we deleted the last remaining item?
+        // 6. Handle edge case
         if (graphFiles.isEmpty()) {
-            finish(); // Close the activity if no graphs are left
+            finish();
         } else {
             // 7. Update UI state for the new current item
             int nextPos = Math.min(current, graphFiles.size() - 1);
             viewPager.setCurrentItem(nextPos, false);
             updateAiPanelVisibility(nextPos);
+
+            ImageButton btnLeft = findViewById(R.id.btnLeft);
+            ImageButton btnRight = findViewById(R.id.btnRight);
             btnLeft.setVisibility(nextPos != 0 ? View.VISIBLE : View.INVISIBLE);
             btnRight.setVisibility(nextPos != graphFiles.size() - 1 ? View.VISIBLE : View.INVISIBLE);
         }
