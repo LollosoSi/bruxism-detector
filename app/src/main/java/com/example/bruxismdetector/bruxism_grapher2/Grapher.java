@@ -1036,7 +1036,7 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 		ArrayList<IconAndNiceness> sessionicons = new ArrayList<>();
 
 		for (Event e : events) {
-			System.out.println("Event Type: " + e.type);
+			//System.out.println("Event Type: " + e.type);
 			if (e.type.equalsIgnoreCase("android") && androidIcon==null) {
 				androidIcon =  icons.get("android").icon;
 			}
