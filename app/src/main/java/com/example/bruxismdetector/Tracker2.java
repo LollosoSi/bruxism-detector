@@ -225,14 +225,18 @@ public class Tracker2 extends Service {
 
         if(PermissionsActivity.isMicrophonePermissionGranted(this) && prefs.getBoolean("record_noise", false)) {
             //audioLogger = new Tracker2.AudioLogger();
-            String filename3 = sessionTracker.getNewFilename(sessionTracker.formattedDate, "_NOISE.csv", sessionTracker.csv_folder_path + "NOISE/");
+            String filename3 = sessionTracker.adaptFilenameForExtensions(sessionTracker.filename1, "NOISE", "_NOISE.csv");
+            // This is the old, bugged method!
+            //String filename3 = sessionTracker.getNewFilename(sessionTracker.formattedDate, "_NOISE.csv", sessionTracker.csv_folder_path + "NOISE/");
             Intent startRecorderIntent = new Intent(this, Recorder.class);
             startRecorderIntent.putExtra("filename3", filename3);
             startService(startRecorderIntent);
         }
 
         if(PermissionsActivity.isBackgroundLocationGranted(this) && prefs.getBoolean("record_accel", false)) {
-            String filename4 = sessionTracker.getNewFilename(sessionTracker.formattedDate, "_ACCEL.csv", sessionTracker.csv_folder_path + "ACCEL/");
+            String filename4 = sessionTracker.adaptFilenameForExtensions(sessionTracker.filename1, "ACCEL", "_ACCEL.csv");
+            // This is the old, bugged method!
+            //String filename4 = sessionTracker.getNewFilename(sessionTracker.formattedDate, "_ACCEL.csv", sessionTracker.csv_folder_path + "ACCEL/");
             Intent startRecorderIntent = new Intent(this, MovementDetectorService.class);
             startRecorderIntent.putExtra("filename4", filename4);
             startService(startRecorderIntent);

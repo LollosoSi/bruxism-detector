@@ -74,7 +74,9 @@ public class SessionTracker {
 
 
         filename1 = getNewFilename(formattedDate, ".csv", csv_folder_path);
-        filename2 = getNewFilename(formattedDate, "_RAW.csv", csv_folder_path+"RAW/");
+        filename2 = adaptFilenameForExtensions(filename1, "RAW", "_RAW.csv");
+
+
         file_out = createWriter(filename1);
         append_csv(new String[]{"Millis", "Time", "Event", "Notes", "Duration (seconds)"}, file_out);
         append_csv(new String[]{String.valueOf(millis()), formatted_now(), "Start", "Tracking started. Date: "+formattedDate}, file_out);
@@ -244,6 +246,14 @@ public class SessionTracker {
         }
     }
 
+
+    public String adaptFilenameForExtensions(String base_absolute_file, String new_relative_folder, String csv_extension_replace){
+        File basefile = new File(base_absolute_file);
+        String basefilename = basefile.getName();
+        String newfilename = basefilename.replace(".csv", csv_extension_replace);
+        File newbase = new File(basefile.getParent(), new_relative_folder+"/"+newfilename);
+        return newbase.getAbsolutePath();
+    }
     public String getNewFilename(String baseName, String extension, String folderName) {
         File storageDir;
         if (folderName.equals("RECORDINGS/")) {
