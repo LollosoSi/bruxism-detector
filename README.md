@@ -1,6 +1,14 @@
 # Bruxism Detector
 This small device + software suite helps you monitor jaw muscle activity and provide biofeedback to signal the user, while trying to track down its triggers.</br>
 
+
+![Total Devices](https://www.roccaccino.it/bruxism-detector/badge.php?type=total)
+![Active Users](https://www.roccaccino.it/bruxism-detector/badge.php?type=active)
+![Data Donors](https://www.roccaccino.it/bruxism-detector/badge.php?type=donors)
+
+ 
+
+
 # Call to action. Bruxism Detector Application is at risk!
 Starting September 2026, Google will require a centralized registration in order to develop apps. </br> You will no longer be able to install the Bruxism Detector app via this website. </br>
 [Find more information on the issue and what you can do about it at keepandroidopen.org](https://keepandroidopen.org/)
