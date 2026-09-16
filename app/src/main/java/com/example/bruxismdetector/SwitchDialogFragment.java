@@ -24,6 +24,7 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import com.example.bruxismdetector.cloud.SyncService;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.io.BufferedReader;
@@ -234,6 +235,11 @@ public class SwitchDialogFragment extends DialogFragment {
                     myIntent.setAction(MainActivity.LAUNCH_GRAPHER);
                     requireContext().startActivity(myIntent);
                 }
+
+                Intent syncIntent = new Intent(requireContext(), SyncService.class);
+                syncIntent.putExtra("PERFORM_DOWNLOAD", false); // Only upload
+                requireContext().startForegroundService(syncIntent);
+
                 dismiss();
             }
         });

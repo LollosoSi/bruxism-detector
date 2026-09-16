@@ -335,6 +335,8 @@ public class MainActivity extends AppCompatActivity {
         String ip = prefs.getString("tcp_address", "");
         findViewById(R.id.switch_tcp).setVisibility(ip.isEmpty() ? View.GONE : View.VISIBLE);
 
+
+        new SyncEngine(this).pingCloud("APP_LAUNCHED");
     }
 
     @SuppressLint("SetTextI18n")
@@ -2622,4 +2624,5 @@ public class MainActivity extends AppCompatActivity {
     public void launchTrainerStats(View v){
         startActivity(new Intent(MainActivity.this, BeepStatsActivity.class));
     }
+
 }

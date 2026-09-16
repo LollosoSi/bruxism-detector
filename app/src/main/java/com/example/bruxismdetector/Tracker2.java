@@ -44,6 +44,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.fragment.app.FragmentManager;
 
 import com.example.bruxismdetector.bruxism_grapher2.TunePlayer;
+import com.example.bruxismdetector.cloud.SyncService;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -333,9 +334,11 @@ public class Tracker2 extends Service {
             startService(stopRecorderIntent);
         }
 
+        Intent syncIntent = new Intent(this, SyncService.class);
+        syncIntent.putExtra("PERFORM_DOWNLOAD", false); // Only upload
+        this.startForegroundService(syncIntent);
 
-
-            super.onDestroy();
+        super.onDestroy();
     }
 
     private void createNotificationChannel() {
