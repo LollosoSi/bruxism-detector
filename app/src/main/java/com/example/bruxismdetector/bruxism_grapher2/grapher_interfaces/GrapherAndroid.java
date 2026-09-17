@@ -118,4 +118,11 @@ public class GrapherAndroid extends GrapherInterface<Color, Bitmap, Typeface> {
         return new File(documentsDir, "RECORDINGS");
     }
 
+    @Override
+    public int getStringWidth(String text) {
+        if (text == null || text.isEmpty()) return 0;
+        // Assuming 'paint' is the android.graphics.Paint object you use in drawString()
+        return (int) paint.measureText(text);
+    }
+
 }

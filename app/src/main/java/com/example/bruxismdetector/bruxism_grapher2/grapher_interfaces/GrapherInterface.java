@@ -20,6 +20,7 @@ public abstract class GrapherInterface<Color, Image, Font> {
 	// Draw rotated text
 	public abstract void drawRotatedString(String str, int x, int y, int angleDegrees);
 
+	public abstract int getStringWidth(String text);
 
 	// Draw a rect
 	public abstract void drawRect(int x, int y, int width, int height);

@@ -39,524 +39,454 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.github.mikephil.charting.utils.ColorTemplate;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Queue;
+import java.util.LinkedList;
 
 public class SummaryChartFragment extends Fragment {
 
+    private View root;
+    private View bottomDrawerView; // Changed from BottomNavigationView to generic View
+    private View topHandle;
+    private ViewGroup mainLayout;
+
+    private boolean isExpanded = false;
+    private int collapsedHeightDp = 50;
+
+    // Data Storage
+    private String[] summaryTitles;
+    private ArrayList<String[]> summaryTuples;
+    private ArrayList<String> dateLabels;
+    private ArrayList<String> filterNames;
+
+    // UI References
+    private CheckBox baseDrawCheck;
+    private CheckBox separateDrawCheck;
+    private CheckBox rollingAverageCheck;
+    private LinearLayout leftCol, rightCol, graphsHolder;
+    private TextView noResultText;
+
+    private final int[] COLOR_ARRAY = {
+            R.color.material_orange_500, R.color.material_green_500,
+            R.color.material_blue_500, R.color.material_red_500,
+            R.color.material_yellow_500
+    };
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-
         return inflater.inflate(R.layout.fragment_charts, container, false);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        switchesbox.clear(); // Pulisce i riferimenti alle vecchie viste
-        root = null;         // Evita memory leak sulla root view
+        root = null; // Prevent memory leak
     }
 
-    View root;
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        
         root = view;
 
-        bottomCardView = view.findViewById(R.id.bottom_card_view);
-        bottomCardView.post(() -> {
+        // Initialize UI Elements
+        baseDrawCheck = view.findViewById(R.id.basedrawcheckbox);
+        separateDrawCheck = view.findViewById(R.id.separatedrawcheckbox);
+        rollingAverageCheck = view.findViewById(R.id.rollingaveragecheckbox);
+        leftCol = view.findViewById(R.id.left_col);
+        rightCol = view.findViewById(R.id.right_col);
+        graphsHolder = view.findViewById(R.id.graphs_holder);
+        noResultText = view.findViewById(R.id.noresultext);
+
+        // Bottom Drawer Setup
+        bottomDrawerView = view.findViewById(R.id.bottom_card_view);
+        topHandle = view.findViewById(R.id.top_handle);
+        mainLayout = view.findViewById(R.id.main);
+
+        bottomDrawerView.post(() -> {
             this.collapsedHeightDp = getCollapsedHeight();
-            Log.d("CollapsedHeight", "Collapsed height = " + this.collapsedHeightDp);
             this.isExpanded = true;
             toggleCardHeight();
-            // Optionally animate to this height
         });
 
+        setupDrag();
+        setupControlListeners();
 
-        topHandle = root.findViewById(R.id.top_handle);
-        mainLayout = root.findViewById(R.id.main); // The root layout
+        // Load data in background, THEN build UI
+        loadDataAndInitializeUI();
+    }
 
-        setupDrag(); // Call setupDrag() in onCreate()
+    private void setupControlListeners() {
+        CompoundButton.OnCheckedChangeListener listener = (buttonView, isChecked) -> {
+            vibrateHaptic();
+            recalculateGraphs();
+        };
 
-        ((CheckBox)root.findViewById(R.id.basedrawcheckbox)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                vibrateHaptic();
-                if(howManyBoxesAreChecked()>0 || b)
-                    recalculateGraphs(null);
+        baseDrawCheck.setOnCheckedChangeListener(listener);
+        separateDrawCheck.setOnCheckedChangeListener(listener);
+        rollingAverageCheck.setOnCheckedChangeListener(listener);
+    }
+
+    private void vibrateHaptic() {
+        Vibrator vibrator = (Vibrator) requireContext().getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator != null && vibrator.hasVibrator()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK));
+            } else {
+                vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
             }
-        });
-        ((CheckBox)root.findViewById(R.id.separatedrawcheckbox)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                vibrateHaptic();
-                recalculateGraphs(null);
-            }
-        });
+        }
+    }
 
-        ((CheckBox)root.findViewById(R.id.rollingaveragecheckbox)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                vibrateHaptic();
-                recalculateGraphs(null);
-            }
-        });
+    // --- DATA LOADING & PARSING ---
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                readSummary();
-                recalculateGraphs(null);
+    private void loadDataAndInitializeUI() {
+        new Thread(() -> {
+            try {
+                File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                String path = documentsDir.getPath() + "/RECORDINGS/Summary/Summary.csv";
+                SummaryReader.setFilepath(path);
+
+                SummaryReader sr = SummaryReader.getInstance();
+                summaryTitles = sr.getSummaryTitles();
+                summaryTuples = sr.getSummaryTuplesWithNoSkipItems();
+                dateLabels = sr.getDateLabelsWithNoSkipItems();
+                filterNames = sr.getFilterNames();
+
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        buildFilterSwitches();
+                        recalculateGraphs();
+                    });
+                }
+            } catch (Exception e) {
+                Log.e("SummaryChart", "Error loading data", e);
             }
         }).start();
-
     }
 
-    void vibrateHaptic(){
-        Vibrator vibrator = (Vibrator) requireActivity().getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        if (vibrator.hasVibrator()) {
-            VibrationEffect ve = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                ve = VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK);
-            }else{
-                ve = VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE);
-            }
-            vibrator.vibrate(ve);
+    // --- UI BUILDERS ---
+
+    private void buildFilterSwitches() {
+        leftCol.removeAllViews();
+        rightCol.removeAllViews();
+
+        for (int i = 0; i < filterNames.size(); i++) {
+            LinearLayout col = (i % 2 == 0) ? leftCol : rightCol;
+            col.addView(createFilterSwitchRow(filterNames.get(i)));
         }
     }
-    public void recalculateGraphs(View v){
-        requireActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                LinearLayout ll = (LinearLayout) root.findViewById(R.id.graphs_holder);
 
-                TextView noResultText = (TextView) root.findViewById(R.id.noresultext);
+    private LinearLayout createFilterSwitchRow(String filterName) {
+        Context ctx = requireContext();
 
-                if (noResultText.getVisibility() == View.VISIBLE && !((CheckBox)root.findViewById(R.id.basedrawcheckbox)).isChecked()) {
-                    LayoutTransition layoutTransition = new LayoutTransition();
-                    ll.setLayoutTransition(layoutTransition);
-                } else {
-                    // Optionally, if you want to remove any existing transitions when the TextView is not visible
-                    ll.setLayoutTransition(null);
-                }
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, 8, 0, 8);
 
-                ll.removeAllViews();
-                if (switchesbox.isEmpty())
-                    createFiltersSwitches();
-                if(summaryTitles!=null)
-                    addGraphs();
-            }
+        // Tag to identify this row later
+        row.setTag(filterName);
+
+        CheckBox enableFilterCb = new CheckBox(ctx);
+        enableFilterCb.setChecked(false);
+
+        MaterialSwitch includeExcludeSwitch = new MaterialSwitch(ctx);
+        includeExcludeSwitch.setChecked(true); // True = Include, False = Exclude
+        includeExcludeSwitch.setEnabled(false);
+
+        TextView label = new TextView(ctx);
+        label.setTextSize(12);
+        label.setText(filterName);
+        label.setPadding(12, 0, 0, 0);
+
+        // Listeners
+        enableFilterCb.setOnCheckedChangeListener((btn, isChecked) -> {
+            includeExcludeSwitch.setEnabled(isChecked);
+            if (!isChecked) includeExcludeSwitch.setChecked(true);
+            vibrateHaptic();
+            recalculateGraphs();
         });
+
+        includeExcludeSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
+            vibrateHaptic();
+            recalculateGraphs();
+        });
+
+        row.addView(enableFilterCb);
+        row.addView(includeExcludeSwitch);
+        row.addView(label);
+
+        return row;
     }
 
-    LineDataSet makeDatasetWithDate(int datatupleindex, String setlabel, boolean usefilter, int filterindex, int c1){
-        List<Entry> entries = new ArrayList<>();
-        for(String[] data : summaryTuples) {
-            if(isTupleCompliantFilter(data, filterindex) || !usefilter) {
-                int xIndex = dateLabels.indexOf(data[0]);
+    // --- GRAPH RENDERING LOGIC ---
 
-                // CONTROLLO DI SICUREZZA: se la data esiste in dateLabels, procedi
+    public void recalculateGraphs() {
+        if (summaryTitles == null) return;
+
+        graphsHolder.removeAllViews();
+        List<FilterState> activeFilters = getActiveFilters();
+
+        boolean hasActiveFilters = !activeFilters.isEmpty();
+        boolean drawBase = baseDrawCheck.isChecked();
+
+        if (hasActiveFilters || drawBase) {
+            noResultText.setVisibility(View.GONE);
+            // Ignore the first (Date) and last (Mood, Info) columns
+            for (int i = 1; i < summaryTitles.length - 2; i++) {
+                renderMetricChart(i, activeFilters);
+            }
+        } else {
+            noResultText.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void renderMetricChart(int metricIndex, List<FilterState> activeFilters) {
+        String metricName = summaryTitles[metricIndex];
+        ArrayList<LineDataSet> datasets = new ArrayList<>();
+        boolean isSeparateDraw = separateDrawCheck.isChecked();
+        boolean useRollingAvg = rollingAverageCheck.isChecked();
+        boolean drawBase = baseDrawCheck.isChecked();
+
+        // 1. Draw Base (All Data)
+        if (drawBase) {
+            LineDataSet baseSet = extractDataset(metricIndex, metricName, null, getResources().getColor(R.color.material_blue_500, requireContext().getTheme()));
+            if (baseSet.getEntryCount() > 0) datasets.add(baseSet);
+        }
+
+        // 2. Draw Filtered Data
+        if (!activeFilters.isEmpty()) {
+            if (isSeparateDraw) {
+                // Draw a separate line for EACH active filter
+                for (int i = 0; i < activeFilters.size(); i++) {
+                    FilterState filter = activeFilters.get(i);
+                    String label = (filter.isInclude ? "" : "NOT ") + filter.name;
+                    int color = getResources().getColor(COLOR_ARRAY[i % COLOR_ARRAY.length], requireContext().getTheme());
+
+                    LineDataSet filteredSet = extractDataset(metricIndex, label, Arrays.asList(filter), color);
+                    if (filteredSet.getEntryCount() > 0) datasets.add(filteredSet);
+                }
+            } else {
+                // Combine all active filters into ONE line
+                LineDataSet combinedSet = extractDataset(metricIndex, "Filtered", activeFilters, getResources().getColor(R.color.material_orange_500, requireContext().getTheme()));
+                if (combinedSet.getEntryCount() > 0) datasets.add(combinedSet);
+            }
+        }
+
+        // 3. Apply Rolling Averages if requested
+        if (useRollingAvg) {
+            ArrayList<LineDataSet> rollingSets = new ArrayList<>();
+            for (LineDataSet original : datasets) {
+                List<Entry> rollingAvgEntries = calculateRollingAverage(original.getValues(), 14); // 14-day smoothing
+                if (!rollingAvgEntries.isEmpty()) {
+                    LineDataSet avgSet = new LineDataSet(rollingAvgEntries, original.getLabel() + " (Avg)");
+                    avgSet.setColor(original.getColor());
+                    avgSet.setLineWidth(1.6f);
+                    avgSet.enableDashedLine(10f, 15f, 0f); // Make it dashed
+                    avgSet.setDrawCircles(false);
+                    avgSet.setDrawValues(false);
+                    rollingSets.add(avgSet);
+                }
+            }
+            datasets.addAll(rollingSets);
+        }
+
+        // 4. Render to UI if we have data
+        if (!datasets.isEmpty()) {
+            LineChart chart = buildStyledLineChart(datasets, isSeparateDraw);
+            attachChartToCard(chart, metricName);
+        }
+    }
+
+    // --- DATA EXTRACTION & MATH ---
+
+    private LineDataSet extractDataset(int metricIndex, String label, @Nullable List<FilterState> filters, int color) {
+        List<Entry> entries = new ArrayList<>();
+
+        for (String[] row : summaryTuples) {
+            if (filters == null || rowCompliesWithFilters(row, filters)) {
+                int xIndex = dateLabels.indexOf(row[0]);
                 if (xIndex != -1) {
-                    entries.add(new Entry(xIndex, Float.parseFloat(data[datatupleindex].replace(",","."))));
-                } else {
-                    Log.w("ChartError", "Data non trovata in dateLabels: " + data[0]);
+                    try {
+                        float value = Float.parseFloat(row[metricIndex].replace(",", "."));
+                        entries.add(new Entry(xIndex, value));
+                    } catch (NumberFormatException ignored) {}
                 }
             }
         }
 
-        LineDataSet dataSet = new LineDataSet(entries, setlabel);
-        dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
-        dataSet.setColor(c1);
-        dataSet.setValueTextColor(Color.GREEN);
-        dataSet.setDrawValues(false);
-        dataSet.setHighlightEnabled(false);
+        LineDataSet dataSet = new LineDataSet(entries, label);
+        dataSet.setColor(color);
+        dataSet.setLineWidth(1f);
+        dataSet.setCircleColor(color);
+        dataSet.setCircleRadius(1.2f);
         dataSet.setDrawCircleHole(false);
-        dataSet.setDrawCircles(false);
-
+        dataSet.setDrawValues(false);
+        //dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Smooth curves
         return dataSet;
     }
 
-    private LineDataSet makeDatasetAverageWithDate(LineDataSet originalDataSet, int windowSize) {
+    private boolean rowCompliesWithFilters(String[] row, List<FilterState> filters) {
+        String infoColumn = row[row.length - 1]; // Info is always last
+        List<String> rowTags = Arrays.asList(infoColumn.split(","));
 
-
-        // 1. Calcola i dati della media mobile usando l'helper esistente
-        List<Entry> rollingAvgEntries = calculateRollingAverage(originalDataSet.getValues(), windowSize);
-
-        // 2. Crea un nuovo dataset per la media mobile
-        LineDataSet rollingAvgDataSet = new LineDataSet(rollingAvgEntries, originalDataSet.getLabel() + " Avg");
-
-        // 3. Applica uno stile distintivo per renderlo riconoscibile
-        rollingAvgDataSet.setColor(originalDataSet.getColor()); // Usa lo stesso colore della linea originale
-        rollingAvgDataSet.setLineWidth(2f);
-        rollingAvgDataSet.enableDashedLine(10f, 5f, 0f); // Linea tratteggiata
-        rollingAvgDataSet.setDrawValues(false);
-        rollingAvgDataSet.setHighlightEnabled(false);
-        rollingAvgDataSet.setDrawCircleHole(false);
-        rollingAvgDataSet.setDrawCircles(false);
-
-        return rollingAvgDataSet;
-    }
-
-    /**
-     * Calcola la media mobile per una serie di dati (Entry).
-     * @param data La lista di Entry originali.
-     * @param windowSize La dimensione della finestra per la media (es. 6).
-     * @return Una nuova lista di Entry che rappresenta la media mobile.
-     */
-    private List<Entry> calculateRollingAverage(List<Entry> data, int windowSize) {
-        List<Entry> rollingAvgEntries = new ArrayList<>();
-        if (data == null || data.size() < 1) {
-            return rollingAvgEntries;
-        }
-
-        // Ordina i dati per asse X per assicurare il corretto funzionamento della finestra
-        data.sort((e1, e2) -> Float.compare(e1.getX(), e2.getX()));
-
-        // Usiamo una Queue per mantenere la finestra di valori corrente in modo efficiente
-        java.util.Queue<Float> window = new java.util.LinkedList<>();
-        float sum = 0.0f;
-
-        for (int i = 0; i < data.size(); i++) {
-            Entry currentEntry = data.get(i);
-            float currentValue = currentEntry.getY();
-
-            window.add(currentValue);
-            sum += currentValue;
-
-            if (window.size() > windowSize) {
-                sum -= window.poll(); // Rimuove l'elemento più vecchio
-            }
-
-            // Aggiunge un punto di media mobile usando l'indice X dell'entry corrente
-            float average = sum / window.size();
-            rollingAvgEntries.add(new Entry(currentEntry.getX(), average));
-        }
-
-        return rollingAvgEntries;
-    }
-    private boolean isTupleCompliantFilter(String[] data, int conditionindex) {
-        ArrayList<String> infoextracted = new ArrayList<>(Arrays.asList(data[data.length-1].split(",")));
-
-        if(conditionindex==-1) {
-            for (int i = 0; i < switchesbox.size(); i++) {
-                if (((CheckBox) switchesbox.get(i).getChildAt(0)).isChecked()) {
-                    if (((MaterialSwitch) switchesbox.get(i).getChildAt(1)).isChecked()) {
-                        if (!infoextracted.contains(filterNames.get(i))) {
-                            return false;
-                        }
-                    }else {
-                        if (infoextracted.contains(filterNames.get(i))) {
-                            return false;
-                        }
-                    }
-                }
-            }
-        }else{
-            if (((MaterialSwitch) switchesbox.get(conditionindex).getChildAt(1)).isChecked()) {
-                return infoextracted.contains(filterNames.get(conditionindex));
-            }else {
-                return !infoextracted.contains(filterNames.get(conditionindex));
-            }
+        for (FilterState filter : filters) {
+            boolean hasTag = rowTags.contains(filter.name);
+            if (filter.isInclude && !hasTag) return false;
+            if (!filter.isInclude && hasTag) return false;
         }
         return true;
     }
 
-    void addGraphs(){
+    private List<Entry> calculateRollingAverage(List<Entry> data, int windowSize) {
+        List<Entry> rollingAvgEntries = new ArrayList<>();
+        if (data == null || data.isEmpty()) return rollingAvgEntries;
 
-        for(int i = 1; i < summaryTitles.length-2; i++) {
-            createChartWithDateFromIndex(i);
-        }
+        data.sort((e1, e2) -> Float.compare(e1.getX(), e2.getX()));
+        Queue<Float> window = new LinkedList<>();
+        float sum = 0.0f;
 
-    }
+        for (Entry currentEntry : data) {
+            window.add(currentEntry.getY());
+            sum += currentEntry.getY();
 
-    int[] color_array = {R.color.material_orange_500, R.color.material_green_500, R.color.material_blue_500, R.color.material_red_500, R.color.material_yellow_500};
-    void createChartWithDateFromIndex(int index){
+            if (window.size() > windowSize) {
+                sum -= window.poll();
+            }
 
-        boolean doNotAddToView = false;
-
-        StringBuilder desc = new StringBuilder();
-
-        int howmanychecked = howManyBoxesAreChecked();
-        ArrayList<LineDataSet> a = new ArrayList<>();
-        if(((CheckBox)root.findViewById(R.id.basedrawcheckbox)).isChecked())
-            a.add(makeDatasetWithDate(index, summaryTitles[index], false, -1, getResources().getColor(R.color.material_blue_500)));
-
-        if (((CheckBox)root.findViewById(R.id.rollingaveragecheckbox)).isChecked()) {
-            // Crea una copia della lista di dataset per evitare ConcurrentModificationException
-            ArrayList<LineDataSet> originalDataSets = new ArrayList<>(a);
-            for (LineDataSet originalDataSet : originalDataSets) {
-                // Calcola la media mobile per il dataset corrente
-                List<Entry> rollingAvgEntries = calculateRollingAverage(originalDataSet.getValues(), 20);
-
-                if (!rollingAvgEntries.isEmpty()) {
-                    // Crea un nuovo dataset per la media mobile
-                    LineDataSet rollingAvgDataSet = new LineDataSet(rollingAvgEntries, originalDataSet.getLabel() + " Avg");
-
-                    // Applica uno stile distintivo
-                    rollingAvgDataSet.setColor(originalDataSet.getColor()); // Usa lo stesso colore della linea originale
-                    rollingAvgDataSet.setLineWidth(2f);
-                    rollingAvgDataSet.enableDashedLine(10f, 5f, 0f); // Linea tratteggiata
-                    rollingAvgDataSet.setDrawCircles(false);
-                    rollingAvgDataSet.setDrawValues(false);
-                    rollingAvgDataSet.setHighlightEnabled(false);
-
-                    // Aggiungi il dataset della media mobile alla lista
-                    a.add(rollingAvgDataSet);
-                }
+            // Only plot the average if the window has gathered enough data
+            if (window.size() >= windowSize / 2) {
+                rollingAvgEntries.add(new Entry(currentEntry.getX(), sum / window.size()));
             }
         }
-
-        if(((CheckBox)root.findViewById(R.id.separatedrawcheckbox)).isChecked()){
-            ((TextView)root.findViewById(R.id.noresultext)).setVisibility(View.GONE);
-
-            for(int i = 0; i < howmanychecked;i++){
-                a.add(makeDatasetWithDate(index, (((MaterialSwitch) switchesbox.get(getCheckedBoxIndex(i)).getChildAt(1)).isChecked()? "" : "Not ")+filterNames.get(getCheckedBoxIndex(i)), true, getCheckedBoxIndex(i), getResources().getColor(color_array[i%color_array.length])));
-            }
-        }else if(howmanychecked>0){
-            a.add(makeDatasetWithDate(index, "Filtered", true, -1, getResources().getColor(R.color.material_orange_500)));
-
-            if(a.get(a.size()-1).getEntryCount()==0){
-                ((TextView)root.findViewById(R.id.noresultext)).setVisibility(View.VISIBLE);
-                if(!((CheckBox)root.findViewById(R.id.basedrawcheckbox)).isChecked())
-                    doNotAddToView=true;
-            }else{
-                ((TextView)root.findViewById(R.id.noresultext)).setVisibility(View.GONE);
-
-            }
-
-            for(int i = 0; i < howmanychecked; i++){
-                desc.append(i != 0 ? " + " : "").append(((MaterialSwitch) switchesbox.get(getCheckedBoxIndex(i)).getChildAt(1)).isChecked() ? "" : "Not ").append(filterNames.get(getCheckedBoxIndex(i)));
-            }
-        }
-
-        if(!doNotAddToView)
-            addLineChartToView(getLineChart(a, desc.toString(), ((CheckBox)root.findViewById(R.id.separatedrawcheckbox)).isChecked()), summaryTitles[index]);
-
-
-
+        return rollingAvgEntries;
     }
 
-    void addLineChartToView(LineChart lc, String title){
+    // --- CHART STYLING ---
 
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.setMargins(16, 8, 8, 16);
-
-        com.google.android.material.card.MaterialCardView cv = new com.google.android.material.card.MaterialCardView(requireActivity());
-        Space space = new Space(requireActivity());
-        space.setMinimumHeight(20);
-        Space space2 = new Space(requireActivity());
-        space2.setMinimumHeight(20);
-        LinearLayout llc = new LinearLayout(requireActivity());
-        llc.setOrientation(LinearLayout.VERTICAL);
-        TextView txtitle = new TextView(requireActivity());
-        txtitle.setText(title);
-        txtitle.setTextSize(14);
-        txtitle.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        llc.addView(space2);
-        llc.addView(txtitle);
-        llc.addView(space);
-        llc.addView(lc);
-        cv.setLayoutParams(params);
-        cv.setRadius(24);
-        cv.setPadding(16,40,16,16);
-        cv.setElevation(4);
-        cv.addView(llc);
-
-        LinearLayout ll = (LinearLayout) root.findViewById(R.id.graphs_holder);
-        ll.addView(cv);
-    }
-
-    private LineChart getLineChart(LineDataSet dataSet, String desc, boolean useLegend) {
-        ArrayList<LineDataSet> ds = new ArrayList<>();
-        ds.add(dataSet);
-        return getLineChart(ds, desc, useLegend);
-    }
-    @NonNull
-    private LineChart getLineChart(ArrayList<LineDataSet> dataSets, String desc, boolean useLegend) {
+    private LineChart buildStyledLineChart(ArrayList<LineDataSet> dataSets, boolean showLegend) {
+        LineChart chart = new LineChart(requireContext());
+        chart.setMinimumHeight(600); // Taller charts for better visibility
 
         LineData lineData = new LineData();
-        for(LineDataSet lds : dataSets) {
-            lineData.addDataSet(lds);
-        }
+        for (LineDataSet ds : dataSets) lineData.addDataSet(ds);
+        chart.setData(lineData);
 
-        ValueFormatter formatter = new ValueFormatter() {
+        // Styling
+        int textColor = baseDrawCheck.getCurrentTextColor();
+
+        chart.getDescription().setEnabled(false); // Hide the generic description text
+        chart.setDrawGridBackground(false);
+        chart.setDrawBorders(false);
+
+        chart.getLegend().setEnabled(showLegend);
+        chart.getLegend().setTextColor(textColor);
+        chart.getLegend().setWordWrapEnabled(true);
+
+        // X-Axis (Dates)
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setTextColor(textColor);
+        xAxis.setDrawGridLines(false);
+        xAxis.setLabelRotationAngle(45f);
+        xAxis.setValueFormatter(new ValueFormatter() {
             @Override
             public String getAxisLabel(float value, AxisBase axis) {
                 int index = (int) value;
-                // Controlla che l'indice sia valido prima di leggerlo dalla lista
                 if (dateLabels != null && index >= 0 && index < dateLabels.size()) {
                     return dateLabels.get(index);
                 }
-                return ""; // Se fuori bound, restituisce stringa vuota invece di crashare
+                return "";
             }
-        };
+        });
 
+        // Y-Axis
+        chart.getAxisRight().setEnabled(false); // Hide right axis
+        YAxis yAxis = chart.getAxisLeft();
+        yAxis.setTextColor(textColor);
+        yAxis.setGridColor(Color.parseColor("#40808080")); // Very faint grid line
+        yAxis.setAxisMinimum(0f); // Prevent charts from floating above zero
 
-        int textColor = ((CheckBox)root.findViewById(R.id.basedrawcheckbox)).getCurrentTextColor();
-
-        LineChart lc = new LineChart(requireActivity());
-
-
-
-        XAxis xAxis = lc.getXAxis();
-        xAxis.setGranularity(1f); // minimum axis-step (interval) is 1
-        xAxis.setValueFormatter(formatter);
-        xAxis.setLabelRotationAngle((float) Math.PI / 4f);
-
-        lc.getAxis(YAxis.AxisDependency.LEFT).setDrawLabels(false);
-        lc.getAxis(YAxis.AxisDependency.RIGHT).setDrawLabels(false);
-
-        lc.setDrawGridBackground(false);
-        lc.setDrawBorders(false);
-
-        Description d = new Description();
-        d.setText(desc);
-        d.setYOffset(-10);
-        lc.setDescription(d);
-
-        lc.setDrawMarkers(false);
-
-        lc.getLegend().setEnabled(useLegend);
-
-        lc.getRootView().setMinimumHeight(500);
-
-        lc.setData(lineData);
-
-        lc.getDescription().setTextColor(textColor);
-        lc.getXAxis().setTextColor(textColor);
-        lc.getAxisLeft().setTextColor(textColor);
-        lc.getAxisRight().setTextColor(textColor);
-        lc.getLegend().setTextColor(textColor);
-        lc.getDescription().setTextColor(textColor);
-
-        lc.invalidate();
-        return lc;
+        chart.invalidate(); // Refresh
+        return chart;
     }
 
-    ArrayList<LinearLayout> switchesbox = new ArrayList<>();
+    private void attachChartToCard(LineChart chart, String title) {
+        Context ctx = requireContext();
+        MaterialCardView card = new MaterialCardView(ctx);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(16, 16, 16, 24);
+        card.setLayoutParams(params);
+        card.setRadius(24);
+        card.setCardElevation(6);
+        card.setContentPadding(24, 32, 24, 24);
 
-    int howManyBoxesAreChecked(){
-        int c = 0;
-        for(LinearLayout l : switchesbox){
-            if(((CheckBox)l.getChildAt(0)).isChecked())
-                c++;
-        }
-        return c;
+        LinearLayout layout = new LinearLayout(ctx);
+        layout.setOrientation(LinearLayout.VERTICAL);
+
+        TextView titleView = new TextView(ctx);
+        titleView.setText(title);
+        titleView.setTextSize(16);
+        titleView.setGravity(Gravity.CENTER);
+        titleView.setPadding(0, 0, 0, 24);
+
+        layout.addView(titleView);
+        layout.addView(chart);
+        card.addView(layout);
+
+        graphsHolder.addView(card);
     }
+
+    // --- HELPER CLASSES & METHODS ---
 
     /**
-     *
-     * @param index from 0 to howManyBoxesAreChecked()-1
-     * @return index in switchesbox of the n checkbox that is checked
+     * Reads the UI state to determine which filters the user wants applied.
      */
-    int getCheckedBoxIndex(int index){
-        int c = 0;
-        int i = 0;
-        for(LinearLayout l : switchesbox){
-            // Controllo di sicurezza per evitare crash se la vista è scollegata
-            if (l != null && l.getChildCount() > 0 && l.getChildAt(0) instanceof CheckBox) {
-                if(((CheckBox)l.getChildAt(0)).isChecked()) {
-                    if(c==index)
-                        return i;
-                    c++;
+    private List<FilterState> getActiveFilters() {
+        List<FilterState> active = new ArrayList<>();
+
+        // Helper to check a column
+        checkColumnForFilters(leftCol, active);
+        checkColumnForFilters(rightCol, active);
+
+        return active;
+    }
+
+    private void checkColumnForFilters(LinearLayout column, List<FilterState> active) {
+        for (int i = 0; i < column.getChildCount(); i++) {
+            View row = column.getChildAt(i);
+            if (row instanceof LinearLayout) {
+                LinearLayout ll = (LinearLayout) row;
+                CheckBox cb = (CheckBox) ll.getChildAt(0);
+                MaterialSwitch sw = (MaterialSwitch) ll.getChildAt(1);
+
+                if (cb.isChecked()) {
+                    active.add(new FilterState((String) row.getTag(), sw.isChecked()));
                 }
             }
-            i++;
-        }
-        return -1;
-    }
-
-    LinearLayout createFilterCheckSwitch(String checkboxtext){
-        CheckBox cb = new CheckBox(requireActivity());
-        TextView tw = new TextView(requireActivity());
-        tw.setTextSize(11);
-        //tw.setMaxWidth(250);
-        tw.setSingleLine(false);
-
-        //tw.setGravity(Gravity.CENTER);
-        tw.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_START);
-        tw.setPadding(10, 0, 0, 0);
-        MaterialSwitch sw = new MaterialSwitch(requireActivity());
-        sw.setChecked(true);
-        sw.setEnabled(false);
-        tw.setText(checkboxtext);
-        cb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                sw.setEnabled(b);
-                if(!b)
-                    sw.setChecked(true);
-                vibrateHaptic();
-                recalculateGraphs(null);
-            }
-        });
-        sw.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                vibrateHaptic();
-                recalculateGraphs(null);
-            }
-        });
-
-        cb.setChecked(false);
-
-        LinearLayout lll = new LinearLayout(requireActivity());
-        lll.setGravity(Gravity.FILL_HORIZONTAL);
-        lll.setOrientation(LinearLayout.HORIZONTAL);
-        lll.addView(cb);
-        lll.addView(sw);
-        lll.addView(tw);
-        return lll;
-    }
-    void createFiltersSwitches(){
-
-        LinearLayout right = root.findViewById(R.id.right_col), left=root.findViewById(R.id.left_col);
-
-        int i = 0;
-
-        for(String e : filterNames){
-            LinearLayout currentcol = (i%2==0) ? left : right;
-            LinearLayout l=createFilterCheckSwitch(e);
-            switchesbox.add(l);
-            currentcol.addView(l);
-            i++;
         }
     }
 
-    String[] summaryTitles;
-    ArrayList<String[]> summaryTuples;
-    ArrayList<String> dateLabels;
-    ArrayList<String> filterNames;
-    void readSummary() {
-        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        File recordingsDir = new File(documentsDir, "RECORDINGS");
-        File summaryDir = new File(recordingsDir, "Summary");
-
-        SummaryReader.setFilepath(summaryDir.getParent() + "/Summary/Summary.csv");
-
-
-        SummaryReader sr = SummaryReader.getInstance();
-        summaryTitles = sr.getSummaryTitles();
-        summaryTuples = sr.getSummaryTuplesWithNoSkipItems();
-        dateLabels = sr.getDateLabelsWithNoSkipItems();
-        filterNames = sr.getFilterNames();
+    private static class FilterState {
+        String name;
+        boolean isInclude;
+        FilterState(String name, boolean isInclude) {
+            this.name = name;
+            this.isInclude = isInclude;
+        }
     }
 
+    // --- DRAWER ANIMATION LOGIC (Unchanged math, cleaned up execution) ---
 
-    private boolean isExpanded = false;
-    private int collapsedHeightDp = 50;
-
-    private com.google.android.material.bottomnavigation.BottomNavigationView bottomCardView;
-    private View topHandle;
-    private ViewGroup mainLayout;
     private void setupDrag() {
         final GestureDetector gestureDetector = new GestureDetector(requireContext(), new GestureDetector.SimpleOnGestureListener() {
             @Override
@@ -573,101 +503,72 @@ public class SummaryChartFragment extends Fragment {
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (gestureDetector.onTouchEvent(event)) {
-                    return true; // Handle tap
-                }
+                if (gestureDetector.onTouchEvent(event)) return true;
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         isResizing = true;
                         initialY = event.getRawY();
-                        initialHeight = bottomCardView.getHeight();
-                        if (mainLayout != null) {
-                            mainLayout.setMotionEventSplittingEnabled(false);
-                        }
-                        vibrateHaptic();
+                        initialHeight = bottomDrawerView.getHeight();
+                        if (mainLayout != null) mainLayout.setMotionEventSplittingEnabled(false);
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (isResizing) {
                             float dy = event.getRawY() - initialY;
-                            int newHeight = (int) (initialHeight - dy);
-                            int minHeight = dpToPx(collapsedHeightDp);
-                            Integer maxHeight = (mainLayout != null) ? mainLayout.getHeight() : null;
+                            int newHeight = Math.max(dpToPx(collapsedHeightDp), (int) (initialHeight - dy));
+                            if (mainLayout != null) newHeight = Math.min(mainLayout.getHeight(), newHeight);
 
-                            newHeight = Math.max(minHeight, newHeight);
-                            if (maxHeight != null) {
-                                newHeight = Math.min(maxHeight, newHeight);
-                            }
-
-                            bottomCardView.getLayoutParams().height = newHeight;
-                            bottomCardView.requestLayout();
+                            bottomDrawerView.getLayoutParams().height = newHeight;
+                            bottomDrawerView.requestLayout();
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
                         isResizing = false;
-                        if (mainLayout != null) {
-                            mainLayout.setMotionEventSplittingEnabled(true);
-                        }
+                        if (mainLayout != null) mainLayout.setMotionEventSplittingEnabled(true);
                         return true;
-                    default:
-                        return false;
                 }
+                return false;
             }
-
-
         });
     }
 
     private int dpToPx(int dp) {
-        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-        return (int) (dp * displayMetrics.density + 0.5f);
+        return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private int getCollapsedHeight() {
-        int totalHeight = 0;
-
-
-        // 3. Checkbox row
-        View checkboxes = bottomCardView.findViewById(R.id.basedrawcheckbox).getParent() instanceof View ?
-                (View) bottomCardView.findViewById(R.id.basedrawcheckbox).getParent() : null;
-        if (checkboxes != null) totalHeight += checkboxes.getMeasuredHeight() + checkboxes.getPaddingBottom()-20;
-
-
-        return totalHeight;
+        View checkboxes = bottomDrawerView.findViewById(R.id.basedrawcheckbox);
+        if (checkboxes != null && checkboxes.getParent() instanceof View) {
+            View parent = (View) checkboxes.getParent();
+            return parent.getMeasuredHeight() + parent.getPaddingBottom() - 20;
+        }
+        return 50;
     }
 
     private void toggleCardHeight() {
         int targetHeight = isExpanded ? dpToPx(collapsedHeightDp) : getExpandedHeightCapped();
-
-        ValueAnimator animator = ValueAnimator.ofInt(bottomCardView.getHeight(), targetHeight);
+        ValueAnimator animator = ValueAnimator.ofInt(bottomDrawerView.getHeight(), targetHeight);
         animator.setDuration(250);
         animator.addUpdateListener(animation -> {
-            bottomCardView.getLayoutParams().height = (int) animation.getAnimatedValue();
-            bottomCardView.requestLayout();
+            bottomDrawerView.getLayoutParams().height = (int) animation.getAnimatedValue();
+            bottomDrawerView.requestLayout();
         });
         animator.start();
-
         isExpanded = !isExpanded;
     }
 
-
     private int getExpandedHeightCapped() {
-        // Get content height
-        View scrollContent = bottomCardView.findViewById(R.id.scroll_filters); // Replace with your ScrollView ID
-        if (scrollContent == null) return dpToPx(300); // fallback
+        View scrollContent = bottomDrawerView.findViewById(R.id.scroll_filters);
+        if (scrollContent == null) return dpToPx(300);
 
         scrollContent.measure(
-                View.MeasureSpec.makeMeasureSpec(bottomCardView.getWidth(), View.MeasureSpec.AT_MOST),
+                View.MeasureSpec.makeMeasureSpec(bottomDrawerView.getWidth(), View.MeasureSpec.AT_MOST),
                 View.MeasureSpec.UNSPECIFIED
         );
-        int contentHeight = scrollContent.getMeasuredHeight()+300;
+        int contentHeight = scrollContent.getMeasuredHeight() + dpToPx(100);
 
-        // Cap at 80% of screen height
         int maxHeight = (int) (Resources.getSystem().getDisplayMetrics().heightPixels * 0.8);
         return Math.min(contentHeight, maxHeight);
     }
-
-
-
 }
