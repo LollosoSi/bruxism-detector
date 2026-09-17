@@ -1,5 +1,6 @@
 package com.example.bruxismdetector;
 
+import android.animation.ValueAnimator;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -60,13 +61,17 @@ public class CalendarMonthFragment extends Fragment {
         boolean isTrackingSession;
         boolean hasTags;
 
-        DayCellBinding(View cellView, TextView dayNumText, TextView metricValueText, SummaryReader.SummaryEntry entry, boolean isTrackingSession, boolean hasTags) {
+        // NEW: Track the current color to animate smoothly from it
+        int currentBgColor;
+
+        DayCellBinding(View cellView, TextView dayNumText, TextView metricValueText, SummaryReader.SummaryEntry entry, boolean isTrackingSession, boolean hasTags, int surfaceColor) {
             this.cellView = cellView;
             this.dayNumText = dayNumText;
             this.metricValueText = metricValueText;
             this.entry = entry;
             this.isTrackingSession = isTrackingSession;
             this.hasTags = hasTags;
+            this.currentBgColor = surfaceColor; // Start with default surface
         }
 
         float getMetric(int tupleIndex) {
@@ -149,7 +154,7 @@ public class CalendarMonthFragment extends Fragment {
         }
 
         // 3. Fillers (Day 1 offset)
-        int offset = dayOfWeekFirst - 1; 
+        int offset = dayOfWeekFirst - 1;
         for (int i = 0; i < offset; i++) {
             View filler = new View(getContext());
             GridLayout.LayoutParams p = new GridLayout.LayoutParams(GridLayout.spec(1), GridLayout.spec(i, 1f));
@@ -168,7 +173,7 @@ public class CalendarMonthFragment extends Fragment {
 
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(row), GridLayout.spec(col, 1f));
             lp.width = 0;
-            lp.height = dpToPx(64);
+            lp.height = dpToPx(56);
             lp.setMargins(2, 2, 2, 2);
             cell.setLayoutParams(lp);
 
@@ -198,7 +203,7 @@ public class CalendarMonthFragment extends Fragment {
                 }
             }
 
-            dayBindings.add(new DayCellBinding(cell, txtDay, txtMetric, matched, isTracking, hasTags));
+            dayBindings.add(new DayCellBinding(cell, txtDay, txtMetric, matched, isTracking, hasTags, colorSurface));
             final SummaryReader.SummaryEntry finalEntry = matched;
             cell.setOnClickListener(v -> showDayDetailSheet(day, finalEntry));
             grid.addView(cell);
@@ -232,21 +237,21 @@ public class CalendarMonthFragment extends Fragment {
         boolean hasMetric = selectedTupleIndex > 0 && selectedTupleIndex < sr.getSummaryTitles().length;
 
         float globalMin = 0, globalMax = 1;
-        byte direction = CorrelationsCalculator.NeutralCorr; // Default to neutral
+        byte direction = CorrelationsCalculator.NeutralCorr;
 
         if (hasMetric) {
             float[] minMax = CalendarHighlighter.getGlobalMinMax(selectedTupleIndex, sr.getSummaryTuplesWithNoSkipItems());
             globalMin = minMax[0];
             globalMax = minMax[1];
-
-            // Ask the SSOT what kind of metric this is
             direction = CorrelationsCalculator.isGoingToBetter(1.0, sr.getSummaryTitles()[selectedTupleIndex]);
         }
 
         for (DayCellBinding b : dayBindings) {
             if (!b.isTrackingSession) {
-                int bgColor = b.hasTags ? MaterialColors.layer(colorSurface, colorPrimary, 0.12f) : Color.TRANSPARENT;
-                setCellTile(b.cellView, bgColor, b.hasTags ? colorOutline : Color.TRANSPARENT);
+                int targetBgColor = b.hasTags ? MaterialColors.layer(colorSurface, colorPrimary, 0.12f) : Color.TRANSPARENT;
+                int targetStroke = b.hasTags ? colorOutline : Color.TRANSPARENT;
+
+                animateCellTile(b, targetBgColor, targetStroke);
                 b.dayNumText.setTextColor(colorOnSurface);
                 b.dayNumText.setAlpha(b.hasTags ? 0.9f : 0.25f);
                 b.metricValueText.setVisibility(View.GONE);
@@ -255,24 +260,22 @@ public class CalendarMonthFragment extends Fragment {
 
             b.dayNumText.setAlpha(1.0f);
             if (!hasMetric) {
-                setCellTile(b.cellView, colorSurface, colorOutline);
+                animateCellTile(b, colorSurface, colorOutline);
                 b.dayNumText.setTextColor(colorOnSurface);
                 b.metricValueText.setVisibility(View.GONE);
             } else {
                 float val = b.getMetric(selectedTupleIndex);
                 if (Float.isNaN(val)) {
-                    setCellTile(b.cellView, colorSurface, colorOutline);
+                    animateCellTile(b, colorSurface, colorOutline);
                     b.metricValueText.setText("-");
                     b.metricValueText.setVisibility(View.VISIBLE);
                     b.dayNumText.setTextColor(colorOnSurface);
                 } else {
+                    int targetBgColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, direction);
 
-                    // Pass the 'direction' byte instead of a boolean
-                    int bgColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, direction);
+                    animateCellTile(b, targetBgColor, colorOutline);
 
-                    setCellTile(b.cellView, bgColor, colorOutline);
-
-                    if (isColorDark(bgColor)) {
+                    if (isColorDark(targetBgColor)) {
                         b.dayNumText.setTextColor(Color.WHITE);
                         b.metricValueText.setTextColor(Color.WHITE);
                     } else {
@@ -287,12 +290,29 @@ public class CalendarMonthFragment extends Fragment {
         }
     }
 
-    private boolean isColorDark(int color) {
-        double darkness = 1 - (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255;
-        return darkness >= 0.5;
+    /**
+     * NEW: Smoothly fades from the current background color to the target background color.
+     */
+    private void animateCellTile(DayCellBinding b, int targetColor, int strokeColor) {
+        if (b.currentBgColor == targetColor) {
+            // Already at the right color, just snap the stroke
+            setCellTileDirectly(b.cellView, targetColor, strokeColor);
+            return;
+        }
+
+        ValueAnimator animator = ValueAnimator.ofArgb(b.currentBgColor, targetColor);
+        animator.setDuration(400); // 400ms smooth transition
+        animator.addUpdateListener(anim -> {
+            int animatedColor = (int) anim.getAnimatedValue();
+            setCellTileDirectly(b.cellView, animatedColor, strokeColor);
+        });
+        animator.start();
+
+        // Save the new target as the current color for the next time it animates
+        b.currentBgColor = targetColor;
     }
 
-    private void setCellTile(View cell, int fillColor, int strokeColor) {
+    private void setCellTileDirectly(View cell, int fillColor, int strokeColor) {
         GradientDrawable gd = new GradientDrawable();
         gd.setShape(GradientDrawable.RECTANGLE);
         gd.setCornerRadius(dpToPx(12));
@@ -301,7 +321,13 @@ public class CalendarMonthFragment extends Fragment {
         cell.setBackground(gd);
     }
 
+    private boolean isColorDark(int color) {
+        double darkness = 1 - (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255;
+        return darkness >= 0.5;
+    }
+
     private void showDayDetailSheet(int day, @Nullable SummaryReader.SummaryEntry entry) {
+        // ... (Keep your existing showDayDetailSheet exact logic)
         if (getContext() == null) return;
         BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
         View sheet = LayoutInflater.from(getContext()).inflate(R.layout.dialog_day_summary, null);
@@ -331,7 +357,6 @@ public class CalendarMonthFragment extends Fragment {
                     if (tag.trim().isEmpty()) continue;
                     Chip chip = new Chip(requireContext());
                     chip.setText(tag.trim());
-
                     chip.setChipBackgroundColorResource(android.R.color.transparent);
                     chip.setChipStrokeColorResource(android.R.color.darker_gray);
                     chip.setChipStrokeWidth(1f);

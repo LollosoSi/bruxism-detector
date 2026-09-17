@@ -363,11 +363,11 @@ public class CalendarViewer extends AppCompatActivity {
 
         Fragment currentFragment = getSupportFragmentManager().findFragmentByTag("f" + viewPager.getCurrentItem());
         if (currentFragment instanceof CalendarMonthFragment) {
-            ((CalendarMonthFragment) currentFragment).updateMetricVisuals(position);
+            ((CalendarMonthFragment) currentFragment).updateMetricVisuals(position); // Handles its own animation
         }
 
         if (gridAdapter != null) {
-            gridAdapter.updateMetric(position);
+            gridAdapter.updateMetricAnimated(position); // Tell the RecyclerView to animate!
         }
     }
 }
