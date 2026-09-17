@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:padding="4dp"
         app:chipSpacingHorizontal="6dp"
-        app:chipSpacingVertical="4dp"
+        app:chipSpacingVertical="-5dp"
         app:singleSelection="false"
         android:visibility="gone" />
 

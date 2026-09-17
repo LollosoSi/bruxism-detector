@@ -3,23 +3,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
-    android:id="@+id/main">
+    android:id="@+id/main"
+    android:fillViewport="true">
 
     <LinearLayout
         android:id="@+id/mainLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:layout_gravity="center_vertical"
+        android:gravity="center_vertical">
 
-        <!-- Sync to PC -->
-        <Button
-            android:id="@+id/btnSyncPc"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Sync to PC (Local)"
-            style="@style/Widget.AppCompat.Button.Colored" />
-
-        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCC" android:layout_marginVertical="16dp"/>
 
         <!-- Master Switch -->
         <androidx.appcompat.widget.SwitchCompat
@@ -75,11 +69,45 @@
                 android:layout_marginBottom="16dp"/>
         </LinearLayout>
 
+
         <Button
             android:id="@+id/btnSyncNow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Sync Now" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAlignment="center"
+            android:layout_marginTop="7dp"
+            android:text="Basic telemetry is always shared" />
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCC" android:layout_marginVertical="16dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:weightSum="1"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/update_password"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                style="?attr/borderlessButtonStyle"
+                android:onClick="changePassword"
+                android:text="Update password" />
+            <Button
+                android:id="@+id/delete_account"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                style="?attr/borderlessButtonStyle"
+                android:onClick="deleteAccount"
+                android:text="Delete data" />
+        </LinearLayout>
+
 
         <TextView
             android:id="@+id/tvHelp"
@@ -94,11 +122,13 @@
 
         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#CCC" android:layout_marginVertical="16dp"/>
 
-        <TextView
+        <!-- Sync to PC -->
+        <Button
+            android:id="@+id/btnSyncPc"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAlignment="center"
-            android:text="Basic telemetry is always shared" />
+            android:text="Sync to PC (Local)"
+            style="@style/Widget.AppCompat.Button.Colored" />
 
     </LinearLayout>
 </ScrollView>

@@ -1,6 +1,7 @@
 [versions]
 agp = "9.2.1"
 core = "4.6.2"
+datastorePreferences = "1.2.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
@@ -21,6 +22,7 @@ coreKtx = "1.19.0"
 activityKtx = "1.13.0"
 
 [libraries]
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 core = { module = "io.noties.markwon:core", version.ref = "core" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.bruxismdetector"
         minSdk = 26
         targetSdk = 37
-        versionCode = 15
-        versionName = "1.5"
+        versionCode = 16
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.core)
 
     implementation("androidx.health.connect:connect-client:1.2.0-alpha05")
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

@@ -172,22 +172,36 @@ public class SessionGridAdapter extends RecyclerView.Adapter<SessionGridAdapter.
     }
 
     private void animateCellBackground(ViewHolder holder, int targetColor, int strokeColor) {
-        ValueAnimator anim = ValueAnimator.ofArgb(holder.currentBgColor, targetColor);
-        anim.setDuration(400); // 400ms smooth transition
-        anim.addUpdateListener(a -> {
+        if (holder.colorAnimator != null && holder.colorAnimator.isRunning()) {
+            holder.colorAnimator.cancel();
+        }
+
+        holder.colorAnimator = ValueAnimator.ofArgb(holder.currentBgColor, targetColor);
+        holder.colorAnimator.setDuration(300);
+        holder.colorAnimator.addUpdateListener(a -> {
             int animColor = (int) a.getAnimatedValue();
             setCellBackground(holder.rootLayout, animColor, strokeColor);
         });
-        anim.start();
-        holder.currentBgColor = targetColor; // Save new state
+        holder.colorAnimator.start();
+        holder.currentBgColor = targetColor;
     }
 
     private void setCellBackground(View view, int fillColor, int strokeColor) {
-        GradientDrawable gd = new GradientDrawable();
-        gd.setShape(GradientDrawable.RECTANGLE);
-        gd.setCornerRadius(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, view.getResources().getDisplayMetrics()));
+        GradientDrawable gd;
+        if (view.getBackground() instanceof GradientDrawable) {
+            gd = (GradientDrawable) view.getBackground();
+        } else {
+            gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            gd.setCornerRadius(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, view.getResources().getDisplayMetrics()));
+        }
+
         gd.setColor(fillColor);
-        if (strokeColor != Color.TRANSPARENT) gd.setStroke(3, strokeColor);
+        if (strokeColor != Color.TRANSPARENT) {
+            gd.setStroke(3, strokeColor);
+        } else {
+            gd.setStroke(0, Color.TRANSPARENT);
+        }
         view.setBackground(gd);
     }
 
@@ -206,6 +220,7 @@ public class SessionGridAdapter extends RecyclerView.Adapter<SessionGridAdapter.
         TextView txtDate, txtMetric;
 
         int currentBgColor; // Tracks color for animation
+        ValueAnimator colorAnimator;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);

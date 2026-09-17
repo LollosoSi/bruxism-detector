@@ -44,6 +44,9 @@ public class CalendarMonthFragment extends Fragment {
 
     private int colorOnSurface, colorOnSurfaceVariant, colorSurface, colorOutline, colorPrimary;
 
+    // NEW: Track the currently selected tag from the legend
+    private String selectedTag = null;
+
     public static CalendarMonthFragment newInstance(int year, int month) {
         Bundle args = new Bundle();
         args.putInt(ARG_YEAR, year);
@@ -60,9 +63,10 @@ public class CalendarMonthFragment extends Fragment {
         SummaryReader.SummaryEntry entry;
         boolean isTrackingSession;
         boolean hasTags;
-
-        // NEW: Track the current color to animate smoothly from it
         int currentBgColor;
+        int currentStrokeColor; // NEW: Track stroke for smooth transitions
+        int currentStrokeWidth; // NEW: Track width for smooth transitions
+        ValueAnimator colorAnimator; // NEW: Track the animator to prevent overlaps
 
         DayCellBinding(View cellView, TextView dayNumText, TextView metricValueText, SummaryReader.SummaryEntry entry, boolean isTrackingSession, boolean hasTags, int surfaceColor) {
             this.cellView = cellView;
@@ -71,13 +75,30 @@ public class CalendarMonthFragment extends Fragment {
             this.entry = entry;
             this.isTrackingSession = isTrackingSession;
             this.hasTags = hasTags;
-            this.currentBgColor = surfaceColor; // Start with default surface
+            this.currentBgColor = surfaceColor;
+            this.currentStrokeColor = Color.TRANSPARENT;
+            this.currentStrokeWidth = 1;
         }
 
         float getMetric(int tupleIndex) {
             if (entry == null || entry.tuple == null || tupleIndex < 0 || tupleIndex >= entry.tuple.length) return Float.NaN;
             try { return Float.parseFloat(entry.tuple[tupleIndex].replace(",", ".")); }
             catch (Exception e) { return Float.NaN; }
+        }
+
+        // Safe helper to check if this day contains the selected tag
+        boolean containsTag(String tagToFind, int infoIndex) {
+            // Added bounds check (infoIndex >= entry.tuple.length) to prevent silent crashes
+            if (tagToFind == null || entry == null || entry.tuple == null ||
+                    infoIndex >= entry.tuple.length || entry.tuple[infoIndex] == null) {
+                return false;
+            }
+
+            String cleanTarget = tagToFind.trim().toLowerCase();
+            for (String t : entry.tuple[infoIndex].split(",")) {
+                if (t.trim().toLowerCase().equals(cleanTarget)) return true;
+            }
+            return false;
         }
     }
 
@@ -211,17 +232,33 @@ public class CalendarMonthFragment extends Fragment {
 
         updateMetricVisuals(CalendarViewer.getSelectedVariable_TupleIndex());
 
-        // 5. Legend
+        // 5. Legend - INTERACTIVE CHIPS
+        legendGroup.setSingleSelection(true);
         for (String tag : sortedTags) {
             String displayName = tag.contains(": ") ? tag.split(": ")[1] : tag;
             Chip chip = new Chip(requireContext());
             chip.setText(String.format(Locale.US, "%s (%d)", displayName, freq.get(tag)));
             chip.setChipIcon(CalendarPalette.getTagIcon(requireContext(), tag));
             chip.setChipIconVisible(true);
-            chip.setCheckable(false);
-            chip.setClickable(false);
+            chip.setCheckable(true); // Allow selection
             chip.setTextSize(9);
             chip.setChipMinHeight(dpToPx(24));
+
+            // Set dynamic chip background colors when checked
+            int tagColor = CalendarPalette.getTagColor(tag);
+            chip.setCheckedIconVisible(false);
+
+            // foolproof state listener:
+            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    selectedTag = tag;
+                } else if (selectedTag != null && selectedTag.equals(tag)) {
+                    selectedTag = null; // Clears if this specific chip was unchecked
+                }
+                // Refresh visuals to show the bolder borders!
+                updateMetricVisuals(CalendarViewer.getSelectedVariable_TupleIndex());
+            });
+
             legendGroup.addView(chip);
         }
     }
@@ -235,6 +272,7 @@ public class CalendarMonthFragment extends Fragment {
 
         SummaryReader sr = SummaryReader.getInstance();
         boolean hasMetric = selectedTupleIndex > 0 && selectedTupleIndex < sr.getSummaryTitles().length;
+        int infoIndex = sr.getInfomationIndex();
 
         float globalMin = 0, globalMax = 1;
         byte direction = CorrelationsCalculator.NeutralCorr;
@@ -247,11 +285,28 @@ public class CalendarMonthFragment extends Fragment {
         }
 
         for (DayCellBinding b : dayBindings) {
-            if (!b.isTrackingSession) {
-                int targetBgColor = b.hasTags ? MaterialColors.layer(colorSurface, colorPrimary, 0.12f) : Color.TRANSPARENT;
-                int targetStroke = b.hasTags ? colorOutline : Color.TRANSPARENT;
 
-                animateCellTile(b, targetBgColor, targetStroke);
+            int targetStrokeColor;
+            int targetStrokeWidth;
+
+            if (selectedTag != null && b.containsTag(selectedTag, infoIndex)) {
+                targetStrokeColor = CalendarPalette.getTagColor(selectedTag);
+                targetStrokeWidth = 3;
+            } else {
+                targetStrokeColor = b.hasTags ? colorOutline : Color.TRANSPARENT;
+                targetStrokeWidth = 1;
+            }
+
+            if (!b.isTrackingSession) {
+                // FIX: Use colorSurface instead of TRANSPARENT to prevent the black flash glitch
+                int targetBgColor = b.hasTags ? MaterialColors.layer(colorSurface, colorPrimary, 0.12f) : colorSurface;
+
+                // For non-tracking sessions, apply directly to avoid animating empty space
+                setCellTileDirectly(b.cellView, targetBgColor, targetStrokeColor, targetStrokeWidth);
+                b.currentBgColor = targetBgColor;
+                b.currentStrokeColor = targetStrokeColor;
+                b.currentStrokeWidth = targetStrokeWidth;
+
                 b.dayNumText.setTextColor(colorOnSurface);
                 b.dayNumText.setAlpha(b.hasTags ? 0.9f : 0.25f);
                 b.metricValueText.setVisibility(View.GONE);
@@ -260,20 +315,21 @@ public class CalendarMonthFragment extends Fragment {
 
             b.dayNumText.setAlpha(1.0f);
             if (!hasMetric) {
-                animateCellTile(b, colorSurface, colorOutline);
+                // FIX: When "No Heatmap" is selected, transition cleanly back to colorSurface
+                animateCellTile(b, colorSurface, targetStrokeColor, targetStrokeWidth);
                 b.dayNumText.setTextColor(colorOnSurface);
                 b.metricValueText.setVisibility(View.GONE);
             } else {
                 float val = b.getMetric(selectedTupleIndex);
                 if (Float.isNaN(val)) {
-                    animateCellTile(b, colorSurface, colorOutline);
+                    animateCellTile(b, colorSurface, targetStrokeColor, targetStrokeWidth);
                     b.metricValueText.setText("-");
                     b.metricValueText.setVisibility(View.VISIBLE);
                     b.dayNumText.setTextColor(colorOnSurface);
                 } else {
                     int targetBgColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, direction);
 
-                    animateCellTile(b, targetBgColor, colorOutline);
+                    animateCellTile(b, targetBgColor, targetStrokeColor, targetStrokeWidth);
 
                     if (isColorDark(targetBgColor)) {
                         b.dayNumText.setTextColor(Color.WHITE);
@@ -291,33 +347,51 @@ public class CalendarMonthFragment extends Fragment {
     }
 
     /**
-     * NEW: Smoothly fades from the current background color to the target background color.
+     * Updated animation logic to fade both background AND stroke colors/widths.
      */
-    private void animateCellTile(DayCellBinding b, int targetColor, int strokeColor) {
-        if (b.currentBgColor == targetColor) {
-            // Already at the right color, just snap the stroke
-            setCellTileDirectly(b.cellView, targetColor, strokeColor);
+    private void animateCellTile(DayCellBinding b, int targetBgColor, int targetStrokeColor, int targetStrokeWidth) {
+        if (b.currentBgColor == targetBgColor) {
+            setCellTileDirectly(b.cellView, targetBgColor, targetStrokeColor, targetStrokeWidth);
+            b.currentStrokeColor = targetStrokeColor;
+            b.currentStrokeWidth = targetStrokeWidth;
             return;
         }
 
-        ValueAnimator animator = ValueAnimator.ofArgb(b.currentBgColor, targetColor);
-        animator.setDuration(400); // 400ms smooth transition
-        animator.addUpdateListener(anim -> {
-            int animatedColor = (int) anim.getAnimatedValue();
-            setCellTileDirectly(b.cellView, animatedColor, strokeColor);
-        });
-        animator.start();
+        // Cancel previous animation if user is scrolling fast
+        if (b.colorAnimator != null && b.colorAnimator.isRunning()) {
+            b.colorAnimator.cancel();
+        }
 
-        // Save the new target as the current color for the next time it animates
-        b.currentBgColor = targetColor;
+        b.colorAnimator = ValueAnimator.ofArgb(b.currentBgColor, targetBgColor);
+        b.colorAnimator.setDuration(300); // Slightly faster for snappiness
+        b.colorAnimator.addUpdateListener(anim -> {
+            int animatedBgColor = (int) anim.getAnimatedValue();
+            setCellTileDirectly(b.cellView, animatedBgColor, targetStrokeColor, targetStrokeWidth);
+        });
+        b.colorAnimator.start();
+
+        b.currentBgColor = targetBgColor;
+        b.currentStrokeColor = targetStrokeColor;
+        b.currentStrokeWidth = targetStrokeWidth;
     }
 
-    private void setCellTileDirectly(View cell, int fillColor, int strokeColor) {
-        GradientDrawable gd = new GradientDrawable();
-        gd.setShape(GradientDrawable.RECTANGLE);
-        gd.setCornerRadius(dpToPx(12));
+    private void setCellTileDirectly(View cell, int fillColor, int strokeColor, int strokeWidthDp) {
+        GradientDrawable gd;
+        // FIX: Recycle the existing drawable instead of allocating thousands of new ones!
+        if (cell.getBackground() instanceof GradientDrawable) {
+            gd = (GradientDrawable) cell.getBackground();
+        } else {
+            gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            gd.setCornerRadius(dpToPx(12));
+        }
+
         gd.setColor(fillColor);
-        if (strokeColor != Color.TRANSPARENT) gd.setStroke(dpToPx(1), strokeColor);
+        if (strokeColor != Color.TRANSPARENT && strokeWidthDp > 0) {
+            gd.setStroke(dpToPx(strokeWidthDp), strokeColor);
+        } else {
+            gd.setStroke(0, Color.TRANSPARENT); // Safely remove stroke
+        }
         cell.setBackground(gd);
     }
 
@@ -327,13 +401,13 @@ public class CalendarMonthFragment extends Fragment {
     }
 
     private void showDayDetailSheet(int day, @Nullable SummaryReader.SummaryEntry entry) {
-        // ... (Keep your existing showDayDetailSheet exact logic)
         if (getContext() == null) return;
         BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
         View sheet = LayoutInflater.from(getContext()).inflate(R.layout.dialog_day_summary, null);
 
         TextView title = sheet.findViewById(R.id.sheet_date_title);
         TextView statsText = sheet.findViewById(R.id.sheet_stats_summary);
+        TextView tagsText = sheet.findViewById(R.id.tags_text);
         ChipGroup chipGroup = sheet.findViewById(R.id.sheet_chip_group);
 
         String monthName = YearMonth.of(year, month).getMonth().getDisplayName(TextStyle.FULL, Locale.getDefault());
@@ -341,7 +415,9 @@ public class CalendarMonthFragment extends Fragment {
 
         if (entry == null) {
             statsText.setText("No data recorded for this day.");
+            tagsText.setVisibility(View.GONE);
         } else {
+
             if (entry.should_skip) {
                 statsText.setText("No monitoring session recorded.");
             } else {
@@ -364,6 +440,7 @@ public class CalendarMonthFragment extends Fragment {
                     chipGroup.addView(chip);
                 }
             }
+            tagsText.setVisibility(chipGroup.getChildCount() > 0 ? View.VISIBLE : View.GONE);
         }
         dialog.setContentView(sheet);
         dialog.show();

@@ -219,6 +219,11 @@ public class CalendarViewer extends AppCompatActivity {
             @Override
             public void onPageSelected(int position) {
                 updateMonthLabel(position);
+                // Force the newly scrolled month to apply the current metric
+                Fragment currentFragment = getSupportFragmentManager().findFragmentByTag("f" + position);
+                if (currentFragment instanceof CalendarMonthFragment) {
+                    ((CalendarMonthFragment) currentFragment).updateMetricVisuals(selectedVariableTupleIndex);
+                }
             }
         });
 
@@ -273,7 +278,7 @@ public class CalendarViewer extends AppCompatActivity {
 
             if (entry.should_skip) continue;
             sessionsCount++;
-            
+
             try {
                 // tuple indices: 1=Duration, 2=Total Clench Sec, 4=Clench Rate/hr
                 totalHours += Double.parseDouble(entry.tuple[1].replace(",", "."));
@@ -287,7 +292,7 @@ public class CalendarViewer extends AppCompatActivity {
         StringBuilder sb = new StringBuilder();
         double trackPercent = (double) sessionsCount / totalDaysInMonth * 100;
         sb.append(String.format(Locale.US, "Tracked: %d/%d days (%.0f%%)", sessionsCount, totalDaysInMonth, trackPercent));
-        
+
         if (sessionsCount > 0) {
             sb.append(String.format(Locale.US, "\nAvg session: %.1f hrs  •  Avg Clench: %.0f sec", totalHours / clenchRateCount, totalClenchSec / clenchRateCount));
             if (clenchRateCount > 0) {
@@ -324,6 +329,7 @@ public class CalendarViewer extends AppCompatActivity {
 
         TextView title = sheet.findViewById(R.id.sheet_date_title);
         TextView statsText = sheet.findViewById(R.id.sheet_stats_summary);
+        TextView tagsText = sheet.findViewById(R.id.tags_text);
         ChipGroup chipGroup = sheet.findViewById(R.id.sheet_chip_group);
 
         LocalDate date = LocalDate.parse(entry.tuple[0], DateTimeFormatter.ofPattern("yyyy-MM-dd"));
@@ -348,6 +354,8 @@ public class CalendarViewer extends AppCompatActivity {
                 chipGroup.addView(chip);
             }
         }
+        tagsText.setVisibility(chipGroup.getChildCount() > 0 ? View.VISIBLE : View.GONE);
+
 
         dialog.setContentView(sheet);
         dialog.show();
@@ -357,17 +365,17 @@ public class CalendarViewer extends AppCompatActivity {
      * Replaces the old spinner update block. Updates all UI without losing state.
      */
     private void triggerMetricUpdate(int position) {
-        if (pagerAdapter != null) {
-            pagerAdapter.notifyDataSetChanged();
-        }
 
-        Fragment currentFragment = getSupportFragmentManager().findFragmentByTag("f" + viewPager.getCurrentItem());
-        if (currentFragment instanceof CalendarMonthFragment) {
-            ((CalendarMonthFragment) currentFragment).updateMetricVisuals(position); // Handles its own animation
+
+        // Broadcast the update to ALL alive fragments (prevents stale off-screen months)
+        for (Fragment fragment : getSupportFragmentManager().getFragments()) {
+            if (fragment instanceof CalendarMonthFragment) {
+                ((CalendarMonthFragment) fragment).updateMetricVisuals(position);
+            }
         }
 
         if (gridAdapter != null) {
-            gridAdapter.updateMetricAnimated(position); // Tell the RecyclerView to animate!
+            gridAdapter.updateMetricAnimated(position);
         }
     }
 }

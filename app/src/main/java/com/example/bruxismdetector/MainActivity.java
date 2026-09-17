@@ -337,6 +337,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         new SyncEngine(this).pingCloud("APP_LAUNCHED");
+
+        checkAgreementUpdates();
     }
 
     @SuppressLint("SetTextI18n")
@@ -2408,7 +2410,7 @@ public class MainActivity extends AppCompatActivity {
         collapsedSet.setVisibility(R.id.data_sharing, View.GONE);
         collapsedSet.setVisibility(R.id.button_start_trainer, View.GONE);
 
-        collapsedSet.setVisibility(R.id.button_calendar, View.GONE);
+        collapsedSet.setVisibility(R.id.button_calendar, View.VISIBLE);
         collapsedSet.setVisibility(R.id.button_sendwifi, View.GONE);
 
         collapsedSet.setVisibility(R.id.button_test, View.GONE);
@@ -2623,6 +2625,49 @@ public class MainActivity extends AppCompatActivity {
 
     public void launchTrainerStats(View v){
         startActivity(new Intent(MainActivity.this, BeepStatsActivity.class));
+    }
+
+    private void checkAgreementUpdates() {
+        CloudPreferences prefs = new CloudPreferences(this);
+
+        // Controlla solo se l'utente ha effettivamente il Cloud Sync attivo
+        if (!prefs.isOptInGeneral()) {
+            return;
+        }
+
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            try {
+                // Usa il NetworkClient per chiedere al server l'ultima versione
+                org.json.JSONObject agreementJson = com.example.bruxismdetector.cloud.NetworkClient.fetchCurrentAgreement();
+
+                if (agreementJson.has("version")) {
+                    int serverVersion = agreementJson.getInt("version");
+                    int localVersion = prefs.getAcceptedAgreementVersion();
+
+                    // Se c'è una versione più recente, avvisa l'utente nel Main Thread
+                    if (serverVersion > localVersion) {
+                        runOnUiThread(() -> {
+                            if (!isFinishing()) {
+                                new androidx.appcompat.app.AlertDialog.Builder(this)
+                                        .setTitle("Review Required")
+                                        .setMessage("A new version of the Cloud Sync Agreement is available. You must review and accept it to continue syncing your data.")
+                                        .setPositiveButton("Review now", (dialog, which) -> {
+                                            Intent intent = new Intent(this, DataSharingActivity.class);
+                                            startActivity(intent);
+                                        })
+                                        .setNegativeButton("Later", (dialog, which) -> {})
+                                        .setCancelable(false) // Obbliga l'utente a gestire la notifica
+                                        .show();
+                            }
+                        });
+                    }
+                }
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "Failed to check agreement updates in background", e);
+                // Ignoriamo in silenzio gli errori di rete per non disturbare l'uso locale dell'app
+            }
+        });
     }
 
 }

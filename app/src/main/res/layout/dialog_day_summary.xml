@@ -25,6 +25,7 @@
         android:textColor="?android:attr/textColorPrimary"/>
 
     <TextView
+        android:id="@+id/tags_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Tags &amp; Context"
