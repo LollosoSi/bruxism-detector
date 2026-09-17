@@ -1,29 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
-
-    <!-- ... altri elementi come la legenda ... -->
-    <LinearLayout
-        android:id="@+id/legend_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp"/>
+    android:orientation="vertical"
+    android:paddingHorizontal="4dp">
 
     <!-- GridLayout per il calendario -->
     <GridLayout
         android:id="@+id/grid_days"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="4dp"
+        android:layout_height="0dp"
+        android:layout_weight="0.8"
         android:columnCount="7"
-    android:rowCount="7"
-    android:alignmentMode="alignMargins"
-    android:columnOrderPreserved="false"
-    android:useDefaultMargins="true" />
+        android:rowCount="7"
+        android:useDefaultMargins="false"
+        android:alignmentMode="alignMargins"
+        android:columnOrderPreserved="false" />
+
+    <!-- wrapping legend container limited to approx 2 lines -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="4dp"
+        android:layout_weight="0.2"
+        android:scrollbars="vertical">
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/legend_chip_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            app:chipSpacingVertical="-10dp"
+            app:chipSpacingHorizontal="4dp" />
+    </androidx.core.widget.NestedScrollView>
 
 </LinearLayout>
-
-

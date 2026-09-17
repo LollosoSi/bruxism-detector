@@ -114,7 +114,7 @@
         <activity
             android:name=".CalendarViewer"
             android:exported="true"
-            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar" />
+            android:theme="@style/Theme.Material3.DynamicColors.DayNight.NoActionBar"/>
         <activity
             android:name=".CrashDialogActivity"
             android:exported="false" />

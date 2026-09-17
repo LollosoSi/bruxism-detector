@@ -8,7 +8,7 @@
     <color name="material_orange_500">#FF9800</color>
     <color name="material_yellow_500">#FFEB3B</color>
     <color name="material_red_500">#F44336</color>
-
+    <color name="material_blue_grey_400">#78909C</color>
 
     <!-- Custom colors -->
     <color name="threshold_fill_color">#FF4081</color>   <!-- pinkish -->
