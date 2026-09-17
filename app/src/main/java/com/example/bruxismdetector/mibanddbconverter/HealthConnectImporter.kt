@@ -64,69 +64,118 @@ class HealthConnectImporter {
                 val timeRange = TimeRangeFilter.between(startTime, endTime)
 
                 // --- A. Import Sessions & Stages ---
-                progressReport?.setTitle("Importing Sleep Sessions...")
-                val sleepRequest = ReadRecordsRequest(
-                    recordType = SleepSessionRecord::class,
-                    timeRangeFilter = timeRange
-                )
-                val sleepResponse = client.readRecords(sleepRequest)
-                val sessions = sleepResponse.records
+                progressReport?.setTitle("Importing Sleep Stages...")
 
-                var sessionProgress = 0
-                for (session in sessions) {
-                    val startSec = session.startTime.epochSecond
-                    val endSec = session.endTime.epochSecond
-                    val totalDurMins = ChronoUnit.MINUTES.between(session.startTime, session.endTime).toInt()
+                var sessionInsertedCount = 0
+                var sessionDuplicatesCount = 0
 
-                    var deepMins = 0
-                    var lightMins = 0
-                    var remMins = 0
-                    var awakeMins = 0
+                var currentStartSleep = startTime
+                while (currentStartSleep.isBefore(endTime)) {
+                    val currentEndSleep = currentStartSleep.plus(1, ChronoUnit.DAYS).coerceAtMost(endTime)
 
-                    // Importiamo le single phases
-                    for (stage in session.stages) {
-                        val stageStartSec = stage.startTime.epochSecond
-                        val stageDurMins = ChronoUnit.MINUTES.between(stage.startTime, stage.endTime).toInt()
-
-                        val mappedStage = mapStage(stage.stage)
-
-                        when (mappedStage) {
-                            1 -> awakeMins += stageDurMins
-                            2 -> lightMins += stageDurMins
-                            3 -> deepMins += stageDurMins
-                            4 -> remMins += stageDurMins
-                        }
-
-                        destDb.addStage(stageStartSec, mappedStage)
+                    if (!currentStartSleep.isBefore(currentEndSleep)) {
+                        break
                     }
 
-                    // Insert session (ignore duplicates thanks to SQLiteDatabase.CONFLICT_IGNORE)
-                    destDb.addSleepSession(
-                        startSec, endSec,
-                        if (awakeMins > 0) 1 else 0,
-                        totalDurMins, deepMins, lightMins, remMins, awakeMins
-                    )
+                    try {
+                        val sleepRequest = ReadRecordsRequest(
+                            recordType = SleepSessionRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(currentStartSleep, currentEndSleep)
+                        )
+                        val sleepResponse = client.readRecords(sleepRequest)
+                        val sessions = sleepResponse.records
 
-                    sessionProgress++
-                    progressReport?.setProgress((100.0 * sessionProgress / sessions.size).toInt())
+                        for (session in sessions) {
+                            val startSec = session.startTime.epochSecond
+                            val endSec = session.endTime.epochSecond
+                            val totalDurMins = ChronoUnit.MINUTES.between(session.startTime, session.endTime).toInt()
+
+                            var deepMins = 0
+                            var lightMins = 0
+                            var remMins = 0
+                            var awakeMins = 0
+
+                            for (stage in session.stages) {
+                                val stageStartSec = stage.startTime.epochSecond
+                                val stageDurMins = ChronoUnit.MINUTES.between(stage.startTime, stage.endTime).toInt()
+                                val mappedStage = mapStage(stage.stage)
+
+                                when (mappedStage) {
+                                    1 -> awakeMins += stageDurMins
+                                    2 -> lightMins += stageDurMins
+                                    3 -> deepMins += stageDurMins
+                                    4 -> remMins += stageDurMins
+                                }
+
+                                destDb.addStage(stageStartSec, mappedStage)
+                            }
+
+                            // Inserisce la sessione (ignora i duplicati se già esistenti)
+                            val isInserted = destDb.addSleepSession(
+                                startSec, endSec,
+                                if (awakeMins > 0) 1 else 0,
+                                totalDurMins, deepMins, lightMins, remMins, awakeMins
+                            )
+
+                            if (isInserted) {
+                                sessionInsertedCount++
+                            } else {
+                                sessionDuplicatesCount++
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("HealthConnect", "Errore import Sonno per il blocco: $currentStartSleep", e)
+                    }
+
+                    currentStartSleep = currentEndSleep
                 }
+
+                android.util.Log.i(
+                    "HealthConnect",
+                    "Sleep Sessions Import Complete: Inserted=$sessionInsertedCount, duplicates=$sessionDuplicatesCount"
+                )
 
                 // --- B. Import Heart Rate ---
                 progressReport?.setTitle("Importing Heart Rate...")
-                val hrRequest = ReadRecordsRequest(
-                    recordType = HeartRateRecord::class,
-                    timeRangeFilter = timeRange
-                )
-                val hrResponse = client.readRecords(hrRequest)
 
-                var hrProgress = 0
-                for (record in hrResponse.records) {
-                    for (sample in record.samples) {
-                        destDb.addHeartRate(sample.time.epochSecond, sample.beatsPerMinute.toInt())
+                var hrInserted = 0
+                var hrDuplicates = 0
+
+                var currentStartHr = startTime
+                while (currentStartHr.isBefore(endTime)) {
+                    val currentEndHr = currentStartHr.plus(1, ChronoUnit.DAYS).coerceAtMost(endTime)
+
+                    if (!currentStartHr.isBefore(currentEndHr)) {
+                        break
                     }
-                    hrProgress++
-                    progressReport?.setProgress((100.0 * hrProgress / hrResponse.records.size).toInt())
+
+                    try {
+                        val hrRequest = ReadRecordsRequest(
+                            recordType = HeartRateRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(currentStartHr, currentEndHr)
+                        )
+                        val hrResponse = client.readRecords(hrRequest)
+
+                        for (record in hrResponse.records) {
+                            for (sample in record.samples) {
+                                if (destDb.addHeartRate(sample.time.epochSecond, sample.beatsPerMinute.toInt())) {
+                                    hrInserted++
+                                } else {
+                                    hrDuplicates++
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("HealthConnect", "Errore import HR per il blocco: $currentStartHr", e)
+                    }
+
+                    currentStartHr = currentEndHr
                 }
+
+                android.util.Log.i(
+                    "HealthConnect",
+                    "HR Import Complete: DB inserted=$hrInserted, duplicates=$hrDuplicates"
+                )
 
                 // --- C. Import SpO2 (Iterazione giornaliera sicura) ---
                 progressReport?.setTitle("Importing SpO2...")

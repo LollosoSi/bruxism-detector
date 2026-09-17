@@ -1195,34 +1195,48 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void runHealthConnectImport(Runnable onComplete) {
-        // Show a new progress dialog specifically for Health Connect
         ProgressingDialog ad = showProgressDialog(MainActivity.this, "Importing Health Data");
         if (ad == null) {
             if (onComplete != null) onComplete.run();
             return;
         }
-        ad.setMessage("Reading from Health Connect...");
+        ad.setMessage("Initializing Health Connect connection...");
 
         ProgressReport pr = new ProgressReport() {
             @Override
-            public void setProgress(int progress) { runOnUiThread(() -> { if (ad != null) ad.updateProgress(progress); }); }
+            public void setProgress(int progress) {
+                runOnUiThread(() -> {
+                    if (ad != null) ad.updateProgress(progress);
+                });
+            }
             @Override
-            public void setTitle(String title) { runOnUiThread(() -> { if (ad != null) ad.setMessage(title); }); }
+            public void setTitle(String title) {
+                runOnUiThread(() -> {
+                    if (ad != null) ad.setMessage("Status: " + title);
+                });
+            }
         };
 
         HealthConnectImporter importer = new HealthConnectImporter();
 
         importer.importData(this, pr, () -> {
-            // Callback runs on background thread when import finishes
             runOnUiThread(() -> {
-                if (ad != null) ad.setMessage("Exporting to CSV...");
+                if (ad != null) ad.setMessage("Status: Importing complete. Now generating and verifying CSV files on storage...");
 
-                // Generate CSV files from the newly imported SQLite data
+                // Genera i file CSV dai dati SQLite appena importati
                 SleepDatabaseHelper dbHelper = new SleepDatabaseHelper(getApplicationContext());
                 dbHelper.exportDataToCsv(getApplicationContext(), pr);
 
-                if (ad != null) ad.dismissAllowingStateLoss();
-                if (onComplete != null) onComplete.run();
+                if (ad != null) {
+                    ad.setMessage("Status: Success! All health records synchronized.");
+                    // Ritardiamo leggermente la chiusura per permettere all'utente di leggere il messaggio di successo
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        ad.dismissAllowingStateLoss();
+                        if (onComplete != null) onComplete.run();
+                    }, 1200);
+                } else {
+                    if (onComplete != null) onComplete.run();
+                }
             });
         });
     }
