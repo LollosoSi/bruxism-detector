@@ -143,6 +143,43 @@ void send_version() {
 }
 
 
+// Needs Crypto by Rhys Weatherley
+#include <SHA256.h>
+
+void send_device_uuid() {
+    uint8_t mac[6];
+    WiFi.macAddress(mac); // Recupera il MAC address
+
+    // Converte il MAC in una stringa formattata
+    char macStr[18];
+    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X", 
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    // Inizializza l'algoritmo SHA256
+    SHA256 sha256;
+    uint8_t hashResult[32]; // SHA-256 produce un output di 32 byte
+    
+    sha256.reset();
+    sha256.update(macStr, strlen(macStr));
+    sha256.finalize(hashResult, sizeof(hashResult));
+
+    // Formattiamo i primi 16 byte dell'hash come stringa esadecimale (32 caratteri = formato UUID senza trattini)
+    char uuidHex[33]; // 32 caratteri + terminatore null
+    for (int i = 0; i < 16; i++) {
+        sprintf(&uuidHex[i * 2], "%02x", hashResult[i]);
+    }
+
+    // Costruiamo il payload da inviare ad Android
+    // 1 byte (Comando REQUEST_UUID = 23) + 32 byte (Stringa UUID)
+    uint8_t payload[33];
+    payload[0] = REQUEST_UUID; 
+    memcpy(payload + 1, uuidHex, 32);
+
+    // Invia i dati usando il metodo di connessione attivo (TCP o UDP)
+    send_bytes(payload, sizeof(payload));
+}
+
+
 void received_packet(char* packetBuffer, int len) {
   Serial.print("Read ");
   Serial.print((int)len);
@@ -282,6 +319,11 @@ void received_packet(char* packetBuffer, int len) {
 
       case GRACE_ACTIVE:
         reset_grace_period();
+        break;
+
+      case REQUEST_UUID:
+        // Generate and respond with UUID
+        send_device_uuid();
         break;
     }
   }

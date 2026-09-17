@@ -43,6 +43,7 @@ const uint8_t SAVE_WEIGHTS = 19;
 const uint8_t SAVE_WIFI = 20;
 const uint8_t RSSI_WIFI = 21;
 const uint8_t GRACE_ACTIVE = 22;
+const uint8_t REQUEST_UUID = 23;
 bool is_using_android = false;
 bool do_not_beep_if_android = false;
 bool need_alarm_confirmation = false;
