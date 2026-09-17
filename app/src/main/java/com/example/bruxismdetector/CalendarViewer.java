@@ -103,7 +103,7 @@ public class CalendarViewer extends AppCompatActivity {
         gridAdapter = new SessionGridAdapter(allSessionsFlat, selectedVariableTupleIndex, this::showDayDetailSheet);
         listView.setAdapter(gridAdapter);
 
-        ViewGroup rootLayout = findViewById(R.id.root_calendar); // Make sure you have an ID on the root ViewGroup!
+        ViewGroup rootLayout = findViewById(R.id.root_calendar);
         // --- Toggle View Logic WITH ANIMATION - ---
         btnToggleView.setOnClickListener(v -> {
 
@@ -120,7 +120,7 @@ public class CalendarViewer extends AppCompatActivity {
                 statistics_section.setVisibility(View.GONE);
 
                 textMonthYear.setText("All Tracked Sessions");
-                btnToggleView.setImageResource(android.R.drawable.ic_menu_month); // Calendar Icon
+                btnToggleView.setImageResource(R.drawable.calendar_month); // Calendar Icon
 
                 // SMART SCROLL: Jump to the month that was currently shown in the ViewPager
                 SummaryReader.SummaryMonth currentMonth = months.get(viewPager.getCurrentItem());
@@ -152,7 +152,7 @@ public class CalendarViewer extends AppCompatActivity {
                 statistics_section.setVisibility(View.VISIBLE);
 
                 updateMonthLabel(viewPager.getCurrentItem()); // Restore month text
-                btnToggleView.setImageResource(android.R.drawable.ic_menu_sort_by_size); // List Icon
+                btnToggleView.setImageResource(R.drawable.grid); // List Icon
             }
         });
 
