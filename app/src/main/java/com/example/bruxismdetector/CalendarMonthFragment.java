@@ -25,6 +25,7 @@ import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.color.MaterialColors;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
@@ -226,7 +227,12 @@ public class CalendarMonthFragment extends Fragment {
 
             dayBindings.add(new DayCellBinding(cell, txtDay, txtMetric, matched, isTracking, hasTags, colorSurface));
             final SummaryReader.SummaryEntry finalEntry = matched;
-            cell.setOnClickListener(v -> showDayDetailSheet(day, finalEntry));
+            cell.setOnClickListener(v -> {
+                LocalDate date = LocalDate.of(year, month, day);
+                if (getActivity() instanceof CalendarViewer) {
+                    ((CalendarViewer) getActivity()).showDayDetailSheet(date, finalEntry);
+                }
+            });
             grid.addView(cell);
         }
 
@@ -327,7 +333,7 @@ public class CalendarMonthFragment extends Fragment {
                     b.metricValueText.setVisibility(View.VISIBLE);
                     b.dayNumText.setTextColor(colorOnSurface);
                 } else {
-                    int targetBgColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, direction);
+                    int targetBgColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, direction, colorSurface);
 
                     animateCellTile(b, targetBgColor, targetStrokeColor, targetStrokeWidth);
 
@@ -400,49 +406,4 @@ public class CalendarMonthFragment extends Fragment {
         return darkness >= 0.5;
     }
 
-    private void showDayDetailSheet(int day, @Nullable SummaryReader.SummaryEntry entry) {
-        if (getContext() == null) return;
-        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
-        View sheet = LayoutInflater.from(getContext()).inflate(R.layout.dialog_day_summary, null);
-
-        TextView title = sheet.findViewById(R.id.sheet_date_title);
-        TextView statsText = sheet.findViewById(R.id.sheet_stats_summary);
-        TextView tagsText = sheet.findViewById(R.id.tags_text);
-        ChipGroup chipGroup = sheet.findViewById(R.id.sheet_chip_group);
-
-        String monthName = YearMonth.of(year, month).getMonth().getDisplayName(TextStyle.FULL, Locale.getDefault());
-        title.setText(String.format(Locale.getDefault(), "%d %s %d", day, monthName, year));
-
-        if (entry == null) {
-            statsText.setText("No data recorded for this day.");
-            tagsText.setVisibility(View.GONE);
-        } else {
-
-            if (entry.should_skip) {
-                statsText.setText("No monitoring session recorded.");
-            } else {
-                String[] t = entry.tuple;
-                statsText.setText(String.format(Locale.US,
-                        "• Duration: %s hrs\n• Jaw Events: %s\n• Clenching Rate: %s /hr\n• Total Clench: %s sec\n• Alarms: %s (%s%%)",
-                        t[1], t[9], t[4], t[2], t[11], t[13]));
-            }
-
-            int infoIndex = SummaryReader.getInstance().getInfomationIndex();
-            if (entry.tuple[infoIndex] != null && !entry.tuple[infoIndex].trim().isEmpty()) {
-                for (String tag : entry.tuple[infoIndex].split(",")) {
-                    if (tag.trim().isEmpty()) continue;
-                    Chip chip = new Chip(requireContext());
-                    chip.setText(tag.trim());
-                    chip.setChipBackgroundColorResource(android.R.color.transparent);
-                    chip.setChipStrokeColorResource(android.R.color.darker_gray);
-                    chip.setChipStrokeWidth(1f);
-                    chip.setChipIcon(CalendarPalette.getTagIcon(requireContext(), tag));
-                    chipGroup.addView(chip);
-                }
-            }
-            tagsText.setVisibility(chipGroup.getChildCount() > 0 ? View.VISIBLE : View.GONE);
-        }
-        dialog.setContentView(sheet);
-        dialog.show();
-    }
 }

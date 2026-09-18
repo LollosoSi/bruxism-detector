@@ -30,32 +30,54 @@ public class CalendarHighlighter {
     }
 
     /**
-     * Interpolates colors based on whether the metric is inherently Good, Bad, or Neutral.
+     * Interpolates colors based on Light/Dark Mode and whether the metric is Good, Bad, or Neutral.
      */
-    public static int getGradientColor(float value, float min, float max, byte effectDirection) {
-        float norm = (value - min) / (max - min);
+    public static int getGradientColor(float value, float min, float max, byte effectDirection, int surfaceColor) {
+        float norm = (max == min) ? 0f : (value - min) / (max - min);
         norm = Math.max(0f, Math.min(1f, norm)); // Clamp 0-1
 
-        int colorLow;
-        int colorHigh;
+        boolean isDarkMode = isColorDark(surfaceColor);
 
-        if (effectDirection == CorrelationsCalculator.PositiveCorr) {
-            // High is GOOD: Soft Red -> Soft Green
-            colorLow = Color.parseColor("#FFCDD2");  // Pastel Red
-            colorHigh = Color.parseColor("#E8F5E9"); // Pastel Green
-        }
-        else if (effectDirection == CorrelationsCalculator.NegativeCorr) {
-            // High is BAD: Soft Green -> Soft Red
-            colorLow = Color.parseColor("#E8F5E9");  // Pastel Green
-            colorHigh = Color.parseColor("#FFCDD2"); // Pastel Red
-        }
-        else {
-            // High is NEUTRAL: Icy Blue -> Sky Blue
-            colorLow = Color.parseColor("#E1F5FE");  // Very light Blue
-            colorHigh = Color.parseColor("#29B6F6"); // Bright Sky Blue
-        }
+        if (!isDarkMode) {
+            // LIGHT MODE: As is (Pastel 2-point gradient)
+            int colorLow;
+            int colorHigh;
 
-        return interpolateColor(colorLow, colorHigh, norm);
+            if (effectDirection == CorrelationsCalculator.PositiveCorr) {
+                colorLow = Color.parseColor("#FFCDD2");  // Pastel Red
+                colorHigh = Color.parseColor("#E8F5E9"); // Pastel Green
+            }
+            else if (effectDirection == CorrelationsCalculator.NegativeCorr) {
+                colorLow = Color.parseColor("#E8F5E9");  // Pastel Green
+                colorHigh = Color.parseColor("#FFCDD2"); // Pastel Red
+            }
+            else {
+                colorLow = Color.parseColor("#E1F5FE");  // Very light Blue
+                colorHigh = Color.parseColor("#29B6F6"); // Bright Sky Blue
+            }
+            return interpolateColor(colorLow, colorHigh, norm);
+
+        } else {
+            // DARK MODE: 3-Point Gradient passing through the exact Surface Color (Dark Gray/Black)
+            int colorBad = Color.parseColor("#C62828");  // Deep Red
+            int colorGood = Color.parseColor("#2E7D32"); // Deep Green
+            int colorNeutral = Color.parseColor("#0277BD"); // Deep Blue
+
+            if (effectDirection == CorrelationsCalculator.PositiveCorr) {
+                // Low is Bad, Middle is Surface, High is Good
+                if (norm < 0.5f) return interpolateColor(colorBad, surfaceColor, norm * 2f);
+                else return interpolateColor(surfaceColor, colorGood, (norm - 0.5f) * 2f);
+            }
+            else if (effectDirection == CorrelationsCalculator.NegativeCorr) {
+                // Low is Good, Middle is Surface, High is Bad
+                if (norm < 0.5f) return interpolateColor(colorGood, surfaceColor, norm * 2f);
+                else return interpolateColor(surfaceColor, colorBad, (norm - 0.5f) * 2f);
+            }
+            else {
+                // Neutral: From Surface to Deep Blue
+                return interpolateColor(surfaceColor, colorNeutral, norm);
+            }
+        }
     }
 
     private static int interpolateColor(int colorStart, int colorEnd, float fraction) {
@@ -63,5 +85,10 @@ public class CalendarHighlighter {
         int g = (int) ((Color.green(colorEnd) - Color.green(colorStart)) * fraction + Color.green(colorStart));
         int b = (int) ((Color.blue(colorEnd) - Color.blue(colorStart)) * fraction + Color.blue(colorStart));
         return Color.rgb(r, g, b);
+    }
+
+    private static boolean isColorDark(int color) {
+        double darkness = 1 - (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255;
+        return darkness >= 0.5;
     }
 }

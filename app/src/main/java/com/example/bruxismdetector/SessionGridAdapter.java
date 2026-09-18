@@ -143,7 +143,7 @@ public class SessionGridAdapter extends RecyclerView.Adapter<SessionGridAdapter.
         } else {
             try {
                 float val = Float.parseFloat(entry.tuple[selectedTupleIndex].replace(",", "."));
-                targetColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, effectDirection);
+                targetColor = CalendarHighlighter.getGradientColor(val, globalMin, globalMax, effectDirection, colorSurface);
 
                 boolean isDark = isColorDark(targetColor);
                 int textColor = isDark ? Color.WHITE : Color.BLACK;

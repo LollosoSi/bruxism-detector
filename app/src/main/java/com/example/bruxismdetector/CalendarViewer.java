@@ -1,17 +1,18 @@
 package com.example.bruxismdetector;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -29,6 +30,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.color.MaterialColors;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -100,8 +102,10 @@ public class CalendarViewer extends AppCompatActivity {
         }
 
         // Initialize the new Grid Adapter and pass the click listener
-        gridAdapter = new SessionGridAdapter(allSessionsFlat, selectedVariableTupleIndex, this::showDayDetailSheet);
-        listView.setAdapter(gridAdapter);
+        gridAdapter = new SessionGridAdapter(allSessionsFlat, selectedVariableTupleIndex, entry -> {
+            LocalDate date = LocalDate.parse(entry.tuple[0], DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            showDayDetailSheet(date, entry);
+        });listView.setAdapter(gridAdapter);
 
         ViewGroup rootLayout = findViewById(R.id.root_calendar);
         // --- Toggle View Logic WITH ANIMATION - ---
@@ -323,8 +327,8 @@ public class CalendarViewer extends AppCompatActivity {
         return selectedVariableTupleIndex;
     }
 
-    private void showDayDetailSheet(SummaryReader.SummaryEntry entry) {
-        var dialog = new BottomSheetDialog(this);
+    public void showDayDetailSheet(LocalDate date, @Nullable SummaryReader.SummaryEntry entry) {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
         View sheet = getLayoutInflater().inflate(R.layout.dialog_day_summary, null);
 
         TextView title = sheet.findViewById(R.id.sheet_date_title);
@@ -332,32 +336,100 @@ public class CalendarViewer extends AppCompatActivity {
         TextView tagsText = sheet.findViewById(R.id.tags_text);
         ChipGroup chipGroup = sheet.findViewById(R.id.sheet_chip_group);
 
-        LocalDate date = LocalDate.parse(entry.tuple[0], DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        title.setText(String.format(Locale.getDefault(), "%d %s %d",
-                date.getDayOfMonth(), date.getMonth().getDisplayName(TextStyle.FULL, Locale.getDefault()), date.getYear()));
+        // --- 1. CALCULATE DYNAMIC BACKGROUND COLOR ---
+        int surfaceColor = MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorSurface);
+        int bgColor = surfaceColor; // Default fallback
+        int tupleIndex = selectedVariableTupleIndex;
 
-        String[] t = entry.tuple;
-        statsText.setText(String.format(Locale.US,
-                "• Duration: %s hrs\n• Jaw Events: %s\n• Clenching Rate: %s /hr\n• Total Clench: %s sec\n• Alarms: %s (%s%%)",
-                t[1], t[9], t[4], t[2], t[11], t[13]));
+        if (entry != null && !entry.should_skip && tupleIndex > 0) {
+            SummaryReader sr = SummaryReader.getInstance();
+            if (tupleIndex < sr.getSummaryTitles().length) {
+                try {
+                    float val = Float.parseFloat(entry.tuple[tupleIndex].replace(",", "."));
+                    float[] minMax = CalendarHighlighter.getGlobalMinMax(tupleIndex, sr.getSummaryTuplesWithNoSkipItems());
+                    byte direction = com.example.bruxismdetector.bruxism_grapher2.CorrelationsCalculator.isGoingToBetter(1.0, sr.getSummaryTitles()[tupleIndex]);
 
-        int infoIndex = SummaryReader.getInstance().getInfomationIndex();
-        if (t[infoIndex] != null && !t[infoIndex].trim().isEmpty()) {
-            for (String tag : t[infoIndex].split(",")) {
-                if (tag.trim().isEmpty()) continue;
-                Chip chip = new Chip(this);
-                chip.setText(tag.trim());
-                chip.setChipBackgroundColorResource(android.R.color.transparent);
-                chip.setChipStrokeColorResource(android.R.color.darker_gray);
-                chip.setChipStrokeWidth(1f);
-                chip.setChipIcon(CalendarPalette.getTagIcon(this, tag));
-                chipGroup.addView(chip);
+                    // NEW: Pass surfaceColor so the sheet matches the tile!
+                    bgColor = CalendarHighlighter.getGradientColor(val, minMax[0], minMax[1], direction, surfaceColor);
+                } catch (Exception ignored) {}
             }
         }
-        tagsText.setVisibility(chipGroup.getChildCount() > 0 ? View.VISIBLE : View.GONE);
 
+        android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
+        gd.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        float radius = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, 24, getResources().getDisplayMetrics());
+        gd.setCornerRadii(new float[]{radius, radius, radius, radius, 0, 0, 0, 0});
+        gd.setColor(bgColor);
+        sheet.setBackground(gd);
+
+        // --- 2. CALCULATE CONTRASTING TEXT & OUTLINE COLORS ---
+        boolean isDark = isColorDark(bgColor);
+
+        // Text Colors
+        int primaryText = isDark ? android.graphics.Color.WHITE : com.google.android.material.color.MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorOnSurface);
+        int secondaryText = isDark ? android.graphics.Color.parseColor("#F5F5F5") : com.google.android.material.color.MaterialColors.getColor(sheet, com.google.android.material.R.attr.colorOnSurfaceVariant);
+        int chipStroke = isDark ? android.graphics.Color.WHITE : android.graphics.Color.DKGRAY;
+
+        // Outline (Halo) Color: Opposite of the text color for maximum readability
+        int outlineColor = isDark ? android.graphics.Color.BLACK : android.graphics.Color.WHITE;
+
+        // Apply Text Colors
+        title.setTextColor(primaryText);
+        statsText.setTextColor(secondaryText);
+        tagsText.setTextColor(primaryText);
+
+        // Apply the Outline via a tight Drop Shadow (radius 4f, centered dx=0, dy=0)
+        title.setShadowLayer(4f, 0f, 0f, outlineColor);
+        statsText.setShadowLayer(4f, 0f, 0f, outlineColor);
+        tagsText.setShadowLayer(4f, 0f, 0f, outlineColor);
+
+        // --- 3. POPULATE DATA ---
+        String monthName = date.getMonth().getDisplayName(TextStyle.FULL, Locale.getDefault());
+        title.setText(String.format(Locale.getDefault(), "%d %s %d", date.getDayOfMonth(), monthName, date.getYear()));
+
+        if (entry == null) {
+            statsText.setText("No data recorded for this day.");
+            tagsText.setVisibility(View.GONE);
+        } else {
+            if (entry.should_skip) {
+                statsText.setText("No monitoring session recorded.");
+            } else {
+                String[] t = entry.tuple;
+                statsText.setText(String.format(Locale.US,
+                        "• Duration: %s hrs\n• Jaw Events: %s\n• Clenching Rate: %s /hr\n• Total Clench: %s sec\n• Alarms: %s (%s%%)",
+                        t[1], t[9], t[4], t[2], t[11], t[13]));
+            }
+
+            int infoIndex = SummaryReader.getInstance().getInfomationIndex();
+            if (entry.tuple[infoIndex] != null && !entry.tuple[infoIndex].trim().isEmpty()) {
+                for (String tag : entry.tuple[infoIndex].split(",")) {
+                    if (tag.trim().isEmpty()) continue;
+                    Chip chip = new Chip(this);
+                    chip.setText(tag.trim());
+
+                    // Apply perfect contrast and outline to the Chips
+                    chip.setTextColor(primaryText);
+                    chip.setShadowLayer(3f, 0f, 0f, outlineColor); // Slightly smaller outline for chip text
+
+                    chip.setChipBackgroundColorResource(android.R.color.transparent);
+                    chip.setChipStrokeColor(android.content.res.ColorStateList.valueOf(chipStroke));
+                    chip.setChipStrokeWidth(1f);
+
+                    chip.setChipIcon(CalendarPalette.getTagIcon(this, tag));
+                    chipGroup.addView(chip);
+                }
+            }
+            tagsText.setVisibility(chipGroup.getChildCount() > 0 ? View.VISIBLE : View.GONE);
+        }
 
         dialog.setContentView(sheet);
+
+        // --- 4. PREVENT CORNER CLIPPING ---
+        View bottomSheet = (View) sheet.getParent();
+        if (bottomSheet != null) {
+            bottomSheet.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        }
+
         dialog.show();
     }
 
@@ -377,5 +449,10 @@ public class CalendarViewer extends AppCompatActivity {
         if (gridAdapter != null) {
             gridAdapter.updateMetricAnimated(position);
         }
+    }
+
+    private boolean isColorDark(int color) {
+        double darkness = 1 - (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color)) / 255;
+        return darkness >= 0.5;
     }
 }
