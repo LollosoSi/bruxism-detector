@@ -1,8 +1,9 @@
-package grapher_interfaces;
+package bruxism_grapher2.grapher_interfaces;
 
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -76,6 +77,27 @@ public class GrapherDesktop extends GrapherInterface<Color, BufferedImage, Font>
 	@Override
 	public Color convertColor(String colorstring) {
 		return Color.decode(colorstring);
+	}
+
+	@Override
+	public void drawRotatedString(String str, int x, int y, int angleDegrees) {
+		AffineTransform oldTransform = g.getTransform();
+		g.translate(x, y);
+		g.rotate(Math.toRadians(angleDegrees));
+		g.drawString(str, 0, 0);
+		g.setTransform(oldTransform);
+	}
+
+	@Override
+	public int getStringWidth(String text) {
+		if (text == null || text.isEmpty()) return 0;
+		return g.getFontMetrics().stringWidth(text);
+	}
+
+	@Override
+	public File getRecordingsPath() {
+		// TODO Auto-generated method stub
+		return new File(".");
 	}
 
 

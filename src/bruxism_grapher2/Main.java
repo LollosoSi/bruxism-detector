@@ -25,9 +25,9 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 
-import grapher_interfaces.DesktopTaskRunner;
-import grapher_interfaces.GrapherDesktop;
-import grapher_interfaces.IconManagerDesktop;
+import bruxism_grapher2.grapher_interfaces.DesktopTaskRunner;
+import bruxism_grapher2.grapher_interfaces.GrapherDesktop;
+import bruxism_grapher2.grapher_interfaces.IconManagerDesktop;
 
 import java.util.concurrent.*;
 import java.util.stream.IntStream;
@@ -137,8 +137,7 @@ public class Main {
         receiveButton.addActionListener(e -> {
             new Thread(() -> {
                 messages.setText("Server is running.\nWaiting for Android...");
-                FileReceiverServer fsr = new FileReceiverServer();
-        		fsr.main(args);
+                FileReceiverServer.main(args);
         		messages.setText("Creating graphs");
         		createGraphs(args);
         		openGraphFolder();

@@ -1,4 +1,4 @@
-package grapher_interfaces;
+package bruxism_grapher2.grapher_interfaces;
 
 import java.util.List;
 import java.util.concurrent.Callable;

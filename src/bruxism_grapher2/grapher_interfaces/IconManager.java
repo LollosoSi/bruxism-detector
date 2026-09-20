@@ -1,4 +1,4 @@
-package grapher_interfaces;
+package bruxism_grapher2.grapher_interfaces;
 
 public interface IconManager<Color, Image> {
 	
