@@ -598,12 +598,17 @@ public class DataSharingActivity extends AppCompatActivity {
 
     public void sendMyFolder(View v) {
         new Thread(() -> {
-            String serverIp = ServerDiscovery.discoverServerIP();
+            // Passiamo 'this' per fornire il context
+            String serverIp = ServerDiscovery.discoverServerIP(this);
+
             if (serverIp == null) {
-                Looper.prepare();
-                Toast.makeText(DataSharingActivity.this, "Local server not detected.", Toast.LENGTH_LONG).show();
+                // Usiamo il mainHandler invece di Looper.prepare() per mostrare il toast dal thread
+                mainHandler.post(() ->
+                        Toast.makeText(DataSharingActivity.this, "Local server not detected.", Toast.LENGTH_LONG).show()
+                );
                 return;
             }
+
             File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
             FileSenderClient.sendFolder(new File(documentsDir, "RECORDINGS"), new File(documentsDir, "RECORDINGS"), serverIp, 5000, this);
         }).start();
