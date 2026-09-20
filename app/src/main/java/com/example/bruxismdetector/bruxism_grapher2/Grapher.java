@@ -70,6 +70,16 @@ public class Grapher<Image, Color, Font> {
 
 	String file_name;
 
+	// =========================================================
+	// SOGLIE STATISTICHE UNIFICATE
+	// =========================================================
+	public double THRESHOLD_CORRELATION_MIN = 0.15;  // Valore minimo di Pearson per essere considerato "rilevante"
+	public double THRESHOLD_P_VALUE_MAX = 0.05;      // Valore massimo per l'affidabilità statistica
+	public double THRESHOLD_EFFECT_SIZE_MIN = 4.0;   // Valore minimo di E% per l'impatto clinico
+
+	public int max_minute_correlation_delay = 90;
+
+	// ====
 	ArrayList<Event> events;
 	ArrayList<RawEvent> raw_events = null;
 	ArrayList<NoiseEvent> noise_events = null;
@@ -120,25 +130,25 @@ public class Grapher<Image, Color, Font> {
 		side_info_margin = graph_width / 20;
 		info_text_height = 50;
 
-		legend_height = graph_height - 80;
+		legend_height = graph_height - 55;
 
 		int line_height_temp = legend_height;
 
 		if(raw_events != null) {
 			if(!raw_events.isEmpty()) {
-				clenchline_height_low = (line_height_temp -= 25);
-				clenchline_height_high = (line_height_temp -= 30);
+				clenchline_height_low = (line_height_temp -= 20);
+				clenchline_height_high = (line_height_temp -= 25);
 			}
 		}
 
 		if(!sleepData.heartrate.isEmpty() || !sleepData.stress.isEmpty()) {
-			heartrate_height_low = (line_height_temp -= 25);
-			heartrate_height_high = (line_height_temp -= 30);
+			heartrate_height_low = (line_height_temp -= 20);
+			heartrate_height_high = (line_height_temp -= 25);
 		}
 
 		if(!sleepData.spo2.isEmpty() ) {
-			spo2_height_low = (line_height_temp -= 25);
-			spo2_height_high = (line_height_temp -= 30);
+			spo2_height_low = (line_height_temp -= 20);
+			spo2_height_high = (line_height_temp -= 25);
 		}
 
 		//if(!sleepData.stress.isEmpty()) {
@@ -147,8 +157,8 @@ public class Grapher<Image, Color, Font> {
 		//}
 
 		if(noise_events != null || accel_mag_events != null) {
-			noise_height_low = (line_height_temp -= 25);
-			noise_height_high = (line_height_temp -= 30);
+			noise_height_low = (line_height_temp -= 20);
+			noise_height_high = (line_height_temp -= 25);
 		}
 
 		timeline_height = (line_height_temp -= 80);
@@ -290,37 +300,101 @@ ArrayList<Sample_Correlation> samples_noise = new ArrayList<Sample_Correlation>(
 ArrayList<Sample_Correlation> samples_accel = new ArrayList<Sample_Correlation>();
 
 
+ArrayList<Correlations.CorrelationPair> delayed_corrs_hr = null;
+	ArrayList<Correlations.CorrelationPair> delayed_raw_corrs_hr = null;
 ArrayList<Correlations.CorrelationPair> delayed_corrs_spo2 = null;
+	ArrayList<Correlations.CorrelationPair> delayed_raw_corrs_spo2 = null;
 ArrayList<Correlations.CorrelationPair> delayed_corrs_accel = null;
 
 
-int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
-	if(time < mintime) time = mintime;
-	if(time > maxtime) time = maxtime;
+	int findIndexFromTime(long mintime, long maxtime, long time, int numsamples){
+		if(time < mintime) time = mintime;
+		if(time > maxtime) time = maxtime;
+		if(maxtime <= mintime) return 0; // Previene divisioni per zero
 
-	int samples = (int)Math.ceil((double) (maxtime - mintime) /1000.0);
-	long step = (maxtime - mintime)/samples;
+		int samples = (int)Math.ceil((double) (maxtime - mintime) /1000.0);
+		long step = Math.max(1, (maxtime - mintime)/samples); // Sicurezza
 
-	return (int) ((time-mintime)/step);
-}
-double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsamples){
+		return (int) ((time-mintime)/step);
+	}
+	double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsamples){
+		double[] result = new double[numsamples];
+		Arrays.fill(result, 0);
 
-	double[] result = new double[numsamples];
-	Arrays.fill(result, 0);
-	for(int i = 0; i<samples.size()-1; i++){
+		if (samples.isEmpty()) return result;
 
-		int startfill = findIndexFromTime(min_time, max_time, samples.get(i).time, numsamples), endfill = findIndexFromTime(min_time, max_time, samples.get(i+1).time, numsamples);
-
-		if(startfill >= numsamples) startfill = numsamples;
-		if(endfill >= numsamples) endfill = numsamples;
-
-		for(int j = startfill; j<endfill; j++){
-			result[j] = samples.get(i).value;
+		// 1. Riempiamo lo spazio PRIMA del primo campione (Head)
+		int firstEnd = findIndexFromTime(min_time, max_time, samples.get(0).time, numsamples);
+		firstEnd = Math.max(0, Math.min(firstEnd, numsamples));
+		for(int j = 0; j < firstEnd; j++){
+			result[j] = samples.get(0).value;
 		}
 
+		// 2. Riempiamo il corpo centrale
+		for(int i = 0; i<samples.size()-1; i++){
+			int startfill = findIndexFromTime(min_time, max_time, samples.get(i).time, numsamples);
+			int endfill = findIndexFromTime(min_time, max_time, samples.get(i+1).time, numsamples);
+
+			startfill = Math.max(0, Math.min(startfill, numsamples));
+			endfill = Math.max(0, Math.min(endfill, numsamples));
+
+			for(int j = startfill; j<endfill; j++){
+				result[j] = samples.get(i).value;
+			}
+		}
+
+		// 3. Riempiamo lo spazio DOPO l'ultimo campione (Tail)
+		int finalStart = findIndexFromTime(min_time, max_time, samples.get(samples.size()-1).time, numsamples);
+		finalStart = Math.max(0, Math.min(finalStart, numsamples));
+		for (int j = finalStart; j < numsamples; j++) {
+			result[j] = samples.get(samples.size()-1).value;
+		}
+
+		return result;
 	}
-	return result;
-}
+
+	double[] createLinearSampledArray(ArrayList<Sample_Correlation> samples, int numsamples) {
+		double[] result = new double[numsamples];
+		Arrays.fill(result, 0);
+
+		if (samples.isEmpty()) return result;
+
+		// 1. Spazio PRIMA del primo campione (mantiene piatto il primo valore)
+		int firstEnd = findIndexFromTime(min_time, max_time, samples.get(0).time, numsamples);
+		firstEnd = Math.max(0, Math.min(firstEnd, numsamples));
+		for(int j = 0; j < firstEnd; j++){
+			result[j] = samples.get(0).value;
+		}
+
+		// 2. Corpo centrale: INTERPOLAZIONE LINEARE
+		for(int i = 0; i < samples.size() - 1; i++){
+			int startfill = findIndexFromTime(min_time, max_time, samples.get(i).time, numsamples);
+			int endfill = findIndexFromTime(min_time, max_time, samples.get(i+1).time, numsamples);
+
+			startfill = Math.max(0, Math.min(startfill, numsamples));
+			endfill = Math.max(0, Math.min(endfill, numsamples));
+
+			double valStart = samples.get(i).value;
+			double valEnd = samples.get(i+1).value;
+			int span = endfill - startfill;
+
+			for(int j = startfill; j < endfill; j++){
+				if (span <= 0) break;
+				// Calcola il punto esatto sulla linea tra valStart e valEnd
+				double fraction = (double)(j - startfill) / span;
+				result[j] = valStart + fraction * (valEnd - valStart);
+			}
+		}
+
+		// 3. Spazio DOPO l'ultimo campione (mantiene piatto l'ultimo valore)
+		int finalStart = findIndexFromTime(min_time, max_time, samples.get(samples.size()-1).time, numsamples);
+		finalStart = Math.max(0, Math.min(finalStart, numsamples));
+		for (int j = finalStart; j < numsamples; j++) {
+			result[j] = samples.get(samples.size()-1).value;
+		}
+
+		return result;
+	}
 
 	public double findValueForTime(ArrayList<Sample_Correlation> samples, long time){
 		Sample_Correlation psc = samples.get(0);
@@ -381,21 +455,50 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 	}
 
 	double clenching_spo2_corr = 0, clenching_hr_corr = 0, clenching_stress_corr = 0, noise_corr = 0, clenching_sleep_stage_deep_corr = 0, clenching_sleep_stage_light_corr = 0, clenching_sleep_stage_rem_corr = 0, clenching_sleep_stage_awake_corr = 0, accel_corr = 0;
+	double raw_spo2_corr = 0, raw_hr_corr = 0, raw_stress_corr = 0;
+
+	double[] clenching_night;
 	void calculateCorrelations(){
 		int samples = (int)Math.ceil((double) (max_time - min_time) /1000.0);
 
-		Future<double[]> clenchFuture = taskRunner.submit(() -> createSampledArray(samples_clench, samples));
-		Future<double[]> hrFuture = taskRunner.submit(() -> createSampledArray(samples_hr, samples));
-		Future<double[]> spo2Future = taskRunner.submit(() -> createSampledArray(samples_spo2, samples));
-		Future<double[]> stressFuture = taskRunner.submit(() -> createSampledArray(samples_stress, samples));
-		Future<double[]> sleepFuture = taskRunner.submit(() -> createSampledArray(samples_sleepstages, samples));
-		Future<double[]> noiseFuture = taskRunner.submit(() -> createSampledArray(samples_noise, samples));
+		// PREPARAZIONE DATI RAW SINCRONIZZATI
+		ArrayList<Sample_Correlation> samples_raw = new ArrayList<>();
+		if (raw_events != null && !raw_events.isEmpty()) {
+			long syncmillis = -1;
+			for (Event e : events) {
+				if (e.type.equals("Sync")) {
+					syncmillis = Long.valueOf(e.notes) - e.millis;
+					break;
+				}
+			}
+			if (syncmillis != -1) {
+				for (RawEvent re : raw_events) {
+					long corrected_time = re.millis - syncmillis;
+					// Inseriamo solo i campioni validi per il grafico
+					if (corrected_time >= min_time && corrected_time <= max_time) {
+						// re.fvalue contiene il dato continuo
+						samples_raw.add(new Sample_Correlation(corrected_time, (double) re.fvalue));
+					}
+				}
+			}
+		}
 
-		Future<double[]> accelFuture = taskRunner.submit(() -> createSampledArray(samples_accel, samples));
+		// Dati Categorici / Binari (Usano l'Hold a gradino)
+		Future<double[]> clenchFuture = taskRunner.submit(() -> createSampledArray(samples_clench, samples));
+		Future<double[]> sleepFuture = taskRunner.submit(() -> createSampledArray(samples_sleepstages, samples));
+
+		// Dati Biometrici Continui (Usano l'Interpolazione Lineare)
+		Future<double[]> hrFuture = taskRunner.submit(() -> createLinearSampledArray(samples_hr, samples));
+		Future<double[]> spo2Future = taskRunner.submit(() -> createLinearSampledArray(samples_spo2, samples));
+		Future<double[]> stressFuture = taskRunner.submit(() -> createLinearSampledArray(samples_stress, samples));
+		Future<double[]> noiseFuture = taskRunner.submit(() -> createLinearSampledArray(samples_noise, samples));
+		Future<double[]> accelFuture = taskRunner.submit(() -> createLinearSampledArray(samples_accel, samples));
+
+		Future<double[]> rawFuture = taskRunner.submit(() -> createLinearSampledArray(samples_raw, samples));
 
 		// Later: wait for results
         try {
-            double[] clenching_night = clenchFuture.get();
+            clenching_night = clenchFuture.get();
 
         	double[] hr_night = hrFuture.get();
 			double[] spo2_night = spo2Future.get();
@@ -406,6 +509,8 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 			double[] noise_night = noiseFuture.get();
 
 			double[] accel_night = accelFuture.get();
+
+			double[] raw_night = rawFuture.get();
 
 			double[] sleep_stage_rem_night = new double[samples];
 			double[] sleep_stage_light_night = new double[samples];
@@ -423,8 +528,15 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 				}
 			}
 
+			Future<Double> raw_hr_corr_future = null, raw_spo2_corr_future = null, raw_stress_corr_future = null;
+			if (!samples_raw.isEmpty()) {
+				if (!samples_hr.isEmpty()) raw_hr_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(raw_night, hr_night));
+				if (!samples_spo2.isEmpty()) raw_spo2_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(raw_night, spo2_night));
+				if (!samples_stress.isEmpty()) raw_stress_corr_future = taskRunner.submit(() -> Correlations.pearsonCorrelation(raw_night, stress_night));
+			}
+
 			boolean draw_debug = false;
-			double debugline = 2.0;
+			double debugline = 0.5;
 			double increment = 0.7;
 
 
@@ -459,6 +571,16 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 			if (!samples_hr.isEmpty()) {
 				clenching_hr_corr = hr_corr_future.get();
+
+				delayed_corrs_hr = Correlations.calculateDelayedCorrelations(clenching_night, hr_night, 0, max_minute_correlation_delay*60, true);
+				if(delayed_corrs_hr!=null){
+					System.out.println("The highest correlation for spo2 is at " + delayed_corrs_hr.get(0).delay + " seconds ("+ delayed_corrs_hr.get(0).correlation + "). While the lowest is at " + delayed_corrs_hr.get(delayed_corrs_hr.size()-1).delay + " seconds (" + delayed_corrs_hr.get(delayed_corrs_hr.size()-1).correlation+").");
+				}
+
+				delayed_raw_corrs_hr = Correlations.calculateDelayedCorrelations(raw_night, hr_night, 0, max_minute_correlation_delay*60, true);
+				if(delayed_raw_corrs_hr!=null){
+					System.out.println("The highest RAW correlation for BPM is at " + delayed_raw_corrs_hr.get(0).delay + " seconds ("+ delayed_raw_corrs_hr.get(0).correlation + "). While the lowest is at " + delayed_raw_corrs_hr.get(delayed_raw_corrs_hr.size()-1).delay + " seconds (" + delayed_raw_corrs_hr.get(delayed_raw_corrs_hr.size()-1).correlation+").");
+				}
 			}
 
 			if (!samples_spo2.isEmpty()){
@@ -467,10 +589,14 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 				// We want a maximum delay of 60 mins for correlations.
 				// Samples are 1 per second, so we want 60*60 samples
 
-
-				delayed_corrs_spo2 = Correlations.calculateDelayedCorrelations(clenching_night, spo2_night, 0, 30*60, true);
+				delayed_corrs_spo2 = Correlations.calculateDelayedCorrelations(clenching_night, spo2_night, 0, max_minute_correlation_delay*60, true);
 				if(delayed_corrs_spo2!=null){
 					System.out.println("The highest correlation for spo2 is at " + delayed_corrs_spo2.get(0).delay + " seconds ("+ delayed_corrs_spo2.get(0).correlation + "). While the lowest is at " + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay + " seconds (" + delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation+").");
+				}
+
+				delayed_raw_corrs_spo2 = Correlations.calculateDelayedCorrelations(raw_night, spo2_night, 0, max_minute_correlation_delay*60, true);
+				if(delayed_raw_corrs_spo2!=null){
+					System.out.println("The highest RAW correlation for spo2 is at " + delayed_raw_corrs_spo2.get(0).delay + " seconds ("+ delayed_raw_corrs_spo2.get(0).correlation + "). While the lowest is at " + delayed_raw_corrs_spo2.get(delayed_raw_corrs_spo2.size()-1).delay + " seconds (" + delayed_raw_corrs_spo2.get(delayed_raw_corrs_spo2.size()-1).correlation+").");
 				}
 			}
 
@@ -498,6 +624,10 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 				clenching_sleep_stage_awake_corr = awake.get();
 
 			}
+
+			if (raw_hr_corr_future != null) raw_hr_corr = raw_hr_corr_future.get();
+			if (raw_spo2_corr_future != null) raw_spo2_corr = raw_spo2_corr_future.get();
+			if (raw_stress_corr_future != null) raw_stress_corr = raw_stress_corr_future.get();
 
 
 
@@ -1217,10 +1347,30 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 		return startnote[startnote.length-1]; // It's a string date YYYY-MM-DD;
 	}
 
-	void printInfoIfMeaningful(ArrayList<String> info, String beforevalue, Double value, Double threshold_abs, String aftervalue){
-		if(Math.abs(value) >= threshold_abs){
-			info.add(beforevalue + ((int)(value*100.0))/100.0 + aftervalue);
+	// OVERLOAD per le correlazioni base (semplici double)
+	boolean printInfoIfMeaningful(ArrayList<String> info, String beforevalue, Double value, String aftervalue) {
+		if (value != null && !Double.isNaN(value) && Math.abs(value) >= THRESHOLD_CORRELATION_MIN) {
+			info.add(beforevalue + ((int)(value * 100.0)) / 100.0 + aftervalue);
+			return true;
 		}
+		return false;
+	}
+
+	// Il tuo metodo esistente per i CorrelationPair (con p-value e E%)
+	boolean printInfoIfMeaningful(ArrayList<String> info, String beforevalue, Correlations.CorrelationPair result, String aftervalue) {
+		if (result == null || Double.isNaN(result.correlation)) return false;
+
+		// Applica le soglie unificate
+		if (Math.abs(result.correlation) >= THRESHOLD_CORRELATION_MIN &&
+				result.pValue <= THRESHOLD_P_VALUE_MAX &&
+				result.effectSize >= THRESHOLD_EFFECT_SIZE_MIN) {
+
+			// Stampa anche il p-value e l'Effect Size
+			String statsString = String.format(Locale.ENGLISH, " (p:%.3f, E:%.1f%%)", result.pValue, result.effectSize);
+			info.add(beforevalue + ((int) (result.correlation * 100.0)) / 100.0 + aftervalue + statsString);
+			return true;
+		}
+		return false;
 	}
 
 	class ColorBands{
@@ -1405,10 +1555,9 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 
 		gi.setColor(gi.convertColor(Colours.getColor(Color_element.Text, use_dark_mode)));
 		gi.setFont("Arial", 14);
-		gi.drawString("The data presented here has been corrected (-8s) for events that don't end with the alarm.",
-				side_info_margin, graph_height - 32);
-		gi.drawString("Clenching events which lasted less than 1s are only drawn as red lines.", side_info_margin,
-				graph_height - 16);
+		gi.drawString("The data presented here has been corrected (-8s) for events that don't end with the alarm. Clenching events which lasted less than 1s are only drawn as red lines.",
+				side_info_margin, graph_height - 12);
+
 
 		drawResets(use_dark_mode);
 
@@ -1470,34 +1619,83 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 			infostats.add("REM: " + sleepData.duration_rem/60 + "h "+ sleepData.duration_rem%60 +"m (" + (p3) +"%)");
 			infostats.add("Awake: " + sleepData.duration_awake/60 + "h "+ sleepData.duration_awake%60 +"m ("+sleepData.awake_count+")");
 
+			if(sleepData.average_hr > 0)
 			infostats.add("Average BPM: " + sleepData.average_hr);
+
+			if(sleepData.average_breath_quality > 0)
 			infostats.add("Breath Quality: " + sleepData.average_breath_quality + "%" );
 
-			printInfoIfMeaningful(infostats, "Correlation with BPM: ", clenching_hr_corr, 0.2, "");
-			printInfoIfMeaningful(infostats, "Correlation with SpO2: ", clenching_spo2_corr, 0.2, "");
-			printInfoIfMeaningful(infostats, "Correlation with Stress: ", clenching_stress_corr, 0.2, "");
-			printInfoIfMeaningful(infostats, "Correlation with Awake: ", clenching_sleep_stage_awake_corr, 0.2, "");
-			printInfoIfMeaningful(infostats, "Correlation with Light Sleep: ", clenching_sleep_stage_light_corr, 0.2, "");
-			printInfoIfMeaningful(infostats, "Correlation with Deep Sleep: ", clenching_sleep_stage_deep_corr, 0.2, "");
-			printInfoIfMeaningful(infostats, "Correlation with REM: ", clenching_sleep_stage_rem_corr, 0.2, "");
+			printInfoIfMeaningful(infostats, "Correlation with BPM: ", clenching_hr_corr, "");
+			printInfoIfMeaningful(infostats, "Correlation with SpO2: ", clenching_spo2_corr, "");
+			printInfoIfMeaningful(infostats, "Correlation with Stress: ", clenching_stress_corr, "");
+			printInfoIfMeaningful(infostats, "Correlation with Awake: ", clenching_sleep_stage_awake_corr, "");
+			printInfoIfMeaningful(infostats, "Correlation with Light Sleep: ", clenching_sleep_stage_light_corr, "");
+			printInfoIfMeaningful(infostats, "Correlation with Deep Sleep: ", clenching_sleep_stage_deep_corr, "");
+			printInfoIfMeaningful(infostats, "Correlation with REM: ", clenching_sleep_stage_rem_corr, "");
 
-			if(delayed_corrs_spo2 != null){
-				printInfoIfMeaningful(infostats, "Highest SpO2 corr: ", delayed_corrs_spo2.get(0).correlation , 0.2, " at " + (delayed_corrs_spo2.get(0).delay/60) + " minutes.");
-				printInfoIfMeaningful(infostats, "Highest negative SpO2 corr: ",  delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).correlation, 0.2, " at " + (delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1).delay/60) + " minutes.");
+			if(delayed_corrs_hr != null && !delayed_corrs_hr.isEmpty()){
+				Correlations.CorrelationPair highestPos = delayed_corrs_hr.get(0);
+				Correlations.CorrelationPair highestNeg = delayed_corrs_hr.get(delayed_corrs_hr.size()-1);
 
+				// Stampa usando il nuovo metodo per i CorrelationPair (aggiunge p-value e E%)
+				printInfoIfMeaningful(infostats, "Highest BPM corr: ", highestPos, " at " + (highestPos.delay/60) + " min");
+				printInfoIfMeaningful(infostats, "Highest negative BPM corr: ", highestNeg, " at " + (highestNeg.delay/60) + " min");
+			}
+
+			if(delayed_corrs_spo2 != null && !delayed_corrs_spo2.isEmpty()){
+				Correlations.CorrelationPair highestPos = delayed_corrs_spo2.get(0);
+				Correlations.CorrelationPair highestNeg = delayed_corrs_spo2.get(delayed_corrs_spo2.size()-1);
+
+				// Stampa usando il nuovo metodo per i CorrelationPair (aggiunge p-value e E%)
+				printInfoIfMeaningful(infostats, "Highest SpO2 corr: ", highestPos, " at " + (highestPos.delay/60) + " min");
+				printInfoIfMeaningful(infostats, "Highest negative SpO2 corr: ", highestNeg, " at " + (highestNeg.delay/60) + " min");
+			}
+
+			// Stampa Correlazioni su Dati RAW (SVM Confidenza / Intensità)
+			if (raw_events != null && !raw_events.isEmpty()) {
+				printInfoIfMeaningful(infostats, "(no delay) Raw Signal Corr BPM: ", raw_hr_corr, "");
+				printInfoIfMeaningful(infostats, "(no delay) Raw Signal Corr SpO2: ", raw_spo2_corr, "");
+				printInfoIfMeaningful(infostats, "(no delay) Raw Signal Corr Stress: ", raw_stress_corr, "");
+
+				if(delayed_raw_corrs_hr != null && !delayed_raw_corrs_hr.isEmpty()){
+					Correlations.CorrelationPair highestPos = delayed_raw_corrs_hr.get(0);
+					Correlations.CorrelationPair highestNeg = delayed_raw_corrs_hr.get(delayed_raw_corrs_hr.size()-1);
+
+					// Stampa usando il nuovo metodo per i CorrelationPair (aggiunge p-value e E%)
+					boolean H = printInfoIfMeaningful(infostats, "Highest RAW BPM corr: ", highestPos, " at " + (highestPos.delay/60) + " min");
+					boolean L = printInfoIfMeaningful(infostats, "Highest negative RAW BPM corr: ", highestNeg, " at " + (highestNeg.delay/60) + " min");
+
+					if(H||L) drawCorrelationProfileGraph(delayed_raw_corrs_hr, "RAW BPM CCF", side_info_margin, graph_height - 515, graph_width - (2 * side_info_margin), 25, use_dark_mode);
+
+				}
+
+				if(delayed_raw_corrs_spo2 != null && !delayed_raw_corrs_spo2.isEmpty()){
+					Correlations.CorrelationPair highestPos = delayed_raw_corrs_spo2.get(0);
+					Correlations.CorrelationPair highestNeg = delayed_raw_corrs_spo2.get(delayed_raw_corrs_spo2.size()-1);
+
+					// Stampa usando il nuovo metodo per i CorrelationPair (aggiunge p-value e E%)
+					boolean H = printInfoIfMeaningful(infostats, "Highest RAW SpO2 corr: ", highestPos, " at " + (highestPos.delay/60) + " min");
+					boolean L = printInfoIfMeaningful(infostats, "Highest negative RAW SpO2 corr: ", highestNeg, " at " + (highestNeg.delay/60) + " min");
+
+					if(H||L) drawCorrelationProfileGraph(delayed_raw_corrs_spo2, "RAW SpO2 CCF", side_info_margin, graph_height - 495, graph_width - (2 * side_info_margin), 25, use_dark_mode);
+
+				}
 			}
 
 		}
 
-		if(noise_corr!=0){
-			printInfoIfMeaningful(infostats, "Noise corr: ", noise_corr, 0.2, "");
+		if(noise_corr != 0){
+			printInfoIfMeaningful(infostats, "Noise corr: ", noise_corr, "");
 		}
 
-		if(accel_corr!=0){
-			printInfoIfMeaningful(infostats, "Accel corr: ", accel_corr, 0.2, "");
-			if(delayed_corrs_accel != null){
-				printInfoIfMeaningful(infostats, "Highest accel corr: ", delayed_corrs_accel.get(0).correlation, 0.2, " at " + (delayed_corrs_accel.get(0).delay/60) + " minutes.");
-				printInfoIfMeaningful(infostats, "Highest negative accel corr: ", delayed_corrs_accel.get(delayed_corrs_accel.size()-1).correlation, 0.2,  " at " + (delayed_corrs_accel.get(delayed_corrs_accel.size()-1).delay/60) + " minutes.");
+		if(accel_corr != 0){
+			printInfoIfMeaningful(infostats, "Accel corr: ", accel_corr, "");
+			if(delayed_corrs_accel != null && !delayed_corrs_accel.isEmpty()){
+				Correlations.CorrelationPair highestPosAccel = delayed_corrs_accel.get(0);
+				Correlations.CorrelationPair highestNegAccel = delayed_corrs_accel.get(delayed_corrs_accel.size()-1);
+
+				printInfoIfMeaningful(infostats, "Highest accel corr: ", highestPosAccel, " at " + (highestPosAccel.delay/60) + " min");
+				printInfoIfMeaningful(infostats, "Highest negative accel corr: ", highestNegAccel, " at " + (highestNegAccel.delay/60) + " min");
 
 			}
 		}
@@ -1526,4 +1724,431 @@ double[] createSampledArray(ArrayList<Sample_Correlation> samples, int numsample
 		this.raw_events = raw_events;
 	}
 
+	void drawCorrelationProfileGraph(
+			ArrayList<Correlations.CorrelationPair> pairs,
+			String title,
+			int x,
+			int y,
+			int width,
+			int height,
+			boolean use_dark_mode) {
+
+		if (pairs == null || pairs.isEmpty()) return;
+
+		// =========================================================
+		// LAYOUT
+		// =========================================================
+
+		final int textWidth = 85;
+		final int gap = 6;
+		final int paddingY = 3;
+
+		int chartX = x + textWidth + gap;
+		int chartWidth = width - textWidth - gap;
+
+		if (chartWidth <= 10 || height <= 10) return;
+
+		int chartTop = y + paddingY;
+		int chartBottom = y + height - paddingY;
+		int chartHeight = chartBottom - chartTop;
+
+		int centerY = chartTop + chartHeight / 2;
+
+		// =========================================================
+		// TITOLO
+		// =========================================================
+
+		gi.setColor(gi.convertColor(
+				Colours.getColor(Color_element.Text, use_dark_mode)));
+
+		gi.setFont("Arial", 11);
+
+		gi.drawString(
+				title,
+				x,
+				centerY
+		);
+
+		// =========================================================
+		// RISOLUZIONE
+		//
+		// 1 sample = 1 secondo
+		// max_minute_correlation_delay = minuti
+		// =========================================================
+
+		final int maxDelaySamples =
+				max_minute_correlation_delay * 60;
+
+		if (maxDelaySamples <= 0) return;
+
+		final int totalDelaySamples =
+				maxDelaySamples * 2;
+
+		// =========================================================
+		// SLOT
+		// =========================================================
+
+		int numberOfCorrelations = pairs.size();
+
+		if (numberOfCorrelations <= 0) return;
+
+		double slotWidth =
+				(double) chartWidth / numberOfCorrelations;
+
+		// =========================================================
+		// SCALA VERTICALE
+		//
+		// Pearson [-1, +1]
+		// =========================================================
+
+		int scaleHeight =
+				Math.max(1, chartHeight / 2 - 2);
+
+		// =========================================================
+		// TROVA IL MASSIMO
+		//
+		// Cerchiamo il massimo in valore assoluto:
+		//
+		//   +0.40 > +0.20
+		//   -0.50 > +0.40  <-- viene scelto -0.50
+		//
+		// Ignoriamo eventuali NaN.
+		// =========================================================
+
+		Correlations.CorrelationPair maxPair = null;
+
+		double maxAbsoluteCorrelation = -1.0;
+
+		for (Correlations.CorrelationPair cp : pairs) {
+
+			if (cp.delay < -maxDelaySamples
+					|| cp.delay > maxDelaySamples) {
+				continue;
+			}
+
+			if (Double.isNaN(cp.correlation)
+					|| Double.isInfinite(cp.correlation)) {
+				continue;
+			}
+
+			double absoluteCorrelation =
+					Math.abs(cp.correlation);
+
+			if (absoluteCorrelation > maxAbsoluteCorrelation) {
+
+				maxAbsoluteCorrelation = absoluteCorrelation;
+				maxPair = cp;
+			}
+		}
+
+		// =========================================================
+		// ASSI
+		// =========================================================
+
+		gi.setColor(gi.convertColor(
+				Colours.getColor(
+						Color_element.Clenchline_guide,
+						use_dark_mode)));
+
+		// Pearson = 0
+		gi.drawLine(
+				chartX,
+				centerY,
+				chartX + chartWidth,
+				centerY
+		);
+
+		// Delay = 0
+		int zeroX =
+				chartX + chartWidth / 2;
+
+		gi.drawLine(
+				zeroX,
+				chartTop,
+				zeroX,
+				chartBottom
+		);
+
+		// =========================================================
+		// POSIZIONE DEL MASSIMO
+		//
+		// La calcoliamo una volta sola.
+		// =========================================================
+
+		int maxPosX = -1;
+		int maxPosY = -1;
+
+		if (maxPair != null) {
+
+			double normalizedMaxDelay =
+					(double) (maxPair.delay + maxDelaySamples)
+							/ totalDelaySamples;
+
+			int maxSlot =
+					(int) Math.floor(
+							normalizedMaxDelay
+									* numberOfCorrelations
+					);
+
+			if (maxSlot < 0) {
+				maxSlot = 0;
+			}
+
+			if (maxSlot >= numberOfCorrelations) {
+				maxSlot = numberOfCorrelations - 1;
+			}
+
+			maxPosX =
+					chartX
+							+ (int) ((maxSlot + 0.5) * slotWidth);
+
+			double maxCorrelation =
+					Math.max(
+							-1.0,
+							Math.min(1.0, maxPair.correlation)
+					);
+
+			maxPosY =
+					centerY
+							- (int) (maxCorrelation * scaleHeight);
+		}
+
+		// =========================================================
+		// CCF
+		// =========================================================
+
+		for (Correlations.CorrelationPair cp : pairs) {
+
+			// -----------------------------------------------------
+			// Delay espresso in sample
+			// -----------------------------------------------------
+
+			if (cp.delay < -maxDelaySamples
+					|| cp.delay > maxDelaySamples) {
+				continue;
+			}
+
+			// -----------------------------------------------------
+			// NORMALIZZAZIONE DEL DELAY
+			// -----------------------------------------------------
+
+			double normalizedDelay =
+					(double) (cp.delay + maxDelaySamples)
+							/ totalDelaySamples;
+
+			// -----------------------------------------------------
+			// SLOT
+			// -----------------------------------------------------
+
+			int slot =
+					(int) Math.floor(
+							normalizedDelay
+									* numberOfCorrelations
+					);
+
+			if (slot < 0) {
+				slot = 0;
+			}
+
+			if (slot >= numberOfCorrelations) {
+				slot = numberOfCorrelations - 1;
+			}
+
+			// Centro dello slot
+			int posX =
+					chartX
+							+ (int) ((slot + 0.5) * slotWidth);
+
+			// -----------------------------------------------------
+			// CORRELAZIONE
+			// -----------------------------------------------------
+
+			double correlation =
+					Math.max(
+							-1.0,
+							Math.min(1.0, cp.correlation)
+					);
+
+			int posY =
+					centerY
+							- (int) (correlation * scaleHeight);
+
+			// -----------------------------------------------------
+			// COLORE
+			// -----------------------------------------------------
+
+			boolean statisticallyRelevant =
+					Math.abs(cp.correlation)
+							>= THRESHOLD_CORRELATION_MIN
+							&& cp.pValue <= THRESHOLD_P_VALUE_MAX;
+
+			boolean effectRelevant =
+					cp.effectSize >= THRESHOLD_EFFECT_SIZE_MIN;
+
+			if (statisticallyRelevant && effectRelevant) {
+
+				gi.setColor(gi.convertColor(
+						cp.correlation >= 0
+								? Colours.getColor(
+								Color_element.Clenching,
+								use_dark_mode)
+								: Colours.getColor(
+								Color_element.Alarm,
+								use_dark_mode)
+				));
+
+			} else {
+
+				gi.setColor(gi.convertColor(
+						Colours.getColor(
+								Color_element.Clenchline_guide,
+								use_dark_mode)
+				));
+			}
+
+			// -----------------------------------------------------
+			// BARRA CCF
+			// -----------------------------------------------------
+
+			gi.drawLine(
+					posX,
+					centerY,
+					posX,
+					posY
+			);
+		}
+
+		// =========================================================
+		// MARCATORE DEL MASSIMO
+		// =========================================================
+
+		if (maxPair != null && maxPosX >= 0) {
+
+			// -----------------------------------------------------
+			// Linea verticale sul picco
+			// -----------------------------------------------------
+
+			gi.setColor(gi.convertColor(
+					Colours.getColor(
+							Color_element.Text,
+							use_dark_mode)));
+
+			gi.drawLine(
+					maxPosX,
+					chartTop,
+					maxPosX,
+					chartBottom
+			);
+
+			// -----------------------------------------------------
+			// Testo del delay
+			//
+			// sample -> secondi -> minuti
+			// -----------------------------------------------------
+
+			double delayMinutes =
+					maxPair.delay / 60.0;
+
+			String delayText;
+
+			if (Math.abs(delayMinutes) < 0.05) {
+
+				delayText = "0 min";
+
+			} else {
+
+				delayText =
+						String.format(
+								java.util.Locale.US,
+								"%+.1f min",
+								delayMinutes
+						);
+			}
+
+			// -----------------------------------------------------
+			// Posizione del testo
+			//
+			// Lo mettiamo vicino al punto massimo, ma evitiamo
+			// di uscire dal grafico.
+			// -----------------------------------------------------
+
+			gi.setFont("Arial", 10);
+
+			int textW =
+					gi.getStringWidth(delayText);
+
+			int labelX =
+					maxPosX + 4;
+
+			if (labelX + textW > chartX + chartWidth) {
+				labelX =
+						maxPosX - textW - 4;
+			}
+
+			int labelY;
+
+			// Se il picco è nella parte superiore,
+			// scriviamo sotto il punto.
+			if (maxPosY < centerY) {
+				labelY = maxPosY + 12;
+			} else {
+				labelY = maxPosY - 4;
+			}
+
+			// Evita di uscire verticalmente dal grafico.
+			if (labelY < chartTop + 10) {
+				labelY = chartTop + 10;
+			}
+
+			if (labelY > chartBottom - 2) {
+				labelY = chartBottom - 2;
+			}
+
+			gi.drawString(
+					delayText,
+					labelX,
+					labelY
+			);
+
+			// -----------------------------------------------------
+			// Mostriamo anche R accanto al delay
+			// -----------------------------------------------------
+
+			String correlationText =
+					String.format(
+							java.util.Locale.US,
+							"R=%.2f",
+							maxPair.correlation
+					);
+
+			int corrW =
+					gi.getStringWidth(correlationText);
+
+			int corrX =
+					maxPosX + 4;
+
+			if (corrX + corrW > chartX + chartWidth) {
+				corrX =
+						maxPosX - corrW - 4;
+			}
+
+			int corrY = labelY + 11;
+
+			if (corrY > chartBottom) {
+				corrY = labelY - 11;
+			}
+
+			gi.drawString(
+					correlationText,
+					corrX,
+					corrY
+			);
+		}
+
+		// =========================================================
+		// RIPRISTINO FONT
+		// =========================================================
+
+		gi.setFont("Arial", 16);
+	}
 }
