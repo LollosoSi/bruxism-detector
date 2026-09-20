@@ -229,16 +229,45 @@ public class Main {
 	                System.out.println(rawfile.getPath() + " was not found, consider including your raw files.");
 	            }
 	            
-	            gg.setSleepData(FileSleepReader.readCSV("Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
-	            
-	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop(), new DesktopTaskRunner());
+	            File noisefile = new File(String.valueOf(new File(file.getParent() + "/NOISE/" + file.getName().replace(".csv", "_NOISE.csv") )));
+	            File accelfile = new File(String.valueOf(new File(file.getParent() + "/ACCEL/" + file.getName().replace(".csv", "_ACCEL.csv") )));
 
-	           
+
+	            
+	            gg.setSleepData(FileSleepReader.readCSV("./Sleep/" +file.getName().replace(".csv", "")+"/"+ file.getName().replace(".csv", "_sleepdata.csv")));
+	            
+
+	            String clear_date =  file.getName().contains(" ") ? file.getName().split(" ")[0] : file.getName().replace(".csv","");
+	            System.out.println(clear_date);
+	            
 
 	            File outputGraph = new File("./Graphs/" + file.getName().replace(".csv", ".png"));
-	            if (redraw_all || !outputGraph.exists()) {
-	                gg.writeImage(gg.generateGraph(dark_theme), "./Graphs/" + file.getName());
+	            
+	            if(!gg.only_info) {
+	                
+	                if (!outputGraph.exists() || redraw_all) {
+	                    if (rawfile.exists()) {
+	                        ArrayList<RawEvent> rawevents = FileRawEventReader.readCSV(rawfile.getAbsolutePath());
+	                        System.out.println("Rawevents size " + rawevents.size());
+	                        gg.addRawData(rawevents);
+	                    }
+	                    if (noisefile.exists()) {
+	                        ArrayList<NoiseEvent> noises = FileNoiseReader.readCSV(noisefile.getAbsolutePath());
+	                        System.out.println("Noise event size " + noises.size());
+	                        gg.addNoiseData(noises);
+	                    }
+	                    if (accelfile.exists()) {
+	                        ArrayList<NoiseEvent> accel = FileNoiseReader.readCSV(accelfile.getAbsolutePath());
+	                        System.out.println("Accel event size " + accel.size());
+	                        gg.addAccelData(accel);
+	                    }
+	                    
+	    	            gg.setPlatformSpecificAbstractions(new GrapherDesktop(gg.graph_width, gg.graph_height), new IconManagerDesktop(), new DesktopTaskRunner());
+	                    gg.writeImage(gg.generateGraph(dark_theme), "./Graphs/" + file.getName());
+	                }
 	            }
+
+	            
 
 	            return gg.getStats();
 	        }));
@@ -261,15 +290,25 @@ public class Main {
 	    File summaryDir = new File("./Summary/");
 	    summaryDir.mkdirs();
 
-	    try (PrintWriter pw = new PrintWriter("./Summary/summary.csv")) {
+	    try (PrintWriter pw = new PrintWriter("./Summary/Summary.csv")) {
 	        pw.println(sda.get(0).produce_csv_header());
 	        for (StatData sd : sda) {
 	            pw.println(sd.produce_csv_line());
 	        }
+	        
+	        
+	        
 	    } catch (FileNotFoundException e) {
 	        e.printStackTrace();
 	    }
+	    
+	    HeatMapGraph<BufferedImage, Color, Font> hmg = new HeatMapGraph<>();
+	    
+        hmg.setPlatformSpecificAbstractions(new GrapherDesktop(hmg.graph_width, hmg.graph_height), new IconManagerDesktop(), new DesktopTaskRunner());
+        
+        hmg.writeImage(hmg.generateGraphCorrelations(), summaryDir.getPath()+"/Heatmap.png");
 	}
+	
 
 	
 	static void openGraphFolder() {

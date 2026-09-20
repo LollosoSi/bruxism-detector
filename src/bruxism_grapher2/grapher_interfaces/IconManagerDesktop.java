@@ -73,7 +73,7 @@ public class IconManagerDesktop implements IconManager<Color, BufferedImage> {
 	@Override
 	public BufferedImage loadImage(String imagepath, String recolor) {
 		// Aggiunge /src/ prima del nome del file come da tua indicazione
-		return loadImage("/src/" + imagepath, Color.decode(recolor));
+		return loadImage("/" + imagepath, Color.decode(recolor));
 	}
 
 }
