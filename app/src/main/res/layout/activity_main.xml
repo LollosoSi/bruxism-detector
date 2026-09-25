@@ -480,6 +480,7 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/switches_bottom_barrier" />
 
+
                 <!-- ========================================================= -->
                 <!-- RIGA 2: SUMMARY, CALENDAR, GRAPHS                         -->
                 <!-- ========================================================= -->
@@ -730,6 +731,20 @@
                     app:icon="@drawable/start_recording"
                     app:layout_constraintStart_toEndOf="@id/button_test"
                     app:layout_constraintTop_toBottomOf="@id/data_sharing" />
+
+                <Button
+                    android:id="@+id/firmware"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:onClick="startota"
+                    android:text="OTA"
+                    android:visibility="gone"
+                    app:icon="@drawable/start_recording"
+                    app:layout_constraintStart_toEndOf="@id/button_startcatcher"
+                    app:layout_constraintTop_toBottomOf="@id/data_sharing" />
+
+
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

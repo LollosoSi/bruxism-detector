@@ -54,11 +54,14 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.InterfaceAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -604,23 +607,26 @@ public void exit(){
         try {
             this.sendPort = sendPort;
             this.receivePort = receivePort;
-            multicastAddress = InetAddress.getByName("239.255.0.1");
 
-            // Set up receiving socket
+            // Prende il broadcast corretto dinamicamente (es. 192.168.43.255)
+            multicastAddress = getBroadcastAddress();
+
+            // Configura il socket di ricezione
             receiveSocket = new MulticastSocket(receivePort);
-            receiveSocket.joinGroup(multicastAddress);
             receiveSocket.setReuseAddress(true);
+            receiveSocket.setBroadcast(true);
 
-            // Set up sending socket
+            // Configura il socket di invio
             sendSocket = new DatagramSocket();
             sendSocket.setReuseAddress(true);
+            sendSocket.setBroadcast(true);
 
             running = true;
             executor.execute(this::receiveUDP);
-            Log.d(TAG, "UDP setup complete. Receiving on port " + receivePort + ", sending on port " + sendPort);
+            Log.d(TAG, "UDP broadcast setup complete using IP: " + multicastAddress.getHostAddress());
 
-        } catch (IOException e) {
-            Log.e(TAG, "Error setting up UDP", e);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up UDP broadcast", e);
         }
     }
 
@@ -892,5 +898,33 @@ public void sendBytes(byte[] data){
         drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
         drawable.draw(canvas);
         return bitmap;
+    }
+
+
+    public static InetAddress getBroadcastAddress() throws Exception {
+        Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+        while (interfaces.hasMoreElements()) {
+            NetworkInterface networkInterface = interfaces.nextElement();
+
+            // Ignora loopback e interfacce spente
+            if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                continue;
+            }
+
+            // Cerca l'indirizzo di broadcast
+            for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                InetAddress broadcast = interfaceAddress.getBroadcast();
+                if (broadcast != null) {
+                    // Di solito l'interfaccia Wi-Fi o Hotspot si chiama "wlan0", "ap0", "swlan0"
+                    String name = networkInterface.getName().toLowerCase();
+                    if (name.contains("wlan") || name.contains("ap") || name.contains("swlan")) {
+                        return broadcast;
+                    }
+                }
+            }
+        }
+
+        // Fallback disperato se non trova nulla
+        return InetAddress.getByName("255.255.255.255");
     }
 }

@@ -136,23 +136,30 @@ public class UDPCatcher extends Service {
     }
 
     // ---- Your existing logic here ----
-    private void setupUDP(int sendPort, int receivePort) {
+    public void setupUDP(int sendPort, int receivePort) {
         try {
             this.sendPort = sendPort;
             this.receivePort = receivePort;
-            multicastAddress = InetAddress.getByName("239.255.0.1");
 
-            // Set up receiving socket
+            // Prende il broadcast corretto dinamicamente (es. 192.168.43.255)
+            multicastAddress = Tracker2.getBroadcastAddress();
+
+            // Configura il socket di ricezione
             receiveSocket = new MulticastSocket(receivePort);
-            receiveSocket.joinGroup(multicastAddress);
             receiveSocket.setReuseAddress(true);
+            receiveSocket.setBroadcast(true);
+
+            // Configura il socket di invio
+            sendSocket = new DatagramSocket();
+            sendSocket.setReuseAddress(true);
+            sendSocket.setBroadcast(true);
 
             running = true;
             executor.execute(this::receiveUDP);
-            Log.d("UDPCatcher", "UDP setup complete. Receiving on port " + receivePort + ", sending on port " + sendPort);
+            Log.d(TAG, "UDP broadcast setup complete using IP: " + multicastAddress.getHostAddress());
 
-        } catch (IOException e) {
-            Log.e("UDPCatcher", "Error setting up UDP", e);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up UDP broadcast", e);
         }
     }
 

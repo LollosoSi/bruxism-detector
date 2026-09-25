@@ -82,7 +82,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.BruxismDetector">
+        android:theme="@style/Theme.BruxismDetector"
+        android:usesCleartextTraffic="true">
 
         <!-- Health connect perms -->
         <meta-data

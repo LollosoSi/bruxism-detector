@@ -90,11 +90,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.MulticastSocket;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -1570,23 +1572,27 @@ public class MainActivity extends AppCompatActivity {
     public void setupUDP(int sendPort, int receivePort) {
         try {
             this.sendPort = sendPort;
-            multicastAddress = InetAddress.getByName("239.255.0.1");
 
-            // Set up receiving socket
+
+            // Prende il broadcast corretto dinamicamente (es. 192.168.43.255)
+            multicastAddress = Tracker2.getBroadcastAddress();
+
+            // Configura il socket di ricezione
             receiveSocket = new MulticastSocket(receivePort);
-            receiveSocket.joinGroup(multicastAddress);
             receiveSocket.setReuseAddress(true);
+            receiveSocket.setBroadcast(true);
 
-            // Set up sending socket
+            // Configura il socket di invio
             sendSocket = new DatagramSocket();
             sendSocket.setReuseAddress(true);
+            sendSocket.setBroadcast(true);
 
             running = true;
             executor.execute(this::receiveUDP);
-            Log.d(TAG, "UDP setup complete. Receiving on port " + receivePort + ", sending on port " + sendPort);
+            Log.d(TAG, "UDP broadcast setup complete using IP: " + multicastAddress.getHostAddress());
 
-        } catch (IOException e) {
-            Log.e(TAG, "Error setting up UDP", e);
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting up UDP broadcast", e);
         }
     }
     private void closeSockets() {
@@ -1688,6 +1694,7 @@ public class MainActivity extends AppCompatActivity {
     boolean recording_clenching = false, recording_non_clenching = false;
     PrintWriter current_outputfile = null;
 
+    private String lastKnownArduinoIp = null;
     public void receiveUDP() {
         byte[] buffer = new byte[10000];
 
@@ -1707,9 +1714,14 @@ public class MainActivity extends AppCompatActivity {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 receiveSocket.receive(packet);
                 byte[] data = packet.getData();
+                final byte[] data_copy = data.clone();
                 int length = packet.getLength();
                 //String message = new String(packet.getData(), 0, packet.getLength());
                 Log.d(TAG, "Received bytes: " + packet.getLength());
+
+                if (packet.getAddress() != null) {
+                    lastKnownArduinoIp = packet.getAddress().getHostAddress();
+                }
 
                 if(check_version){
                     sendUDP(new byte[]{(byte)15});
@@ -1741,6 +1753,9 @@ public class MainActivity extends AppCompatActivity {
 
                     continue;
                 }
+
+
+
                 if(length == 3){
 
                     if(data[0] == 15){
@@ -1760,11 +1775,26 @@ public class MainActivity extends AppCompatActivity {
                                         @Override
                                         public void run() {
 
+                                            /**new AlertDialog.Builder(MainActivity.this)
+                                                    .setTitle("Update Available")
+                                                    .setMessage("A new firmware version is available.\n\n" +
+                                                            "Do you want to update your Arduino over Wi-Fi now?")
+                                                    .setPositiveButton("Update", (dialog, which) -> {
+                                                        if(lastKnownArduinoIp != null) {
+                                                            downloadAndFlashFirmware();
+                                                        } else {
+                                                            Toast.makeText(MainActivity.this, "Cannot find Arduino IP. Wait for connection.", Toast.LENGTH_SHORT).show();
+                                                        }
+                                                    })
+                                                    .setNegativeButton("Later", (dialog, which) -> dialog.dismiss())
+                                                    .setCancelable(true)
+                                                    .show();**/
+
                                             new AlertDialog.Builder(MainActivity.this)
                                                     .setTitle("Update Available")
                                                     .setMessage("A new firmware version is available.\n\n" +
-                                                            "Please update your Arduino device.")
-                                                    .setPositiveButton("OK", (dialog, which) -> dialog.dismiss())
+                                                            "Please update your device.")
+                                                    .setPositiveButton("Ok", (dialog, which) -> {dialog.dismiss();})
                                                     .setCancelable(true)
                                                     .show();
                                         }
@@ -1803,6 +1833,7 @@ public class MainActivity extends AppCompatActivity {
 
                     if (data[0] == 11 && data[5]==data[10]) {
 
+
                         runOnUiThread(new Runnable() {
                             @SuppressLint("SetTextI18n")
                             @Override
@@ -1810,14 +1841,14 @@ public class MainActivity extends AppCompatActivity {
                                 findViewById(R.id.main_container).setVisibility(View.GONE);
                                 findViewById(R.id.reception_layout).setVisibility(View.VISIBLE);
 
-                                ByteBuffer bb = ByteBuffer.wrap(new byte[]{data[1], data[2], data[3], data[4]});
+                                ByteBuffer bb = ByteBuffer.wrap(new byte[]{data_copy[1], data_copy[2], data_copy[3], data_copy[4]});
                                 bb.order(ByteOrder.LITTLE_ENDIAN); // match Arduino's byte order!
                                 int classification_result = (int) bb.getFloat();
 
-                                boolean classification = data[5] != 0;
+                                boolean classification = data_copy[5] != 0;
 
 
-                                ByteBuffer bbb = ByteBuffer.wrap(new byte[]{data[6], data[7], data[8], data[9]});
+                                ByteBuffer bbb = ByteBuffer.wrap(new byte[]{data_copy[6], data_copy[7], data_copy[8], data_copy[9]});
                                 bbb.order(ByteOrder.LITTLE_ENDIAN);
                                 int classification_threshold = bbb.getInt();
 
@@ -1858,6 +1889,8 @@ public class MainActivity extends AppCompatActivity {
                     // inizializza il chart con N barre a zero (UI thread)
                     chart.post(() -> setupChart(numBins));
                     if(findViewById(R.id.recording_holder).getVisibility() == View.GONE) {
+
+
 
                     runOnUiThread(new Runnable() {
                         @SuppressLint("SetTextI18n")
@@ -2092,14 +2125,19 @@ public class MainActivity extends AppCompatActivity {
                     // We don't need this, but I left it to avoid forgetting there is a reserved message size
                 } else if(fftData!=null) {
                     // ricezione dati FFT: ogni float = 4 byte (little-endian)
+
+
+
                     int receivedBins = Math.min(length / 4, fftData.length);
+
+
 
                     //StringBuilder sb = new StringBuilder();
                     //sb.append("Inbound data:");
                     //sb.append(" Bins: ").append(receivedBins);
 
                     for (int i = 0; i < receivedBins; i++) {
-                        float v = ByteBuffer.wrap(data, i * 4, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
+                        float v = ByteBuffer.wrap(data_copy, i * 4, 4).order(ByteOrder.LITTLE_ENDIAN).getFloat();
                         fftData[i] = v;
                         //sb.append(" ").append(i).append(":").append(v);
                     }
@@ -2684,4 +2722,89 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+
+public void startota(View v){
+        downloadAndFlashFirmware();
 }
+    private void downloadAndFlashFirmware() {
+        ProgressingDialog progressDialog = showProgressDialog(MainActivity.this, "Downloading firmware...");
+
+        new Thread(() -> {
+            try {
+                // 1. Scarica il file binario dal sito
+                URL url = new URL("https://www.roccaccino.it/bruxism-detector/main.bin");
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                int fileLength = connection.getContentLength();
+                InputStream input = new BufferedInputStream(connection.getInputStream());
+
+                // Salva il file temporaneamente nella cache dell'app
+                File binFile = new File(getCacheDir(), "main.bin");
+                OutputStream output = new java.io.FileOutputStream(binFile);
+
+                byte[] data = new byte[4096];
+                long total = 0;
+                int count;
+                while ((count = input.read(data)) != -1) {
+                    total += count;
+                    if (fileLength > 0 && progressDialog != null) {
+                        int progress = (int) (total * 50 / fileLength); // Usa il 50% della barra per il download
+                        runOnUiThread(() -> progressDialog.updateProgress(progress));
+                    }
+                    output.write(data, 0, count);
+                }
+                output.flush();
+                output.close();
+                input.close();
+
+                // 2. Esegui il flash tramite la classe ArduinoOTA
+                runOnUiThread(() -> {
+                    if (progressDialog != null)
+                        progressDialog.setMessage("Flashing Arduino...\nDo not disconnect.");
+                });
+
+
+                sendUDP(new byte[]{24}); // Enable update flow
+                Thread.sleep(2000);
+                ArduinoOTA ota = new ArduinoOTA();
+
+// Aggiungiamo il listener per vedere i log in tempo reale
+                ota.setListener(new ArduinoOTA.ProgressListener() {
+                    @Override
+                    public void onProgress(int progressPercent, long bytesSent, long totalBytes) {
+                        // Aggiorna la ProgressBar o stampa lo stato
+                        Log.d("MAIN_UI", "Progresso: " + progressPercent + "%");
+                    }
+
+                    @Override
+                    public void onLog(String message) {
+                        // Stampa i messaggi sullo schermo o nel Logcat
+                        Log.d("MAIN_UI", "OTA Log: " + message);
+                    }
+                });
+
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            ota.flashArduino(lastKnownArduinoIp, binFile); // Sostituisci con l'IP del tuo Arduino
+                        } catch (Exception e) {
+                            Log.e("MAIN_UI", "Errore fatale OTA: " + e.getMessage());
+                        }
+                    }
+                }).start();
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
+    }
+}
+
