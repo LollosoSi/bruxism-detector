@@ -44,6 +44,8 @@ const uint8_t SAVE_WIFI = 20;
 const uint8_t RSSI_WIFI = 21;
 const uint8_t GRACE_ACTIVE = 22;
 const uint8_t REQUEST_UUID = 23;
+const uint8_t ENABLE_UPDATE = 24;
+
 bool is_using_android = false;
 bool do_not_beep_if_android = false;
 bool need_alarm_confirmation = false;
@@ -51,6 +53,7 @@ bool alarm_even_with_android = false;
 uint8_t grace_left_seconds = 0;
 unsigned long ultimoBottone = 0; // Controls grace
 
+bool enable_update_poll = false; // When true, logic and sleep are disabled in favour of update flow
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 

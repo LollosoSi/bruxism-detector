@@ -1,7 +1,6 @@
 #pragma once
 
 #include <EEPROM.h>
-
 #include <string.h>
 
 struct AppConfig {
@@ -15,7 +14,6 @@ struct AppConfig {
   float bias;
   int classification_threshold;
   float weights[weight_length];
-
 };
 
 // Global config
@@ -25,7 +23,7 @@ void save_config() {
   // EEPROM.put saves the entire struct
   // on UNO R4, only changed bytes are written to memory, preserving the lifespan
   EEPROM.put(0, eeprom_config);
-  Serial.println("Saved to EEPROM");
+  DEBUG_PRINTLN("Saved to EEPROM");
 
   tone(BUZZER, Notes::G5, Notes::DottedEighth / 2);
   delay(Notes::DottedEighth/2);
@@ -44,12 +42,15 @@ void load_config(bool force_update = false) {
 
   // Check for first power on or corrupted data
   if (eeprom_config.magic_number != VALID_MAGIC_NUMBER || force_update) {
-    Serial.println("Updating EEPROM");
+    DEBUG_PRINTLN("Updating EEPROM");
     
     // 1. Initialize defaults
     eeprom_config.magic_number = VALID_MAGIC_NUMBER;
-    strcpy(eeprom_config.ssid, ssid);
-    strcpy(eeprom_config.password, password);
+    strncpy(eeprom_config.ssid, ssid, sizeof(eeprom_config.ssid) - 1);
+    eeprom_config.ssid[sizeof(eeprom_config.ssid) - 1] = '\0';
+    
+    strncpy(eeprom_config.password, password, sizeof(eeprom_config.password) - 1);
+    eeprom_config.password[sizeof(eeprom_config.password) - 1] = '\0';
     
     eeprom_config.bias = bias;
     eeprom_config.classification_threshold = classification_threshold;
@@ -58,7 +59,7 @@ void load_config(bool force_update = false) {
     // 2. Save to EEPROM
     save_config();
   } else {
-    Serial.println("EEPROM configuration read.");
+    DEBUG_PRINTLN("EEPROM configuration read.");
   }
 
   if(!use_eeprom_for_svm){
@@ -68,17 +69,22 @@ void load_config(bool force_update = false) {
   }
 
   if(!use_eeprom_for_wifi){
-    strcpy(eeprom_config.ssid, ssid);
-    strcpy(eeprom_config.password, password);
+    strncpy(eeprom_config.ssid, ssid, sizeof(eeprom_config.ssid) - 1);
+    eeprom_config.ssid[sizeof(eeprom_config.ssid) - 1] = '\0';
+    
+    strncpy(eeprom_config.password, password, sizeof(eeprom_config.password) - 1);
+    eeprom_config.password[sizeof(eeprom_config.password) - 1] = '\0';
   }
-
 }
 
-void save_wifi_ssidpassword(String s_ssid, String s_password){
-  strcpy(eeprom_config.ssid, s_ssid.c_str());
-  strcpy(eeprom_config.password, s_password.c_str());
+// Aggiornato per accettare const char* ed evitare allocazioni con la classe String
+void save_wifi_ssidpassword(const char* s_ssid, const char* s_password) {
+  strncpy(eeprom_config.ssid, s_ssid, sizeof(eeprom_config.ssid) - 1);
+  eeprom_config.ssid[sizeof(eeprom_config.ssid) - 1] = '\0';
 
-  // 2. Save
+  strncpy(eeprom_config.password, s_password, sizeof(eeprom_config.password) - 1);
+  eeprom_config.password[sizeof(eeprom_config.password) - 1] = '\0';
+
+  // Salva in EEPROM
   save_config();
 }
-

@@ -49,13 +49,6 @@ tune samsung{
   { DottedQuarter, Eighth, Eighth, DottedQuarter, Half }
 };
 
-tune apple{
-  13,
-  { 1568, 1568, 1865, 1047, 1047, 1865, 1568, 1047, 1397, 1047, 1865, 1047, 1568 },  // Frequencies in Hz
-  { 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300 },               // Duration of each note in milliseconds
-  { 400, 200, 200, 200, 300, 200, 100, 100, 200, 200, 200, 200, 2000 }               // Delay between notes in milliseconds
-};
-
 tune zerb{
   20,
   { F6, Gs6, F6, Gs6, F6, As6, Cs7, As6, Cs7, As6, F6, Gs6, F6, Gs6, F6, F6, Gs6, As6, C7, F6 }, // F6, G#6, F6, G#6, F6, A#6, C#7, A#6, C#7, A#6
@@ -66,7 +59,7 @@ tune zerb{
 // End of Notes namespace
 }
 
-tune* tunes[] = { &Notes::drier, &Notes::samsung, &Notes::apple, &Notes::zerb };
+tune* tunes[] = { &Notes::drier, &Notes::samsung, &Notes::zerb };
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -113,7 +106,8 @@ static const float weights[] = {
 };
 static const float bias = 0.05218686;
 
-static const unsigned int elements_size = 150;  // How many classifications should be collected before batch sending to logger. NOTE: More than 1400 bytes will segment the packet and reception will fail.
+// Default: 150
+static const unsigned int elements_size = 6;  // How many classifications should be collected before batch sending to logger. NOTE: More than 1400 bytes will segment the packet and reception will fail.
 
 static const int weight_length = (sizeof(weights) / sizeof(float));
 static_assert(samples / 2 == weight_length, "Error: Weights are not as many as samples/2");

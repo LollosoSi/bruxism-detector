@@ -8,13 +8,16 @@
 
 #include <ArduinoBLE.h>
 
-BLEService configService("12345678-1234-5678-1234-56789abcdef0");
-BLECharacteristic wifiChar("abcdefab-1234-5678-1234-56789abcdef0", BLEWrite | BLERead, 100);
+
+BLEService configService(PROGMEM("12345678-1234-5678-1234-56789abcdef0"));
+BLECharacteristic wifiChar(PROGMEM("abcdefab-1234-5678-1234-56789abcdef0"), BLEWrite | BLERead, 80);
 
 
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
+
+//#include <ArduinoOTA.h>
 
 bool bleActive = false;
 bool useTCP = false;
@@ -29,10 +32,10 @@ static void button_short_press(bool pressed, bool released);
 extern bool do_not_alarm;
 extern bool do_not_beep;
 
-WiFiUDP udp;                                 // Define UDP object
-WiFiUDP read_udp;                            // Define UDP object
-IPAddress multicastAddress(239, 255, 0, 1);  // Multicast address
-unsigned int multicastPort = 4000;           // Multicast port
+WiFiUDP udp;                                     // Define UDP object
+WiFiUDP read_udp;                                // Define UDP object
+IPAddress broadcastAddress(255, 255, 255, 255);  // Indirizzo di Broadcast Globale
+unsigned int multicastPort = 4000;               // Multicast port
 unsigned int multicastReadPort = 4001;
 
 
@@ -46,7 +49,7 @@ void send_tcp_bytes(const uint8_t* data, size_t len) {
 }
 
 void send_udp_bytes(const uint8_t* data, size_t len) {
-  udp.beginPacket(multicastAddress, multicastPort);
+  udp.beginPacket(broadcastAddress, multicastPort);
   udp.write(data, len);
   udp.endPacket();
 }
@@ -70,12 +73,12 @@ void send_wifi_rssi() {
   uint8_t payload[2];
 
   payload[0] = RSSI_WIFI;
-  payload[1] = (uint8_t)rssi_val; // Safe 1 byte cast
+  payload[1] = (uint8_t)rssi_val;  // Safe 1 byte cast
 
   send_bytes(payload, sizeof(payload));
 }
 
-void send_grace_state(){
+void send_grace_state() {
   uint8_t payload[2];
 
   payload[0] = GRACE_ACTIVE;
@@ -84,7 +87,7 @@ void send_grace_state(){
   send_bytes(payload, sizeof(payload));
 }
 
-void reset_grace_period(){
+void reset_grace_period() {
   ultimoBottone = millis();
 }
 
@@ -98,8 +101,6 @@ void send_parameters_udp() {
   payload[3] = highByte(samples);
 
   send_bytes(payload, sizeof(payload));
-
-  
 }
 
 // 11 bytes: 1 + 4 + 1 + 4 + 1
@@ -147,44 +148,44 @@ void send_version() {
 #include <SHA256.h>
 
 void send_device_uuid() {
-    uint8_t mac[6];
-    WiFi.macAddress(mac); // Recupera il MAC address
+  uint8_t mac[6];
+  WiFi.macAddress(mac);  // Recupera il MAC address
 
-    // Converte il MAC in una stringa formattata
-    char macStr[18];
-    snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X", 
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  // Converte il MAC in una stringa formattata
+  char macStr[18];
+  snprintf(macStr, sizeof(macStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    // Inizializza l'algoritmo SHA256
-    SHA256 sha256;
-    uint8_t hashResult[32]; // SHA-256 produce un output di 32 byte
-    
-    sha256.reset();
-    sha256.update(macStr, strlen(macStr));
-    sha256.finalize(hashResult, sizeof(hashResult));
+  // Inizializza l'algoritmo SHA256
+  SHA256 sha256;
+  uint8_t hashResult[32];  // SHA-256 produce un output di 32 byte
 
-    // Formattiamo i primi 16 byte dell'hash come stringa esadecimale (32 caratteri = formato UUID senza trattini)
-    char uuidHex[33]; // 32 caratteri + terminatore null
-    for (int i = 0; i < 16; i++) {
-        sprintf(&uuidHex[i * 2], "%02x", hashResult[i]);
-    }
+  sha256.reset();
+  sha256.update(macStr, strlen(macStr));
+  sha256.finalize(hashResult, sizeof(hashResult));
 
-    // Costruiamo il payload da inviare ad Android
-    // 1 byte (Comando REQUEST_UUID = 23) + 32 byte (Stringa UUID)
-    uint8_t payload[33];
-    payload[0] = REQUEST_UUID; 
-    memcpy(payload + 1, uuidHex, 32);
+  // Formattiamo i primi 16 byte dell'hash come stringa esadecimale (32 caratteri = formato UUID senza trattini)
+  char uuidHex[33];  // 32 caratteri + terminatore null
+  for (int i = 0; i < 16; i++) {
+    sprintf(&uuidHex[i * 2], "%02x", hashResult[i]);
+  }
 
-    // Invia i dati usando il metodo di connessione attivo (TCP o UDP)
-    send_bytes(payload, sizeof(payload));
+  // Costruiamo il payload da inviare ad Android
+  // 1 byte (Comando REQUEST_UUID = 23) + 32 byte (Stringa UUID)
+  uint8_t payload[33];
+  payload[0] = REQUEST_UUID;
+  memcpy(payload + 1, uuidHex, 32);
+
+  // Invia i dati usando il metodo di connessione attivo (TCP o UDP)
+  send_bytes(payload, sizeof(payload));
 }
 
 
 void received_packet(char* packetBuffer, int len) {
-  Serial.print("Read ");
-  Serial.print((int)len);
-  Serial.print(": ");
-  Serial.println((int)packetBuffer[0]);
+  DEBUG_PRINT("Read ");
+  DEBUG_PRINT((int)len);
+  DEBUG_PRINT(": ");
+  DEBUG_PRINTLN((int)packetBuffer[0]);
 
   if (len > 0) {
     packetBuffer[len] = 0;
@@ -192,65 +193,69 @@ void received_packet(char* packetBuffer, int len) {
     if (packetBuffer[0] == SAVE_WEIGHTS) {
       // Calcola la lunghezza esatta attesa in modo dinamico
       size_t expected_len = 1 + sizeof(eeprom_config.bias) + sizeof(eeprom_config.classification_threshold) + sizeof(eeprom_config.weights);
-      
+
       if (len == expected_len) {
-        
+
         // 1. Extract bias
         memcpy(&eeprom_config.bias, &packetBuffer[1], sizeof(eeprom_config.bias));
-        
+
         // 2. Extract threshold (1 + 4 bytes)
         memcpy(&eeprom_config.classification_threshold, &packetBuffer[1 + sizeof(eeprom_config.bias)], sizeof(eeprom_config.classification_threshold));
-        
+
         // 3. Extract weights (1 + 4 bias + 4 threshold)
         memcpy(eeprom_config.weights, &packetBuffer[1 + sizeof(eeprom_config.bias) + sizeof(eeprom_config.classification_threshold)], sizeof(eeprom_config.weights));
 
         // Print
-        Serial.println("\n--- Received Weights via UDP ---");
-        Serial.print("Bias: ");
-        Serial.println(eeprom_config.bias, 8);
-        Serial.print("Threshold: ");
-        Serial.println(eeprom_config.classification_threshold);
-        Serial.println("Weights: ");
-        for(int i = 0; i < weight_length; i++) {
-          Serial.print(eeprom_config.weights[i], 8);
-          Serial.print(" ");
+        DEBUG_PRINTLN("\n--- Received Weights via UDP ---");
+        DEBUG_PRINT("Bias: ");
+        DEBUG_PRINTLN(eeprom_config.bias, 8);
+        DEBUG_PRINT("Threshold: ");
+        DEBUG_PRINTLN(eeprom_config.classification_threshold);
+        DEBUG_PRINTLN("Weights: ");
+        for (int i = 0; i < weight_length; i++) {
+          DEBUG_PRINT(eeprom_config.weights[i], 8);
+          DEBUG_PRINT(" ");
 
-          if ((i + 1) % 4 == 0) Serial.println(); 
+          if ((i + 1) % 4 == 0) DEBUG_PRINTLN();
         }
-        Serial.println("-----------------------------------\n");
+        DEBUG_PRINTLN("-----------------------------------\n");
 
         // 4. Save to EEPROM
         save_config();
 
         // 5. Restart (optional, but let's do it)
         NVIC_SystemReset();
-        
+
       } else {
-        Serial.print("Received SAVE_WEIGHTS, but wrong length. Expected: ");
-        Serial.print(expected_len);
-        Serial.print(" Received: ");
-        Serial.println(len);
+        DEBUG_PRINT("Received SAVE_WEIGHTS, but wrong length. Expected: ");
+        DEBUG_PRINT(expected_len);
+        DEBUG_PRINT(" Received: ");
+        DEBUG_PRINTLN(len);
       }
     } else if (packetBuffer[0] == SAVE_WIFI) {
-      
-      // Estrapoliamo la stringa partendo dal secondo byte (indice 1)
-      String config = String(&packetBuffer[1]);
-      
-      int sep = config.indexOf('\"');
+      // Assicuriamoci che il buffer sia terminato correttamente
+      packetBuffer[len] = '\0';
+      char* config = &packetBuffer[1];
 
-      if (sep > 0) {
-        String newSSID = config.substring(0, sep);
-        String newPASS = config.substring(sep + 1);
+      // Cerchiamo la posizione del carattere separatore '\"'
+      char* sep = strchr(config, '\"');
 
-        // Chiamiamo la funzione che salva permanentemente in EEPROM
+      if (sep != nullptr) {
+        // Sostituiamo temporaneamente le virgolette con il terminatore di stringa '\0'
+        // In questo modo 'config' diventa direttamente la stringa SSID pulita!
+        *sep = '\0';
+        char* newSSID = config;
+        char* newPASS = sep + 1;
+
+        // Salviamo in EEPROM usando le funzioni che accettano char* o String temporanee
         save_wifi_ssidpassword(newSSID, newPASS);
-        
-        Serial.print("New WiFi credentials saved! SSID: ");
-        Serial.println(newSSID);
+
+        DEBUG_PRINT("New WiFi credentials saved! SSID: ");
+        DEBUG_PRINTLN(newSSID);
 
         NVIC_SystemReset();
       } else {
-        Serial.println("Error: invalid WiFi format.");
+        DEBUG_PRINTLN("Error: invalid WiFi format.");
       }
     }
   }
@@ -325,12 +330,37 @@ void received_packet(char* packetBuffer, int len) {
         // Generate and respond with UUID
         send_device_uuid();
         break;
+
+      case ENABLE_UPDATE:
+        tone(BUZZER, Notes::F6, Notes::DottedEighth / 4);
+        // 1. Chiudiamo esplicitamente i socket UDP/TCP di normale esercizio per liberare l'hardware di rete dell'ESP32
+        udp.stop();
+        read_udp.stop();
+        if (useTCP && tcpClient) {
+          tcpClient.stop();
+          tcpServer.end();
+        }
+
+        digitalWrite(13, 1);
+
+        // 2. Breve pausa per permettere all'ESP32 di rilasciare i socket
+        delay(100);
+
+        // 3. Avviamo l'OTA in modo pulito
+        //ArduinoOTA.begin(WiFi.localIP(), "BruxismDetector", "", InternalStorage);
+
+        // 4. Attiviamo il flag che congela tutto il resto nel loop principale
+        enable_update_poll = true;
+
+        // 5. Un singolo beep rapido e non bloccante (o saltalo del tutto se dà fastidio)
+        DEBUG_PRINTLN("Modalità OTA attivata. In attesa di upload...");
+        break;
     }
   }
   if (len == 3) {
     if (packetBuffer[0] == SET_EVALUATION_THRESHOLD) {
       int reception = (uint8_t)packetBuffer[1] | ((uint8_t)packetBuffer[2] << 8);
-      if(reception != eeprom_config.classification_threshold){
+      if (reception != eeprom_config.classification_threshold) {
         eeprom_config.classification_threshold = reception;
 
         // Save to EEPROM
@@ -360,39 +390,52 @@ void setup_wifi() {
     BLE.poll();
 
     if (wifiChar.written()) {
-      String config = String((const char*)wifiChar.value());
+      const char* config = (const char*)wifiChar.value();
       bool shouldSave = false;
 
-      // Starts with !S! : save and reboot
-      if (config.startsWith("!S!")) {
+      if (strncmp(config, "!S!", 3) == 0) {
         shouldSave = true;
-        config = config.substring(3); // Remove prefix
+        config += 3;  // Salta il prefisso
       }
 
-      int sep = config.indexOf('\"');
+      char configCopy[100];
+      strncpy(configCopy, config, sizeof(configCopy) - 1);
+      configCopy[sizeof(configCopy) - 1] = '\0';
 
-      Serial.print("Received from BLE: ");
-      Serial.println(config);
-
-      if (sep > 0) {
-        String newSSID = config.substring(0, sep);
-        String newPASS = config.substring(sep + 1);
+      char* sep = strchr(configCopy, '\"');
+      if (sep != nullptr) {
+        *sep = '\0';
+        char* newSSID = configCopy;
+        char* newPASS = sep + 1;
 
         if (shouldSave) {
           save_wifi_ssidpassword(newSSID, newPASS);
-          Serial.println("WiFi saved via BLE. Rebooting...");
-
-          NVIC_SystemReset(); // Reset as per UDP
+          NVIC_SystemReset();
         }
 
-        // If !S! is not present : TCP mode
-        connection_comes_from_BLE = true;
-        WiFi.disconnect();
-        WiFi.begin(newSSID.c_str(), newPASS.c_str());
-        count = 1;
-        Serial.println("TCP mode");
+        DEBUG_PRINT("Received from BLE: ");
+        DEBUG_PRINTLN(config);
+
+        if (sep > 0) {
+
+
+          if (shouldSave) {
+            save_wifi_ssidpassword(newSSID, newPASS);
+            DEBUG_PRINTLN("WiFi saved via BLE. Rebooting...");
+
+            NVIC_SystemReset();  // Reset as per UDP
+          }
+
+          // If !S! is not present : TCP mode
+          connection_comes_from_BLE = true;
+          WiFi.disconnect();
+          WiFi.begin(newSSID, newPASS);
+          count = 1;
+          DEBUG_PRINTLN("TCP mode");
+        }
       }
     }
+
 
     if (count++ == 0) {
       // Reset
@@ -404,7 +447,7 @@ void setup_wifi() {
 
 
 
-if (connection_comes_from_BLE) {
+  if (connection_comes_from_BLE) {
     useTCP = true;  // If BLE was used to configure, prefer TCP
 
     // Wait to have an address assigned
@@ -420,8 +463,8 @@ if (connection_comes_from_BLE) {
 
     // Write IP as BLE characteristic
     wifiChar.writeValue(ipStr);
-    Serial.print("BLE: IP sent: ");
-    Serial.println(ipStr);
+    DEBUG_PRINT("BLE: IP sent: ");
+    DEBUG_PRINTLN(ipStr);
 
     // Wait for android to read and close BLE (max 4 seconds)
     unsigned long bleStartWait = millis();
@@ -440,20 +483,20 @@ if (connection_comes_from_BLE) {
 
   if (useTCP) {
     tcpServer.begin();
-    Serial.println("TCP server started on port 9334");
+    DEBUG_PRINTLN("TCP server started on port 9334");
   } else {
-    udp.beginMulticast(multicastAddress, multicastPort);
-    read_udp.beginMulticast(multicastAddress, multicastReadPort);
+    udp.begin(multicastPort);
+    read_udp.begin(multicastReadPort);
   }
 
-    send_wifi_rssi();
+  send_wifi_rssi();
 }
 
 
-unsigned long last_send_rssi = 10000; // First send after at least 10 seconds
-const unsigned long rssi_send_interval = 3000; // Periodically send RSSI
+unsigned long last_send_rssi = 10000;           // First send after at least 10 seconds
+const unsigned long rssi_send_interval = 3000;  // Periodically send RSSI
 
-inline void loop_wifi() {
+inline void loop_wifi(unsigned long& now) {
 
   char packetBuffer[255];  // Buffer to store incoming messages
   int len = 0;
@@ -484,8 +527,7 @@ inline void loop_wifi() {
     }
   }
 
-  unsigned long now = millis();
-  if (now - last_send_rssi > (grace_left_seconds == 0 ? rssi_send_interval : 1000)){
+  if (now - last_send_rssi > (grace_left_seconds == 0 ? rssi_send_interval : 1000)) {
     last_send_rssi = now;
     send_wifi_rssi();
     send_grace_state();

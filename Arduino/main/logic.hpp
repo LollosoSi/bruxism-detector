@@ -12,27 +12,14 @@
 
 // Custom debounce class
 #include "debounce.hpp"
-const unsigned long updateInterval = 10;  // Debounce sampling interval: 10ms (100 Hz)
+const unsigned long updateInterval = 5;  // Debounce sampling interval: 10ms (100 Hz)
 unsigned long lastUpdate = 0;
 
-
-static void button_longer_press(bool pressed, bool released);
 static void button_long_press(bool pressed, bool released);
 static void button_short_press(bool pressed, bool released);
 
 static ButtonDebounce button_input_short(50, button_short_press);
 static ButtonDebounce button_input_long(800, button_long_press);
-static ButtonDebounce button_input_longer(9000, button_longer_press);
-
-bool is_ema_procedure = false;
-bool is_calc_ema = false;
-bool is_calc_b = true;
-float EMA_A = 0, EMA_B = 0;
-float min_b = 0;
-const float alpha = 0.1f;
-static void emacalc(float& EMA, float x) {
-  EMA = (alpha * x) + ((1 - alpha) * EMA);
-}
 
 // Variabili di stato
 bool eventoInCorso = false;
@@ -51,7 +38,7 @@ bool started_sent = false;
 
 bool alarm_running = 0;
 bool confirm_android_alarm_stopped = false;
-void alarm_stoppped_confirmed() {
+inline void alarm_stoppped_confirmed() {
   confirm_android_alarm_stopped = false;
 }
 
@@ -60,7 +47,7 @@ bool do_not_beep = false;
 
 long last_tone_ms = 0, last_flash = 0;
 
-void add_to_elements(bool b, float f) {
+inline void add_to_elements(bool b, float f) {
   data_elements[elements_cursor++] = { millis(), b, f };
 
   if (elements_cursor == elements_size) {
@@ -69,7 +56,7 @@ void add_to_elements(bool b, float f) {
   }
 }
 unsigned long alarm_start = 0;
-void trigger_alarm() {
+inline void trigger_alarm() {
   alarm_running = true;
   beepCounter = numeroMaxBeep;
   eventoInCorso = false;
@@ -79,10 +66,10 @@ void trigger_alarm() {
   }
 }
 
-void warning_beep() {
+inline void warning_beep() {
   if (do_not_beep)
     return;
-  Serial.println("Beep!");
+  DEBUG_PRINTLN("Beep!");
 
   send_event(BEEP);
   if (do_not_beep_if_android && is_using_android) {
@@ -147,11 +134,11 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
       esitoFiltraggio = count >= (2 * (campioniFiltraggio / 3));
       indice_campione = 0;
       if (stream_FFT) {
-        Serial.print(campioniFiltraggio);
-        Serial.print(" in ");
-        Serial.print(tempoAttuale - inizioFiltraggio);
-        Serial.print("ms\tEsito");
-        Serial.println(esitoFiltraggio);
+        DEBUG_PRINT(campioniFiltraggio);
+        DEBUG_PRINT(" in ");
+        DEBUG_PRINT(tempoAttuale - inizioFiltraggio);
+        DEBUG_PRINT("ms\tEsito");
+        DEBUG_PRINTLN(esitoFiltraggio);
       }
 
       inizioFiltraggio = tempoAttuale;
@@ -162,8 +149,8 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
   grace_left_seconds = isGraceActive ? (periodoGrazia - (tempoAttuale - ultimoBottone)) / 1000 : 0;
 
   if (isGraceActive || !filtraggioCompletato || alarm_running) {
-    
-    
+
+
 
 
     return;
@@ -176,7 +163,7 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
       if (tempoAttuale - ultimoPositivo < periodoAttesa) {
         // Se l'evento torna positivo entro 10s, continua l'evento precedente
         eventoInCorso = true;
-        Serial.println("Evento ripreso!");
+        DEBUG_PRINTLN("Evento ripreso!");
         send_event(CONTINUED);
 
 
@@ -185,7 +172,7 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
         inizioEvento = tempoAttuale;
         eventoInCorso = true;
         beepCounter = 0;
-        Serial.println("Nuovo evento iniziato");
+        DEBUG_PRINTLN("Nuovo evento iniziato");
         send_event(DETECTED);
       }
     }
@@ -207,7 +194,7 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
 
           beepCounter++;
         } else if (!alarm_running) {
-          Serial.println("Allarme attivato!");
+          DEBUG_PRINTLN("Allarme attivato!");
 
           trigger_alarm();
           send_event(ALARM_START);
@@ -220,7 +207,7 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
     if (eventoInCorso && (tempoAttuale - ultimoPositivo > periodoAttesa)) {
       eventoInCorso = false;
       if (started_sent) {
-        Serial.println("Evento terminato");
+        DEBUG_PRINTLN("Evento terminato");
         send_event(CLENCH_STOP);
 
         started_sent = false;
@@ -231,29 +218,18 @@ void trigger_system(int classificazione, float& result, unsigned long tempoAttua
 
 unsigned long last_button_press = 0;
 uint8_t press_count = 0;
-bool beep_incremental = false;
 
-void setup_logic() {
+inline void setup_logic() {
   pinMode(BUTTON, INPUT_PULLUP);
 }
 
-inline void loop_logic() {
+inline void loop_logic(unsigned long &now) {
   float result = 0;
 
   if (new_fft_data) {
     new_fft_data = false;
-    if (!is_calc_ema)
-      trigger_system(classify(vReal, result), result, millis());
-    else {
-      classify(vReal, result);
+    trigger_system(classify(vReal, result), result, now);
 
-      emacalc(is_calc_b ? EMA_B : EMA_A, result);
-
-      if (is_calc_b) {
-        if (result < min_b || min_b == 0)
-          min_b = result;
-      }
-    }
 
     if (stream_FFT)
       send_to_udp();
@@ -262,98 +238,18 @@ inline void loop_logic() {
   loop_alarm();
 
 
-
-
-  unsigned long now = millis();
   if (now - lastUpdate >= updateInterval) {
     lastUpdate = now;
     bool btread = !digitalRead(BUTTON);
     button_input_short.update(btread);
     if (millis() < 120000) {
       button_input_long.update(btread);
-      button_input_longer.update(btread);
-
-      if (beep_incremental && millis() - last_button_press > 3000) {
-        tone(BUZZER, map(millis() - last_button_press, 3000, 10000, 1500, 1700), 30);
-        delay(100);
-      }
     }
   }
 }
 
 static void button_short_press(bool pressed, bool released) {
   if (pressed) {
-
-    if (is_ema_procedure) {
-      tone(BUZZER, 1000, 100);
-
-      if (is_calc_ema) {
-        is_calc_ema = false;
-
-        if (is_calc_b && (EMA_A != 0 && EMA_B != 0)) {
-          tone(BUZZER, Notes::E5, 100);
-          delay(200);
-          tone(BUZZER, Notes::E5, 100);
-          delay(150);
-          tone(BUZZER, Notes::B6, 250);
-          delay(200);
-
-          // Time for results:
-          Serial.print("Calibration results:\nAverage NON CLENCHING: ");
-          Serial.print(EMA_A);
-          Serial.print("\tAverage CLENCHING: ");
-          Serial.print(EMA_B);
-          Serial.print("\tmin: ");
-          Serial.println(min_b);
-
-          float suggested_threshold = EMA_B - (abs(EMA_A - EMA_B) * 0.3f);
-          Serial.print("Suggested threshold: ");
-          Serial.println(suggested_threshold);
-          EMA_A = 0;
-          EMA_B = 0;
-          min_b = 0;
-          is_ema_procedure = false;
-          return;
-        } else {
-          tone(BUZZER, Notes::As5, 250);
-          delay(100);
-          tone(BUZZER, Notes::Gs5, 250);
-        }
-
-        is_calc_b = !is_calc_b;
-
-        if (is_calc_b) {
-          Serial.print("Clench and press button once: ");
-        }
-
-        return;
-      }
-
-
-      if (is_calc_b) {
-
-        Serial.println("RECORDING NOW, PRESS TO STOP");
-        tone(BUZZER, Notes::G5, 50);
-        delay(150);
-        tone(BUZZER, Notes::G5, 50);
-        delay(50);
-        tone(BUZZER, Notes::C6, 50);
-
-        is_calc_ema = true;
-
-      } else {
-        Serial.println("RECORDING NOW, PRESS TO STOP");
-
-        tone(BUZZER, Notes::G5, 50);
-        delay(150);
-        tone(BUZZER, Notes::G5, 50);
-        delay(50);
-        tone(BUZZER, Notes::C6, 50);
-
-        is_calc_ema = true;
-      }
-      return;
-    }
 
 #ifdef TESTING_TONES
     alarm_running = !alarm_running;
@@ -396,32 +292,13 @@ static void button_short_press(bool pressed, bool released) {
   }
 }
 
-static void button_longer_press(bool pressed, bool released) {
-  if (pressed) {
-    tone(BUZZER, Notes::Ds6, 250);
-    delay(100);
-    tone(BUZZER, Notes::Gs6, 250);
-    is_ema_procedure = true;
-    is_calc_ema = false;
-    last_button_press = 0;
-    is_calc_b = false;
-    EMA_A = 0;
-    EMA_B = 0;
-    min_b = 0;
-    Serial.print("Relax and press button once: ");
-    beep_incremental = false;
-  }
-}
 static void button_long_press(bool pressed, bool released) {
-  if (released && !is_ema_procedure) {
+  if (pressed) {
     stream_FFT = !stream_FFT;
+    tone(BUZZER, Notes::Ds6, 150);
+    delay(100);
     tone(BUZZER, stream_FFT ? 2000 : 2400, 50);
     delay(100);
     tone(BUZZER, !stream_FFT ? 2000 : 2400, 50);
-    beep_incremental = false;
-  } else if (pressed) {
-    beep_incremental = true;
-    tone(BUZZER, Notes::Ds6, 150);
-    delay(100);
   }
 }
